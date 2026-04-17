@@ -1,0 +1,59 @@
+# --- Build output -------------------------------------------------------------
+dist/
+out/
+build/
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# --- Dependencies -------------------------------------------------------------
+node_modules/
+.pnp.*
+
+# --- Env / secrets ------------------------------------------------------------
+# Never commit these — they can contain signing keys, API tokens, etc.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.mobileprovision
+
+# --- Bundled installers (build artifacts, should come from releases) ----------
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+*.msi
+*.app/
+*.app.tar.gz
+*.app.tar.gz.sig
+
+# --- Editor / IDE -------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- OS ----------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Logs --------------------------------------------------------------------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Test / coverage ---------------------------------------------------------
+coverage/
+.nyc_output/
+
+# --- Misc --------------------------------------------------------------------
+# Stray shell-expansion artifacts (accidental `cd ~/...` with quoting bugs)
+~/
+# Temporary files
+*.tmp
+*.bak
