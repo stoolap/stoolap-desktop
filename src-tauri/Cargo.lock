@@ -4030,6 +4030,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 [[package]]
 name = "stoolap"
 version = "0.4.0"
+source = "git+https://github.com/stoolap/stoolap?branch=main#b7fbcfde526e6c6fb545010bf2c4743f6f68bc17"
 dependencies = [
  "ahash",
  "anyhow",
@@ -4073,7 +4074,7 @@ dependencies = [
 
 [[package]]
 name = "stoolap-desktop"
-version = "0.4.0"
+version = "0.1.0"
 dependencies = [
  "cocoa",
  "objc",

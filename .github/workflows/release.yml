@@ -8,12 +8,6 @@ on:
 permissions:
   contents: write
 
-# Pin the stoolap engine version. The desktop app uses a path dependency on
-# `../../stoolap`, so CI clones the engine at the expected relative location
-# before building.
-env:
-  STOOLAP_ENGINE_REF: main
-
 jobs:
   build:
     strategy:
@@ -40,20 +34,8 @@ jobs:
     name: Build - ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout stoolap-desktop
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          path: stoolap-desktop
-
-      # The desktop app's Cargo.toml references stoolap via a relative path
-      # (`../../stoolap`). Clone the engine at that location so the build
-      # resolves it the same way local dev does.
-      - name: Checkout stoolap engine
-        uses: actions/checkout@v4
-        with:
-          repository: stoolap/stoolap
-          ref: ${{ env.STOOLAP_ENGINE_REF }}
-          path: stoolap
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -63,7 +45,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: stoolap-desktop/src-tauri
+          workspaces: src-tauri
           key: ${{ matrix.target }}
 
       - name: Install Linux system dependencies
@@ -82,10 +64,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: stoolap-desktop/package-lock.json
 
       - name: Install npm dependencies
-        working-directory: stoolap-desktop
         run: npm ci
 
       - name: Build, sign, and publish
@@ -103,7 +83,6 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
-          projectPath: stoolap-desktop
           tagName: ${{ github.ref_name }}
           releaseName: 'Stoolap Desktop ${{ github.ref_name }}'
           releaseBody: |

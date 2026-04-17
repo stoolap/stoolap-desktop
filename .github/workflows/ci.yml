@@ -11,9 +11,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  STOOLAP_ENGINE_REF: main
-
 jobs:
   lint-frontend:
     name: Lint Frontend
@@ -47,17 +44,7 @@ jobs:
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout stoolap-desktop
-        uses: actions/checkout@v4
-        with:
-          path: stoolap-desktop
-
-      - name: Checkout stoolap engine
-        uses: actions/checkout@v4
-        with:
-          repository: stoolap/stoolap
-          ref: ${{ env.STOOLAP_ENGINE_REF }}
-          path: stoolap
+      - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -68,7 +55,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: stoolap-desktop/src-tauri
+          workspaces: src-tauri
           key: ${{ matrix.target }}
 
       - name: Install Linux system dependencies
@@ -87,20 +74,17 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: stoolap-desktop/package-lock.json
 
       - name: Install npm dependencies (for beforeBuildCommand)
-        working-directory: stoolap-desktop
         run: npm ci
 
       - name: Build frontend (Tauri expects dist/)
-        working-directory: stoolap-desktop
         run: npm run vite:build
 
       - name: Clippy (deny warnings)
-        working-directory: stoolap-desktop/src-tauri
+        working-directory: src-tauri
         run: cargo clippy --all-targets --all-features --target ${{ matrix.target }} -- -D warnings
 
       - name: Cargo check
-        working-directory: stoolap-desktop/src-tauri
+        working-directory: src-tauri
         run: cargo check --target ${{ matrix.target }}

@@ -1,6 +1,6 @@
 [package]
 name = "stoolap-desktop"
-version = "0.4.0"
+version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
 
@@ -12,7 +12,7 @@ tauri-plugin-notification = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
-stoolap = { path = "../../stoolap", default-features = false, features = ["parallel"] }
+stoolap = { git = "https://github.com/stoolap/stoolap", branch = "main", default-features = false, features = ["parallel"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1", features = ["v4"] }
