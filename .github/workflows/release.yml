@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write
 
+# Re-pushing a tag cancels the older run so we don't pile up queued jobs.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     strategy:
