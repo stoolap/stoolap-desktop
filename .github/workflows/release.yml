@@ -94,12 +94,28 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Stoolap Desktop ${{ github.ref_name }}'
           releaseBody: |
-            See the assets below to download and install.
+            ## Downloads
 
-            **macOS (Apple Silicon)**: `*_aarch64.dmg`
-            **macOS (Intel)**: `*_x64.dmg`
-            **Linux x64**: `*.AppImage` or `*.deb`
-            **Windows x64**: `*-setup.exe` or `*.msi`
+            Pick the installer for your operating system.
+
+            | Platform | File | Notes |
+            |----------|------|-------|
+            | **macOS — Apple Silicon** (M1/M2/M3/M4) | `Stoolap.Desktop_${{ github.ref_name }}_aarch64.dmg` | Recommended for all Apple Silicon Macs |
+            | **macOS — Intel** | `Stoolap.Desktop_${{ github.ref_name }}_x64.dmg` | For Intel-based Macs (pre-2020) |
+            | **Windows 10 / 11** | `Stoolap.Desktop_${{ github.ref_name }}_x64-setup.exe` | Recommended. Or `_x64_en-US.msi` for admin deployment |
+            | **Linux — Debian / Ubuntu** | `Stoolap.Desktop_${{ github.ref_name }}_amd64.deb` | `sudo dpkg -i <file>` |
+            | **Linux — Fedora / RHEL** | `Stoolap.Desktop-${{ github.ref_name }}-1.x86_64.rpm` | `sudo rpm -i <file>` |
+            | **Linux — any distro** | `Stoolap.Desktop_${{ github.ref_name }}_amd64.AppImage` | Portable; `chmod +x` then run |
+
+            ### Not sure which Mac you have?
+            Click the Apple menu → **About This Mac**. *Apple M1/M2/M3/M4* → use `aarch64`. *Intel* → use `x64`.
+
+            ### Auto-update
+            Installed apps check for new releases on launch. You can also trigger a check manually from **Stoolap Desktop → Check for Updates…** (macOS) or the Help menu (Linux / Windows).
+
+            ---
+
+            The `.sig` and `.app.tar.gz` files next to each installer are used by the auto-updater — you do not need to download them.
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
