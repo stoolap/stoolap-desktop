@@ -172,6 +172,22 @@ export function Toolbar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connect]);
 
+  // Silent auto-check on launch. Wait a few seconds so the first-paint feels
+  // instant, then only pop the dialog if an update is actually available —
+  // users who are up-to-date don't see anything.
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        const result = await native.checkForUpdate();
+        if (result.available) setUpdateOpen(true);
+      } catch {
+        // Network failure, signature mismatch, etc. — silently ignore on
+        // auto-check; the user can still trigger a manual check from the menu.
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleLoadExample = async () => {
     const existing = connections.find((c) => c.name === "Example DB");
     if (existing) {

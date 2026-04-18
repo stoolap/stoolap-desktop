@@ -29,7 +29,8 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 
 ## Screenshots
 
-> *(add screenshots here: SQL editor, data grid, vector search dialog, schema tree)*
+<img src="docs/assets/img/desktop-light.png#gh-light-mode-only" alt="Stoolap Desktop" width="100%">
+<img src="docs/assets/img/desktop-dark.png#gh-dark-mode-only" alt="Stoolap Desktop" width="100%">
 
 ## Features
 
