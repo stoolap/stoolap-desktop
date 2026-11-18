@@ -23,7 +23,11 @@ pub fn find() -> Option<PathBuf> {
 
 /// Find a CLI by its file names. Apps started from the Dock or Start menu
 /// don't get the shell's PATH, so look in the usual install places too.
-pub(super) fn find_named(names: &[&str], command: &str) -> Option<PathBuf> {
+pub(super) fn find_named(
+    names: &[&str],
+    // Only the login-shell lookup uses it, and Windows has none
+    #[cfg_attr(windows, allow(unused_variables))] command: &str,
+) -> Option<PathBuf> {
     let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
     let mut dirs: Vec<PathBuf> = std::env::var_os("PATH")
         .map(|p| std::env::split_paths(&p).collect())
