@@ -20,11 +20,11 @@ jobs:
       matrix:
         include:
           - name: macOS (Apple Silicon)
-            os: macos-14
+            os: macos-latest
             target: aarch64-apple-darwin
             args: --target aarch64-apple-darwin
           - name: macOS (Intel)
-            os: macos-14  # Cross-compile on Apple Silicon — macos-13 Intel runners queue forever
+            os: macos-latest  # Cross-compile on Apple Silicon — macos-13 Intel runners queue forever
             target: x86_64-apple-darwin
             args: --target x86_64-apple-darwin
           - name: Linux x64
