@@ -45,3 +45,10 @@ pub fn get_accent_color() -> String {
 pub fn get_version(app: AppHandle) -> String {
     app.package_info().version.to_string()
 }
+
+#[tauri::command]
+pub fn get_stoolap_version() -> String {
+    // Same string `SELECT VERSION()` returns:
+    //   "stoolap {VERSION} (commit: {GIT_COMMIT}, built: {BUILD_TIME})"
+    stoolap::common::version_info()
+}
