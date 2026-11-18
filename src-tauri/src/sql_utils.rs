@@ -1,25 +1,25 @@
 /// Strip SQL comments (line and block) while preserving string literals.
 pub fn strip_comments(sql: &str) -> String {
     let bytes = sql.as_bytes();
-    let mut result = String::with_capacity(sql.len());
+    let mut result: Vec<u8> = Vec::with_capacity(sql.len());
     let mut i = 0;
     let len = bytes.len();
 
     while i < len {
         // Single-quoted string
         if bytes[i] == b'\'' {
-            result.push('\'');
+            result.push(b'\'');
             i += 1;
             while i < len {
                 if bytes[i] == b'\'' && i + 1 < len && bytes[i + 1] == b'\'' {
-                    result.push_str("''");
+                    result.extend_from_slice(b"''");
                     i += 2;
                 } else if bytes[i] == b'\'' {
-                    result.push('\'');
+                    result.push(b'\'');
                     i += 1;
                     break;
                 } else {
-                    result.push(bytes[i] as char);
+                    result.push(bytes[i]);
                     i += 1;
                 }
             }
@@ -27,18 +27,18 @@ pub fn strip_comments(sql: &str) -> String {
         }
         // Double-quoted identifier
         if bytes[i] == b'"' {
-            result.push('"');
+            result.push(b'"');
             i += 1;
             while i < len {
                 if bytes[i] == b'"' && i + 1 < len && bytes[i + 1] == b'"' {
-                    result.push_str("\"\"");
+                    result.extend_from_slice(b"\"\"");
                     i += 2;
                 } else if bytes[i] == b'"' {
-                    result.push('"');
+                    result.push(b'"');
                     i += 1;
                     break;
                 } else {
-                    result.push(bytes[i] as char);
+                    result.push(bytes[i]);
                     i += 1;
                 }
             }
@@ -62,74 +62,78 @@ pub fn strip_comments(sql: &str) -> String {
             }
             continue;
         }
-        result.push(bytes[i] as char);
+        result.push(bytes[i]);
         i += 1;
     }
-    result.trim().to_string()
+    // Only whole comments are removed, cut at ASCII bytes, so the bytes
+    // left are valid UTF-8.
+    String::from_utf8_lossy(&result).trim().to_string()
 }
 
 /// Split SQL into individual statements (semicolon-separated), respecting string literals.
 pub fn split_statements(sql: &str) -> Vec<String> {
     let bytes = sql.as_bytes();
     let mut statements = Vec::new();
-    let mut current = String::new();
+    let mut current: Vec<u8> = Vec::new();
     let mut i = 0;
     let len = bytes.len();
 
     while i < len {
         if bytes[i] == b'\'' {
-            current.push('\'');
+            current.push(b'\'');
             i += 1;
             while i < len {
                 if bytes[i] == b'\'' && i + 1 < len && bytes[i + 1] == b'\'' {
-                    current.push_str("''");
+                    current.extend_from_slice(b"''");
                     i += 2;
                 } else if bytes[i] == b'\'' {
-                    current.push('\'');
+                    current.push(b'\'');
                     i += 1;
                     break;
                 } else {
-                    current.push(bytes[i] as char);
+                    current.push(bytes[i]);
                     i += 1;
                 }
             }
             continue;
         }
         if bytes[i] == b'"' {
-            current.push('"');
+            current.push(b'"');
             i += 1;
             while i < len {
                 if bytes[i] == b'"' && i + 1 < len && bytes[i + 1] == b'"' {
-                    current.push_str("\"\"");
+                    current.extend_from_slice(b"\"\"");
                     i += 2;
                 } else if bytes[i] == b'"' {
-                    current.push('"');
+                    current.push(b'"');
                     i += 1;
                     break;
                 } else {
-                    current.push(bytes[i] as char);
+                    current.push(bytes[i]);
                     i += 1;
                 }
             }
             continue;
         }
         if bytes[i] == b';' {
-            let trimmed = current.trim().to_string();
-            if !trimmed.is_empty() {
-                statements.push(trimmed);
-            }
+            push_statement(&mut statements, &current);
             current.clear();
             i += 1;
             continue;
         }
-        current.push(bytes[i] as char);
+        current.push(bytes[i]);
         i += 1;
     }
-    let trimmed = current.trim().to_string();
-    if !trimmed.is_empty() {
-        statements.push(trimmed);
-    }
+    push_statement(&mut statements, &current);
     statements
+}
+
+/// Statements are cut at `;` (ASCII), so each one is valid UTF-8.
+fn push_statement(statements: &mut Vec<String>, bytes: &[u8]) {
+    let stmt = String::from_utf8_lossy(bytes).trim().to_string();
+    if !stmt.is_empty() {
+        statements.push(stmt);
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -167,7 +171,50 @@ pub fn classify_statement(sql: &str) -> StatementType {
     {
         return StatementType::Ddl;
     }
+    // DML with RETURNING produces rows, which only a query returns (execute
+    // reports 0 changes and drops them).
+    if has_returning(sql) {
+        return StatementType::Query;
+    }
     StatementType::Dml
+}
+
+/// True if `RETURNING` appears as a word outside string literals and quoted
+/// identifiers.
+fn has_returning(sql: &str) -> bool {
+    let bytes = sql.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    while i < len {
+        let c = bytes[i];
+        if c == b'\'' || c == b'"' {
+            i += 1;
+            while i < len {
+                if bytes[i] == c {
+                    if i + 1 < len && bytes[i + 1] == c {
+                        i += 2;
+                        continue;
+                    }
+                    break;
+                }
+                i += 1;
+            }
+            i += 1;
+            continue;
+        }
+        if c.is_ascii_alphabetic() || c == b'_' {
+            let start = i;
+            while i < len && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                i += 1;
+            }
+            if sql[start..i].eq_ignore_ascii_case("RETURNING") {
+                return true;
+            }
+            continue;
+        }
+        i += 1;
+    }
+    false
 }
 
 fn classify_with_body(sql: &str) -> StatementType {
@@ -222,4 +269,38 @@ fn classify_with_body(sql: &str) -> StatementType {
     // Couldn't identify: treat as Query (safer: read-only assumption won't run
     // DML under a forgotten transaction wrapper).
     StatementType::Query
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keeps_non_ascii_text() {
+        let sql = "INSERT INTO t VALUES ('çay şeker', \"ığü\") -- yorum ö\n/* ü */";
+        assert_eq!(
+            strip_comments(sql),
+            "INSERT INTO t VALUES ('çay şeker', \"ığü\")"
+        );
+        assert_eq!(
+            split_statements("SELECT 'ç;ş'; SELECT 'ö'"),
+            vec!["SELECT 'ç;ş'", "SELECT 'ö'"]
+        );
+    }
+
+    #[test]
+    fn returning_is_a_query() {
+        assert_eq!(
+            classify_statement("INSERT INTO t VALUES (1) RETURNING id"),
+            StatementType::Query
+        );
+        assert_eq!(
+            classify_statement("UPDATE t SET v = 'RETURNING' WHERE id = 1"),
+            StatementType::Dml
+        );
+        assert_eq!(
+            classify_statement("DELETE FROM \"returning\" WHERE id = 1"),
+            StatementType::Dml
+        );
+    }
 }

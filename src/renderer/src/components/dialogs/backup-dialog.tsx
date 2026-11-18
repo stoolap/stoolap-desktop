@@ -14,13 +14,13 @@ import { useConnectionStore } from "@/stores/connection-store";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { errorMessage } from "@/lib/utils";
-import { quoteId } from "@/lib/sql-utils";
 import { parseForeignKeys } from "@/lib/fk-parser";
 import * as api from "@/lib/api-client";
 import {
   DEFAULT_DUMP_OPTIONS,
   generateHeader,
   generateInserts,
+  generateTableDrops,
   generateTableIndexes,
   generateViewSection,
 } from "@/lib/sql-dump";
@@ -96,6 +96,10 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
         setProgress("Analyzing table dependencies...");
         const tableOrder = await sortTablesByFKDeps(activeId, tables);
 
+        if (options.dropBeforeCreate) {
+          await writeChunk(generateTableDrops(tableOrder));
+        }
+
         for (let i = 0; i < tableOrder.length; i++) {
           const tableName = tableOrder[i];
           setProgress(
@@ -103,11 +107,7 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
           );
 
           const ddl = await api.fetchDDL(activeId, tableName, "table");
-          let section = `-- Table: ${tableName}\n`;
-          if (options.dropBeforeCreate) {
-            section += `DROP TABLE IF EXISTS ${quoteId(tableName)};\n`;
-          }
-          section += `${ddl};\n\n`;
+          const section = `-- Table: ${tableName}\n${ddl};\n\n`;
           await writeChunk(section);
 
           if (options.data) {

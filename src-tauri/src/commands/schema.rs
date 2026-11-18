@@ -15,6 +15,8 @@ pub async fn db_tables(
         .rows
         .iter()
         .filter_map(|r| r.first().and_then(|v| v.as_str().map(|s| s.to_string())))
+        // Hide the engine's statistics tables (_sys_table_stats, ... after ANALYZE)
+        .filter(|t| !t.starts_with("_sys_"))
         .collect())
 }
 
@@ -197,8 +199,18 @@ fn infer_json_type(v: &serde_json::Value) -> &'static str {
 
 fn parse_foreign_keys(ddl: &str) -> Vec<ForeignKeyInfo> {
     let mut fks = Vec::new();
-    for line in ddl.lines() {
-        let trimmed = line.trim().to_uppercase();
+    // SHOW CREATE TABLE prints the whole table on one line, so cut the DDL at
+    // each FOREIGN KEY clause, not at line breaks. ASCII uppercasing keeps
+    // byte offsets equal to the original's, so they can index it.
+    let upper_ddl = ddl.to_ascii_uppercase();
+    let starts: Vec<usize> = upper_ddl
+        .match_indices("FOREIGN KEY")
+        .map(|(i, _)| i)
+        .collect();
+    for (n, &start) in starts.iter().enumerate() {
+        let end = starts.get(n + 1).copied().unwrap_or(ddl.len());
+        let line = &ddl[start..end];
+        let trimmed = line.trim().to_ascii_uppercase();
         if !trimmed.contains("FOREIGN KEY") || !trimmed.contains("REFERENCES") {
             continue;
         }
@@ -208,11 +220,11 @@ fn parse_foreign_keys(ddl: &str) -> Vec<ForeignKeyInfo> {
             let after_fk = &line_trimmed[fk_start + 11..];
             let col = extract_paren_id(after_fk);
             // Extract referenced table and column from REFERENCES "table" ("col")
-            if let Some(ref_start) = line_trimmed.to_uppercase().find("REFERENCES") {
+            if let Some(ref_start) = line_trimmed.to_ascii_uppercase().find("REFERENCES") {
                 let after_ref = &line_trimmed[ref_start + 10..].trim_start();
                 let (ref_table, rest) = extract_id(after_ref);
                 let ref_col = extract_paren_id(rest);
-                let upper = line_trimmed.to_uppercase();
+                let upper = line_trimmed.to_ascii_uppercase();
                 let on_delete = extract_action(&upper, "ON DELETE");
                 let on_update = extract_action(&upper, "ON UPDATE");
                 if !col.is_empty() && !ref_table.is_empty() {
@@ -275,4 +287,39 @@ fn extract_action(upper: &str, keyword: &str) -> String {
         }
     }
     "NO ACTION".to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_every_foreign_key_on_one_line() {
+        // The shape SHOW CREATE TABLE prints in Stoolap 0.5.0
+        let ddl = "CREATE TABLE orders (id Integer PRIMARY KEY AUTO_INCREMENT, \
+                   customer_id Integer NOT NULL, product_id Integer NOT NULL, \
+                   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT ON UPDATE RESTRICT, \
+                   FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE ON UPDATE RESTRICT)";
+        let fks = parse_foreign_keys(ddl);
+        assert_eq!(fks.len(), 2);
+        assert_eq!(fks[0].column_name, "customer_id");
+        assert_eq!(fks[0].referenced_table, "customers");
+        assert_eq!(fks[0].on_delete, "RESTRICT");
+        assert_eq!(fks[1].column_name, "product_id");
+        assert_eq!(fks[1].referenced_table, "products");
+        assert_eq!(fks[1].referenced_column, "id");
+        assert_eq!(fks[1].on_delete, "CASCADE");
+    }
+
+    #[test]
+    fn non_ascii_names_do_not_shift_offsets() {
+        let ddl = "CREATE TABLE sipariş (ıd Integer, müşteri Integer, \
+                   FOREIGN KEY (müşteri) REFERENCES müşteriler(ıd) ON DELETE SET NULL ON UPDATE RESTRICT)";
+        let fks = parse_foreign_keys(ddl);
+        assert_eq!(fks.len(), 1);
+        assert_eq!(fks[0].column_name, "müşteri");
+        assert_eq!(fks[0].referenced_table, "müşteriler");
+        assert_eq!(fks[0].referenced_column, "ıd");
+        assert_eq!(fks[0].on_delete, "SET NULL");
+    }
 }

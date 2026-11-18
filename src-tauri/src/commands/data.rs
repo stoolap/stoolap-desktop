@@ -304,11 +304,11 @@ pub async fn db_insert_rows(
         placeholders.join(", ")
     );
 
-    // Share the connection's Database instance so BEGIN / INSERTs / COMMIT all
-    // run on the same executor. Stoolap's `Database::clone` creates a fresh
-    // executor with independent transaction state, so we use `Arc` sharing to
-    // avoid that.
-    let db = state.get_db(&conn_id)?;
+    // Run BEGIN / INSERTs / COMMIT on a clone of the handle. A clone is its own
+    // session with independent transaction state, so commands running
+    // concurrently on this connection neither join this transaction nor roll
+    // back with it.
+    let db = state.get_db(&conn_id)?.as_ref().clone();
 
     let start = std::time::Instant::now();
     crate::db::DbManager::execute_on(&db, "BEGIN", None)?;

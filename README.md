@@ -17,7 +17,7 @@
 
 Stoolap Desktop is a lightweight native database client for the [Stoolap](https://github.com/stoolap/stoolap) embedded SQL engine. It embeds the Rust engine directly — no server, no bundled Chromium, no Node runtime — so the app stays under 15 MB and talks to your database at in-process speed.
 
-Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 frontend) and React.
+Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 frontend) and React. Stoolap Desktop 0.5.0 embeds Stoolap 0.5.0 from crates.io, with the engine's jemalloc allocator.
 
 ## Why Stoolap Desktop?
 
@@ -38,7 +38,8 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 - Multi-tab CodeMirror editor with a Stoolap SQL dialect (keywords, types, built-in functions)
 - Schema-aware autocomplete (table and column names)
 - Execute with `Cmd/Ctrl+Enter`; run `EXPLAIN` with `Cmd/Ctrl+E`
-- Multi-statement execution with automatic `BEGIN`/`COMMIT` wrapping for DML, preserving open transactions across runs
+- Multi-statement execution with automatic `BEGIN`/`COMMIT` wrapping for DML, run in its own session so other work on the connection does not join it
+- A transaction you open with `BEGIN` stays open across runs until you `COMMIT` or `ROLLBACK`
 - Query history per session
 
 ### Schema Browser
@@ -65,7 +66,7 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 - Vector cells abbreviated in the grid; click to expand into a dimension-by-dimension heatmap
 
 ### Index Management
-- Create standard (BTree, Hash, Bitmap) or HNSW indexes via dialog
+- Create standard or HNSW indexes via dialog; the engine picks the standard index type (B-tree for TEXT columns since Stoolap 0.5.0), and `CREATE INDEX ... USING HASH | BITMAP` in the editor sets it explicitly
 - Multi-column indexes, `UNIQUE` option, named constraints
 - k-NN search template generation from any HNSW index
 
@@ -76,7 +77,8 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 - DDL preview before any destructive action
 
 ### Backup & Restore
-- One-shot SQL dump export — tables, data, views, indexes, `DROP IF EXISTS` guards, FK-dependency-ordered
+- One-shot SQL dump export — tables, data, views, indexes, `DROP IF EXISTS` guards, FK-dependency-ordered (tables created parents first, dropped children first)
+- Index types (B-tree, Hash, Bitmap, HNSW) are written explicitly, so a restore recreates the same index
 - Streams chunks directly to disk; safe for databases larger than RAM
 - Restore from any SQL dump with per-statement progress and optional transaction wrapping
 - HNSW index parameters (`metric`, `m`, `ef_construction`) are preserved in the backup and re-applied on restore
@@ -159,16 +161,6 @@ Download the `.msi` installer from the [latest release](https://github.com/stool
   - macOS: Xcode Command Line Tools (`xcode-select --install`)
   - Linux: `libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf`
   - Windows: [Microsoft Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
-- **Stoolap engine** checked out next to this repo (the desktop app uses a path dependency):
-  ```
-  ~/src/
-  ├── stoolap-desktop/
-  └── stoolap/
-  ```
-
-  ```sh
-  git clone https://github.com/stoolap/stoolap.git
-  ```
 
 ### Run in Development
 
@@ -297,5 +289,5 @@ Both should pass cleanly.
 ## Related Projects
 
 - **[stoolap](https://github.com/stoolap/stoolap)** — the embedded SQL engine
-- **[stoolap-studio](https://github.com/stoolap/stoolap-studio)** — a browser-based sibling of this app (Next.js + WebAssembly / driver)
+- **[stoolap-studio](https://github.com/stoolap/stoolap-studio)** — a browser-based sibling of this app (Next.js, with the engine in-process through `@stoolap/node`)
 - Drivers: [stoolap-python](https://github.com/stoolap/stoolap-python) · [stoolap-node](https://github.com/stoolap/stoolap-node) · [stoolap-java](https://github.com/stoolap/stoolap-java) · [stoolap-swift](https://github.com/stoolap/stoolap-swift) · [stoolap-csharp](https://github.com/stoolap/stoolap-csharp) · [stoolap-ruby](https://github.com/stoolap/stoolap-ruby) · [stoolap-php](https://github.com/stoolap/stoolap-php)
