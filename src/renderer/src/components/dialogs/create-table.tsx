@@ -240,7 +240,7 @@ export function CreateTableDialog({
     setError("");
     try {
       const sql = generateSQL();
-      await api.executeQuery(activeId, sql);
+      await api.runSql(activeId, sql);
       onCreated();
       handleOpenChange(false);
     } catch (e) {

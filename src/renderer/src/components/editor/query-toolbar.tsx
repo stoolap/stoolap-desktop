@@ -27,13 +27,16 @@ import {
   X,
 } from "lucide-react";
 import { useQueryExecution } from "@/hooks/use-query-execution";
+import type { RunTabRequest } from "@/lib/assistant-edits";
 import { useEditorStore } from "@/stores/editor-store";
 import { useBookmarkStore } from "@/stores/bookmark-store";
 import type { ApiResult, QueryResult } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatSQL } from "@/lib/sql-formatter";
-import { saveFile, escapeCSV } from "@/lib/utils";
+import { saveFile, escapeCSV, basename, errorMessage } from "@/lib/utils";
+import { toast } from "sonner";
 import { useModKey } from "@/hooks/use-mod-key";
+import { isExplain } from "@/lib/sql-utils";
 
 function resultStats(result: ApiResult | null) {
   if (!result) return null;
@@ -75,6 +78,19 @@ function exportJSON(result: QueryResult, name: string) {
 
 export function QueryToolbar() {
   const { executeQuery, cancelQuery, isConnected } = useQueryExecution();
+
+  // The assistant asks to run SQL in a tab (lib/assistant-edits.ts)
+  const executeRef = useRef(executeQuery);
+  executeRef.current = executeQuery;
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<RunTabRequest>).detail;
+      detail.handled = true;
+      executeRef.current(detail.tabId, detail.sql).then(detail.done);
+    };
+    window.addEventListener("stoolap:run-tab", handler);
+    return () => window.removeEventListener("stoolap:run-tab", handler);
+  }, []);
   const activeTab = useEditorStore(
     (s) => s.tabs.find((t) => t.id === s.activeTabId) ?? null,
   );
@@ -97,7 +113,7 @@ export function QueryToolbar() {
   const handleExplain = () => {
     if (activeTab && activeTab.sql.trim()) {
       const sql = activeTab.sql.trimStart();
-      const query = sql.toUpperCase().startsWith("EXPLAIN")
+      const query = isExplain(sql)
         ? sql
         : `EXPLAIN ${sql}`;
       executeQuery(activeTab.id, query);
@@ -126,10 +142,13 @@ export function QueryToolbar() {
       ],
     });
     if (typeof selected !== "string") return;
-    const sql = await readTextFile(selected);
-    const tabName = selected.split("/").pop()?.replace(/\.sql$/i, "") ?? "Query";
-    const tabId = addTab(tabName, sql);
-    setActiveTab(tabId);
+    try {
+      const sql = await readTextFile(selected);
+      const tabName = basename(selected).replace(/\.sql$/i, "") || "Query";
+      setActiveTab(addTab(tabName, sql));
+    } catch (e) {
+      toast.error(`Could not open ${basename(selected)}`, { description: errorMessage(e) });
+    }
   };
 
   const handleSaveBookmark = () => {
@@ -226,6 +245,7 @@ export function QueryToolbar() {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            aria-label="Explain query plan"
             onClick={handleExplain}
             disabled={
               !isConnected || !activeTab?.sql.trim() || activeTab?.isRunning
@@ -248,6 +268,7 @@ export function QueryToolbar() {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            aria-label="Format SQL"
             onClick={handleFormat}
             disabled={!activeTab?.sql.trim()}
           >
@@ -265,6 +286,7 @@ export function QueryToolbar() {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            aria-label="Open .sql file"
             onClick={handleOpenFile}
           >
             <FolderOpen className="h-3.5 w-3.5" />
@@ -279,6 +301,7 @@ export function QueryToolbar() {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            aria-label="Save as .sql"
             onClick={() => {
               if (activeTab?.sql.trim()) {
                 const name = activeTab.title.replace(/\s+/g, "_");
@@ -299,7 +322,7 @@ export function QueryToolbar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Export results">
                   <FileOutput className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -337,7 +360,7 @@ export function QueryToolbar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Query history">
                   <History className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -370,6 +393,7 @@ export function QueryToolbar() {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            aria-label="Save bookmark"
             onClick={handleSaveBookmark}
             disabled={!activeTab?.sql.trim()}
           >
@@ -411,7 +435,7 @@ export function QueryToolbar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Bookmarks">
                   <Bookmark className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>

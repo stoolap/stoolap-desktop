@@ -1,6 +1,6 @@
 
 import { useState, useRef, useCallback } from "react";
-import { errorMessage } from "@/lib/utils";
+import { errorMessage, basename } from "@/lib/utils";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import {
@@ -64,7 +64,7 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
     try {
       setError("");
       const content = await readTextFile(selected);
-      const name = selected.split("/").pop() ?? "restore.sql";
+      const name = basename(selected) || "restore.sql";
       setFileName(name);
       setFileContent(content);
       setStatementCount(splitStatements(content).length);

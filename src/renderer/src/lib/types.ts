@@ -32,6 +32,16 @@ export interface ErrorResult {
 
 export type ApiResult = QueryResult | ExecResult | DdlResult | ErrorResult;
 
+/** One statement's result in a script, with the statement */
+export type StatementResult = (QueryResult | ExecResult | DdlResult) & { sql: string };
+
+/** What a script of several statements returns */
+export interface ScriptResult {
+  results: StatementResult[];
+  time: number;
+  error?: undefined;
+}
+
 export interface ColumnInfo {
   field: string;
   type: string;
@@ -80,4 +90,9 @@ export interface EditorTab {
   tableName?: string;
   lastExecutedSql?: string;
   initialFilter?: { column: string; value: string };
+  /** Every statement's result when a script ran; `result` is the one shown */
+  results?: StatementResult[];
+  resultIndex?: number;
+  /** Not saved across launches (the example database's query tab) */
+  transient?: boolean;
 }

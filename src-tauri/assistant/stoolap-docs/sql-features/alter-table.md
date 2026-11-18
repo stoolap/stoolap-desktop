@@ -1,0 +1,130 @@
+---
+layout: doc
+title: ALTER TABLE
+category: SQL Features
+order: 18
+---
+
+# ALTER TABLE
+
+ALTER TABLE modifies the structure of an existing table. All ALTER TABLE operations are crash-safe with full WAL durability and volume recovery support.
+
+## ADD COLUMN
+
+Add a new column to an existing table:
+
+```sql
+ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
+ALTER TABLE users ADD COLUMN score INTEGER;
+```
+
+Existing rows receive the column's DEFAULT, or NULL without one, whether they are still in memory or already in a frozen volume. The new column takes NOT NULL and DEFAULT; a CHECK, UNIQUE, PRIMARY KEY, AUTO_INCREMENT or REFERENCES constraint is refused with an error, and so is a DEFAULT holding a subquery, an aggregate or a window function, or a TIMESTAMP outside the range a table stores (`1677-09-21` to `2262-04-11`); the table is left unchanged. Subsequent inserts can provide values for the new column:
+
+```sql
+INSERT INTO users (id, name, score) VALUES (1, 'Alice', 100);
+```
+
+## DROP COLUMN
+
+Remove a column from a table:
+
+```sql
+ALTER TABLE users DROP COLUMN last_login;
+```
+
+The column data is physically removed from the rows in memory at once; a frozen volume drops it at its next compaction. Queries referencing the dropped column will return an error. A column that another column's CHECK or a table CHECK reads cannot be dropped: the statement fails and names the CHECK.
+
+## RENAME COLUMN
+
+Rename an existing column:
+
+```sql
+ALTER TABLE users RENAME COLUMN old_name TO new_name;
+```
+
+Data is preserved. The old name is no longer accessible after the rename. Every CHECK that reads the column is rewritten to the new name. A rename is refused when a CHECK would no longer read back as written: when the new name, written into the CHECK, would read as a different expression (`"2 + x"` reads as an addition) or another column, or when another name in a CHECK would then read a different column.
+
+## MODIFY COLUMN
+
+Change a column's data type or nullability:
+
+```sql
+-- Change column type
+ALTER TABLE products MODIFY COLUMN price TEXT;
+
+-- Allow NULL values on a previously NOT NULL column
+ALTER TABLE config MODIFY COLUMN value INTEGER;
+```
+
+Every existing value is converted to the new type, in memory and in the frozen volumes, before the statement returns. A value the new type cannot hold becomes NULL. The change is refused, with the table left as it was, when:
+
+- the column is the primary key, a foreign key column, or a column a foreign key references;
+- an index on the column cannot hold the new type (an HNSW index holds only vectors of a known dimension);
+- a converted value is NULL and the column is NOT NULL;
+- the column becomes a TIMESTAMP and a converted value, or the default an added column gave the rows before it, lies outside the range a table stores (`1677-09-21` to `2262-04-11`). An earlier copy of an updated or deleted row, which only a transaction older than the change still reads, takes NULL instead;
+- two rows would hold the same key of a UNIQUE index once converted (for example `'7'` and `'07'` changed to INTEGER);
+- the column becomes a VECTOR of another dimension and a row holds a vector of the old one (values are never padded or cut).
+
+The table is closed while the change runs: other statements on it return `SchemaChanged` until it finishes. Once the statement returns, the change survives a crash whatever the `sync_mode`.
+
+## RENAME TABLE
+
+Rename an entire table:
+
+```sql
+ALTER TABLE users RENAME TO system_users;
+```
+
+All data is accessible via the new name. The old table name is no longer valid. The new name may not be one a table or a view already holds.
+
+## AUTO_INCREMENT
+
+Set the next id a table's `AUTO_INCREMENT` column generates:
+
+```sql
+ALTER TABLE orders AUTO_INCREMENT = 1000;
+INSERT INTO orders (item) VALUES ('first');   -- id = 1000
+```
+
+The `=` is optional, and `AUTOINCREMENT` is accepted as well. The value is a positive integer.
+
+A value at or below the largest id a row of the table holds sets the next id to one past that row, so the counter can go down to reuse ids of deleted rows and ids a rolled-back insert took:
+
+```sql
+DELETE FROM orders WHERE id >= 1000;
+ALTER TABLE orders AUTO_INCREMENT = 1;
+INSERT INTO orders (item) VALUES ('next');    -- id = largest remaining id + 1
+```
+
+A row whose deletion has not committed yet still counts, and so does a deleted row already moved to cold storage, until compaction drops it. Lowering the counter returns an error while another transaction, or the current one, holds inserted rows of the table it has not committed; raising it does not. A table without an `AUTO_INCREMENT` column returns an error.
+
+The change takes effect at once and a ROLLBACK of an open transaction does not undo it. It survives a reopen and a crash. TRUNCATE TABLE starts the ids at 1 again.
+
+## Persistence
+
+All ALTER TABLE operations are recorded in the WAL and survive crash recovery:
+
+1. The schema change is applied immediately
+2. A DDL entry is written to the WAL
+3. On recovery, the WAL replays the ALTER TABLE operation
+4. Snapshots include the updated schema
+
+This means ALTER TABLE changes persist correctly even if the database crashes immediately after the operation.
+
+If recording an ADD, DROP, RENAME, or MODIFY COLUMN operation in the WAL fails, the engine restores the previous schema and frozen-volume mappings. Reads can continue against that schema. A WAL write or sync failure still requires closing and reopening the database before further writes.
+
+A MODIFY COLUMN whose WAL record may or may not have been written (the failed write could not be cut back), or whose table manifest could not be written after the record, returns an error and leaves the table closed until the database is reopened. The reopen finishes the change from the WAL, or finds it was never written.
+
+## Concurrent statements
+
+In a file database, a statement can return `SchemaChanged` if column DDL overlaps its capture of the schema and frozen-volume mappings. The engine rejects the mixed view instead of waiting for the ALTER to finish. A new statement can proceed after the ALTER completes.
+
+A transaction that wrote rows to a table before another connection added or dropped one of its columns cannot commit those rows: its COMMIT returns `SchemaChanged` and the transaction rolls back. The rows were written with the columns as they were, and the table now lays its rows out as the columns are.
+
+`SchemaChanged` is a public Rust error variant. The C API and drivers report it as a database error and do not automatically retry statements. Applications should coordinate column DDL with concurrent work and handle this error explicitly.
+
+## Limitations
+
+- ALTER TABLE operations may temporarily block concurrent writes
+- Composite primary key modifications are not supported
+- **Frozen volume tables**: ALTER TABLE works on tables with frozen volumes. Volume data is normalized on read (new columns return NULL/DEFAULT, dropped columns are skipped). The volume is rebuilt automatically on the next checkpoint cycle

@@ -1,14 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { v4 as uuidv4 } from "uuid";
-import type { ApiResult, EditorTab } from "@/lib/types";
+import type { ApiResult, EditorTab, StatementResult } from "@/lib/types";
 
 interface EditorState {
   tabs: EditorTab[];
   activeTabId: string | null;
   queryHistory: string[];
   _tabCounter: number;
-  addTab: (title?: string, sql?: string) => string;
+  addTab: (title?: string, sql?: string, options?: { transient?: boolean }) => string;
   addDataTab: (
     tableName: string,
     initialFilter?: { column: string; value: string },
@@ -18,9 +18,31 @@ interface EditorState {
   updateTabSql: (id: string, sql: string) => void;
   updateTabTitle: (id: string, title: string) => void;
   setTabResult: (id: string, result: ApiResult | null) => void;
+  /** A script's results; shows the first that returned rows */
+  setTabResults: (id: string, results: StatementResult[]) => void;
+  selectTabResult: (id: string, index: number) => void;
   setTabRunning: (id: string, running: boolean) => void;
   setTabLastExecutedSql: (id: string, sql: string) => void;
   addToHistory: (sql: string) => void;
+}
+
+/** How the example database's query tab starts (see Toolbar) */
+export const EXAMPLES_SQL_START = "-- Try these queries:";
+
+interface SavedTabs {
+  tabs?: EditorTab[];
+  activeTabId?: string | null;
+}
+
+/** Drop the "Examples" tabs that version 1 saved, one per example load. */
+export function dropSavedExampleTabs(state: SavedTabs): SavedTabs {
+  if (!state?.tabs) return state;
+  const kept = state.tabs.filter(
+    (t) => !(t.title === "Examples" && t.sql.startsWith(EXAMPLES_SQL_START)),
+  );
+  const tabs = kept.length > 0 ? kept : [{ ...makeTab("Query 1"), result: null, isRunning: false }];
+  const activeTabId = tabs.some((t) => t.id === state.activeTabId) ? state.activeTabId : tabs[0].id;
+  return { ...state, tabs, activeTabId };
 }
 
 const makeTab = (title?: string, sql?: string): EditorTab => ({
@@ -42,11 +64,11 @@ export const useEditorStore = create<EditorState>()(
       queryHistory: [],
       _tabCounter: 1,
 
-      addTab: (title, sql) => {
+      addTab: (title, sql, options) => {
         let tabId = "";
         set((s) => {
           const counter = s._tabCounter + 1;
-          const tab = makeTab(title ?? `Query ${counter}`, sql);
+          const tab = { ...makeTab(title ?? `Query ${counter}`, sql), transient: options?.transient };
           tabId = tab.id;
           return {
             _tabCounter: counter,
@@ -119,7 +141,31 @@ export const useEditorStore = create<EditorState>()(
       setTabResult: (id, result) =>
         set((s) => ({
           tabs: s.tabs.map((t) =>
-            t.id === id ? { ...t, result, isRunning: false } : t,
+            t.id === id
+              ? { ...t, result, results: undefined, resultIndex: undefined, isRunning: false }
+              : t,
+          ),
+        })),
+
+      setTabResults: (id, results) =>
+        set((s) => {
+          const firstRows = results.findIndex((r) => "columns" in r);
+          const index = firstRows >= 0 ? firstRows : results.length - 1;
+          return {
+            tabs: s.tabs.map((t) =>
+              t.id === id
+                ? { ...t, results, resultIndex: index, result: results[index] ?? null, isRunning: false }
+                : t,
+            ),
+          };
+        }),
+
+      selectTabResult: (id, index) =>
+        set((s) => ({
+          tabs: s.tabs.map((t) =>
+            t.id === id && t.results?.[index]
+              ? { ...t, resultIndex: index, result: t.results[index] }
+              : t,
           ),
         })),
 
@@ -145,13 +191,18 @@ export const useEditorStore = create<EditorState>()(
     }),
     {
       name: "stoolap-editor",
-      version: 1,
+      version: 2,
+      // Version 1 saved the example database's "Examples" tabs, one per load
+      migrate: (persisted, version) =>
+        (version < 2 ? dropSavedExampleTabs(persisted as SavedTabs) : persisted) as EditorState,
       partialize: (state) => {
         let persistedTabs = state.tabs
-          .filter((t) => t.mode !== "data")
-          .map((t) => ({
+          .filter((t) => t.mode !== "data" && !t.transient)
+          .map((t): EditorTab => ({
             ...t,
             result: null,
+            results: undefined,
+            resultIndex: undefined,
             isRunning: false,
           }));
         // Ensure at least one tab is persisted

@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { toast } from "sonner";
 export { quoteId } from "./sql-utils";
 
 export function cn(...inputs: ClassValue[]) {
@@ -25,6 +26,7 @@ export function modKey(): string {
   return isMac() ? "\u2318" : "Ctrl";
 }
 
+/** Ask where to save, write the file, and say where it went (or why not). */
 export async function saveFile(content: string, filename: string, _mime: string) {
   const { save } = await import("@tauri-apps/plugin-dialog");
   const { writeTextFile } = await import("@tauri-apps/plugin-fs");
@@ -34,8 +36,12 @@ export async function saveFile(content: string, filename: string, _mime: string)
     defaultPath: filename,
     filters: [{ name: ext.toUpperCase() + " Files", extensions: [ext] }],
   });
-  if (path) {
+  if (!path) return;
+  try {
     await writeTextFile(path, content);
+    toast.success(`Saved ${basename(path)}`, { description: path });
+  } catch (e) {
+    toast.error(`Could not save ${basename(path)}`, { description: errorMessage(e) });
   }
 }
 
@@ -45,4 +51,9 @@ export function escapeCSV(v: unknown): string {
   return s.includes(",") || s.includes('"') || s.includes("\n")
     ? `"${s.replace(/"/g, '""')}"`
     : s;
+}
+
+/** Last component of a file path, with either separator (Windows uses `\`). */
+export function basename(path: string): string {
+  return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
 }

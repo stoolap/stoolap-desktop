@@ -644,7 +644,7 @@ export function TableViewer({
           variant="ghost"
           size="icon"
           className="h-7 w-7"
-          onClick={async () => { await refetch(); toast.success("Data refreshed"); }}
+          onClick={() => refetch()}
           aria-label="Refresh data"
         >
           <RefreshCw className="h-3.5 w-3.5" />
@@ -956,7 +956,7 @@ export function TableViewer({
             setOffset(0);
           }}
         >
-          <SelectTrigger className="h-6 w-20 text-xs border-0 bg-transparent shadow-none">
+          <SelectTrigger className="h-6 w-auto gap-1 text-xs border-0 bg-transparent shadow-none">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

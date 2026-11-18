@@ -296,7 +296,7 @@ export function AlterTableDialog({
     setError("");
     try {
       for (const sql of statements) {
-        await api.executeQuery(activeId, sql);
+        await api.runSql(activeId, sql);
       }
       onAltered();
       onOpenChange(false);

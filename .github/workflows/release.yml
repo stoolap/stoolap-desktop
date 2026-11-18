@@ -73,6 +73,17 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      # The tag's section of CHANGELOG.md; fails the release when it is missing
+      - name: Release note
+        id: notes
+        shell: bash
+        run: |
+          {
+            echo 'body<<RELEASE_NOTE_EOF'
+            node .github/scripts/release-notes.mjs "${{ github.ref_name }}"
+            echo 'RELEASE_NOTE_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build, sign, and publish
         uses: tauri-apps/tauri-action@v0
         env:
@@ -94,6 +105,10 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Stoolap Desktop ${{ github.ref_name }}'
           releaseBody: |
+            ${{ steps.notes.outputs.body }}
+
+            ---
+
             ## Downloads
 
             Pick the installer for your operating system.
@@ -126,6 +141,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Mark release as published
         uses: actions/github-script@v7
         with:
@@ -140,6 +158,29 @@ jobs:
             if (!release) {
               throw new Error(`No release found for tag ${tag}`);
             }
+
+            // The update notice in the app shows latest.json's notes, which
+            // tauri-action fills with the whole release body (downloads table
+            // included). Give it the release note alone.
+            const { readFileSync } = require('fs');
+            const { releaseNotes } = await import(`${process.env.GITHUB_WORKSPACE}/.github/scripts/release-notes.mjs`);
+            const notes = releaseNotes(readFileSync('CHANGELOG.md', 'utf8'), tag);
+            if (!notes) throw new Error(`CHANGELOG.md has no "## ${tag}" section`);
+            const asset = release.assets.find((a) => a.name === 'latest.json');
+            if (!asset) throw new Error('The release has no latest.json');
+            const { data } = await github.rest.repos.getReleaseAsset({
+              owner, repo, asset_id: asset.id,
+              headers: { accept: 'application/octet-stream' },
+            });
+            const updater = JSON.parse(Buffer.from(data).toString('utf8'));
+            updater.notes = notes;
+            await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: asset.id });
+            await github.rest.repos.uploadReleaseAsset({
+              owner, repo, release_id: release.id, name: 'latest.json',
+              data: JSON.stringify(updater, null, 2),
+              headers: { 'content-type': 'application/json' },
+            });
+
             await github.rest.repos.updateRelease({
               owner, repo,
               release_id: release.id,

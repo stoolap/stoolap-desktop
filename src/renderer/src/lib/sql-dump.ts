@@ -63,34 +63,6 @@ export function generateHeader(connectionName: string): string {
 }
 
 /**
- * Generate the dump section for a single table.
- */
-export function generateTableSection(
-  tableName: string,
-  ddl: string,
-  columns: string[],
-  rows: unknown[][],
-  options: DumpOptions,
-): string {
-  const parts: string[] = [];
-  parts.push(`-- Table: ${tableName}`);
-
-  if (options.dropBeforeCreate) {
-    parts.push(`DROP TABLE IF EXISTS ${quoteId(tableName)};`);
-  }
-  // DDL from SHOW CREATE TABLE does not end with semicolon
-  parts.push(`${ddl};`);
-  parts.push("");
-
-  if (options.data && rows.length > 0) {
-    parts.push(generateInserts(tableName, columns, rows));
-    parts.push("");
-  }
-
-  return parts.join("\n");
-}
-
-/**
  * Generate DROP TABLE statements for tables given in dependency order
  * (referenced tables first). Drops run in reverse, so a table is dropped only
  * after every table whose foreign key references it: Stoolap 0.5.0 refuses to

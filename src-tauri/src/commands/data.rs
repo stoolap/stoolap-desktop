@@ -308,7 +308,7 @@ pub async fn db_insert_rows(
     // session with independent transaction state, so commands running
     // concurrently on this connection neither join this transaction nor roll
     // back with it.
-    let db = state.get_db(&conn_id)?.as_ref().clone();
+    let db = state.session(&*state.get_db(&conn_id)?)?;
 
     let start = std::time::Instant::now();
     crate::db::DbManager::execute_on(&db, "BEGIN", None)?;

@@ -109,7 +109,7 @@ export function CreateIndexDialog({
     setLoading(true);
     setError("");
     try {
-      await api.executeQuery(activeId, generateSQL());
+      await api.runSql(activeId, generateSQL());
       onCreated();
       resetAndClose();
     } catch (e) {

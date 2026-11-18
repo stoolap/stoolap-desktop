@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -85,15 +86,51 @@ struct Connection {
     meta: ConnectionMeta,
 }
 
+/// Statements running longer than this are cancelled by the engine. The UI
+/// can change it; 0 turns it off.
+pub const DEFAULT_QUERY_TIMEOUT_MS: u64 = 5 * 60 * 1000;
+
 pub struct DbManager {
     connections: Mutex<HashMap<String, Connection>>,
+    query_timeout_ms: AtomicU64,
 }
 
 impl DbManager {
     pub fn new() -> Self {
         Self {
             connections: Mutex::new(HashMap::new()),
+            query_timeout_ms: AtomicU64::new(DEFAULT_QUERY_TIMEOUT_MS),
         }
+    }
+
+    fn apply_timeout(&self, db: &Database) -> Result<(), String> {
+        let ms = self.query_timeout_ms.load(Ordering::Relaxed);
+        db.execute(&format!("PRAGMA query_timeout = {ms}"), ())
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+
+    /// A clone of `db`: a separate session with its own transaction state.
+    /// A clone does not inherit the handle's query timeout, so it is set here.
+    pub fn session(&self, db: &Database) -> Result<Database, String> {
+        let session = db.clone();
+        self.apply_timeout(&session)?;
+        Ok(session)
+    }
+
+    /// Change the query timeout for every open connection and the ones
+    /// opened later.
+    pub fn set_query_timeout(&self, ms: u64) -> Result<(), String> {
+        self.query_timeout_ms.store(ms, Ordering::Relaxed);
+        let dbs: Vec<Arc<Database>> = self
+            .lock_conns()?
+            .values()
+            .map(|c| Arc::clone(&c.db))
+            .collect();
+        for db in dbs {
+            self.apply_timeout(&db)?;
+        }
+        Ok(())
     }
 
     fn lock_conns(&self) -> Result<std::sync::MutexGuard<'_, HashMap<String, Connection>>, String> {
@@ -179,12 +216,13 @@ impl DbManager {
             };
             Database::open(&dsn).map_err(|e| e.to_string())?
         };
+        self.apply_timeout(&db)?;
 
         let id = uuid::Uuid::new_v4().to_string();
         let display_name = name.unwrap_or(if is_memory {
             "In-Memory"
         } else {
-            path.rsplit('/').next().unwrap_or(path)
+            path.rsplit(['/', '\\']).find(|s| !s.is_empty()).unwrap_or(path)
         });
 
         let meta = ConnectionMeta {
@@ -344,5 +382,30 @@ mod tests {
 
         let rows = DbManager::query_on(&db, "SELECT id FROM t ORDER BY id", None).unwrap();
         assert_eq!(rows.rows, vec![vec![serde_json::json!(2)]]);
+    }
+
+    #[test]
+    fn query_timeout_cancels_on_handles_and_sessions() {
+        let manager = DbManager::new();
+        let meta = manager.open(":memory:", None).unwrap();
+        let db = manager.get_db(&meta.id).unwrap();
+        DbManager::execute_on(&db, "CREATE TABLE t (id INTEGER PRIMARY KEY)", None).unwrap();
+        for i in 0..100 {
+            DbManager::execute_on(&db, &format!("INSERT INTO t VALUES ({i})"), None).unwrap();
+        }
+        // 10^10 rows: never finishes within the limit
+        let slow = "SELECT COUNT(*) FROM t a, t b, t c, t d, t e";
+
+        manager.set_query_timeout(50).unwrap();
+        let started = Instant::now();
+        assert!(DbManager::query_on(&db, slow, None).is_err());
+        let session = manager.session(&db).unwrap();
+        assert!(DbManager::query_on(&session, slow, None).is_err());
+        assert!(started.elapsed().as_secs() < 10);
+
+        // Turned off, quick statements still run
+        manager.set_query_timeout(0).unwrap();
+        let rows = DbManager::query_on(&db, "SELECT COUNT(*) FROM t", None).unwrap();
+        assert_eq!(rows.rows, vec![vec![serde_json::json!(100)]]);
     }
 }

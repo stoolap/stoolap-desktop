@@ -181,7 +181,7 @@ pub fn classify_statement(sql: &str) -> StatementType {
 
 /// True if `RETURNING` appears as a word outside string literals and quoted
 /// identifiers.
-fn has_returning(sql: &str) -> bool {
+pub fn has_returning(sql: &str) -> bool {
     let bytes = sql.as_bytes();
     let len = bytes.len();
     let mut i = 0;

@@ -97,3 +97,33 @@ export function splitStatements(sql: string): string[] {
   if (trimmed.length > 0) statements.push(trimmed);
   return statements;
 }
+
+/**
+ * True when `sql` is exactly one statement that only reads (SELECT, WITH ...
+ * SELECT, SHOW, DESCRIBE, EXPLAIN without ANALYZE). The assistant's
+ * proposals run on their own only when this holds.
+ */
+export function isSingleReadOnly(sql: string): boolean {
+  const stmts = splitStatements(sql).filter((s) => stripComments(s).trim());
+  if (stmts.length !== 1) return false;
+  // Keywords inside strings and quoted names don't count
+  const code = stripComments(stmts[0])
+    .replace(/'(?:[^']|'')*'/g, "''")
+    .replace(/"(?:[^"]|"")*"/g, '""')
+    .trim()
+    .toUpperCase();
+  const first = code.split(/\s+/)[0];
+  if (!["SELECT", "WITH", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"].includes(first)) return false;
+  if (/^EXPLAIN\s+ANALYZE\b/.test(code)) return false;
+  return !/\b(INSERT|UPDATE|DELETE|MERGE|RETURNING|CREATE|DROP|ALTER|TRUNCATE)\b/.test(code);
+}
+
+/** True when `sql` is an EXPLAIN (or EXPLAIN ANALYZE), comments before it aside. */
+export function isExplain(sql: string): boolean {
+  return /^EXPLAIN\b/i.test(stripComments(sql).trimStart());
+}
+
+/** Drop -- line and block comments, keeping string literals intact. */
+function stripComments(sql: string): string {
+  return sql.replace(/('(?:[^']|'')*')|--[^\n]*|\/\*[\s\S]*?\*\//g, (m, str) => str ?? " ");
+}

@@ -40,7 +40,20 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 - Execute with `Cmd/Ctrl+Enter`; run `EXPLAIN` with `Cmd/Ctrl+E`
 - Multi-statement execution with automatic `BEGIN`/`COMMIT` wrapping for DML, run in its own session so other work on the connection does not join it
 - A transaction you open with `BEGIN` stays open across runs until you `COMMIT` or `ROLLBACK`
+- A script of several statements shows every statement's result in its own tab over the grid; an error names the statement that failed
 - Query history per session
+- Query timeout in the status bar (30 s to 1 hour, or off; 5 min by default): the engine cancels statements that run longer. **Stop** only stops waiting, because the engine cannot interrupt a statement from outside; the timeout is what ends it
+
+### SQL Assistant
+- Right-hand panel (`Cmd/Ctrl+L`, or the sparkle button next to the tabs) that writes, fixes, explains and speeds up the SQL in the current tab
+- Runs through your local Claude Code (your own Claude sign-in and plan) when it is installed. Otherwise it calls the Claude API with your Anthropic account, signed in with the browser (billed to your Console organization; nothing to install or copy), or with an API key. It can also use ChatGPT, through your local Codex signed in with your ChatGPT account, or the OpenAI API with a key
+- Pick the model in the panel: Claude Opus 5.5 (default), Sonnet 5.5, Haiku 5.5 or Fable 5.2
+- Knows Stoolap: every request carries a guide to Stoolap's SQL dialect (every type and function that exists, statement syntax, what fails and what to write instead, how the planner uses indexes), checked against the engine: `cargo test` runs each of its examples. For details it searches and reads the bundled Stoolap 0.5 documentation (55 pages)
+- Works in a query tab, in front of you: a new tab of its own by default, or the tab you are on ("New tab" / "This tab"). The SQL appears in the editor as it is written, runs there and fills the result grid, and the assistant reads the outcome (up to 50 rows, sent to Anthropic) and continues. Each edit can be undone from the panel
+- Reads always run. SQL that changes data (INSERT, UPDATE, DELETE, DDL) or a script of several statements runs only when you allow writes for that database ("Run writes", off by default); otherwise it is written into the tab and waits for your **Run**
+- **Fix with assistant** on a query error
+- With Claude Code, its built-in tools (shell, files, web) are turned off; it only gets this app's database tools, through an MCP server on 127.0.0.1. With the API, requests go from the Rust backend straight to Anthropic: a browser sign-in goes through Anthropic's `ant` CLI, which the app downloads on first use (a pinned release, checked against its SHA-256) and runs with a config directory of its own, so it never touches your own `ant` or Claude Code sign-in; the app asks it for a short-lived token per request and never reads its credentials file, and an API key is kept in the system credential store (Keychain, Windows Credential Manager, Secret Service)
+- Codex runs with a Codex home of the app's own, so your Codex plugins, MCP servers, memories and instructions never load, and you sign in to ChatGPT once from the app. Its shell, browser, computer-use, web-search and plugin tools are turned off, the database tools are passed to it directly, and any command or file change it asks to make is declined. The OpenAI API is called from the Rust backend with `store: false`, so OpenAI keeps no copy of the conversation
 
 ### Schema Browser
 - Sidebar tree of every table and view with filter
@@ -85,8 +98,12 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 
 ### Native Integration
 - macOS: overlay title bar with hidden title, system accent color live-tracked, native context menus, proper app menu with `About`, `Check for Updates…`, services submenu, quit
-- System notifications on long-running operations (backup complete, export finished, import complete)
+- System notifications on long-running operations (backup complete, export finished, import complete), and for a query that ran 10 s or more while the window was in the background
 - Native file / folder dialogs via the OS picker
+- Drop a database folder onto the window to open it, or a `.sql` file to open it in a new tab
+- `File → Open Recent` lists recently opened databases
+- Single instance: launching the app again focuses the open window; a database folder passed on the command line opens there
+- Windows and Linux: `Help` menu with `Check for Updates…` and `About`
 - Window state persistence — size, position, and maximized state restore on next launch
 - Single-process: the engine is linked in, not spawned
 
@@ -98,6 +115,7 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 ### Auto-Update
 - Bundled `tauri-plugin-updater` checks a signed `latest.json` feed on GitHub Releases
 - User sees a dialog with the version, release notes, progress bar, and "Install & Restart"
+- The release notes are the version's section of [CHANGELOG.md](CHANGELOG.md); the release workflow publishes them on the GitHub release and in `latest.json`, and refuses to release a tag without one
 - Every update bundle is ed25519-signed with the maintainer's private key; the app refuses to install anything that doesn't verify against the public key baked into the binary
 
 ## Installation
@@ -127,8 +145,8 @@ Download the `.msi` installer from the [latest release](https://github.com/stool
 
 ## Getting Started
 
-1. **Launch** the app. The sidebar is empty on first run.
-2. **Open or create a database.** Use the toolbar's **Connect** button or `File → Open Database` to point at an existing Stoolap folder, or `File → New In-Memory Database` to spin up a scratch DB.
+1. **Launch** the app. With no database open, the start screen offers to open one, create an in-memory one, or load the example, and lists recent databases.
+2. **Open or create a database.** Use `File → Open Database` (or drop the folder onto the window) to point at an existing Stoolap folder, or `File → New In-Memory Database` to spin up a scratch DB.
 3. **Try the example database.** `File → Load Example Database` seeds a memory DB with customers / products / orders, a vector `knowledge_base` table, and a tab of ready-to-run queries — including vector k-NN and hybrid search.
 4. **Browse.** Expand tables in the sidebar to see columns, indexes, foreign keys, and DDL. Click a table to open a data view in a new tab.
 5. **Query.** `Cmd/Ctrl+T` opens a new editor tab; `Cmd/Ctrl+Enter` runs.
@@ -187,12 +205,14 @@ Outputs:
 ### Linting
 
 ```sh
-# Frontend type check + production build
+# Frontend type check, production build and unit tests
 npx tsc --noEmit
 npm run vite:build
+npm test
 
-# Rust strict clippy
+# Rust strict clippy and tests
 (cd src-tauri && cargo clippy --all-targets --all-features -- -D warnings)
+(cd src-tauri && cargo test)
 ```
 
 ## Architecture
@@ -233,6 +253,7 @@ npm run vite:build
 | `tauri-plugin-window-state` | Persist window size / position across launches |
 | `tauri-plugin-updater` | Signed auto-update via GitHub Releases |
 | `tauri-plugin-process` | Relaunch after applying an update |
+| `tauri-plugin-single-instance` | Focus the running app instead of starting a second one |
 
 ## Releasing (maintainers)
 

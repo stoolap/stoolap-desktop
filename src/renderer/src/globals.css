@@ -308,6 +308,10 @@ button, [role="button"], [role="tab"], [role="menuitem"],
   font-feature-settings: "tnum";
   letter-spacing: -0.01em;
 }
+/* CodeMirror's default focus ring is a dotted outline around the editor */
+.cm-editor.cm-focused {
+  outline: none;
+}
 .cm-editor .cm-content,
 .cm-editor .cm-gutters,
 .cm-editor .cm-tooltip {

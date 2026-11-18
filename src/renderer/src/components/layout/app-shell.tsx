@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { errorMessage } from "@/lib/utils";
+import { cn, errorMessage } from "@/lib/utils";
 import { Toolbar } from "./toolbar";
+import { QueryTimeoutSelect } from "./query-timeout-select";
+import { Welcome } from "./welcome";
+import { AssistantDock } from "@/components/assistant/assistant-dock";
+import { useAssistantStore } from "@/stores/assistant-store";
 import { Sidebar } from "./sidebar";
 import { EditorTabs } from "@/components/editor/editor-tabs";
 import { SqlEditor } from "@/components/editor/sql-editor";
@@ -11,7 +15,7 @@ import { KeyboardShortcuts } from "@/components/common/keyboard-shortcuts";
 import { useEditorStore } from "@/stores/editor-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useTableColumns, useEditorSchema } from "@/hooks/use-schema";
-import { PanelLeftClose, PanelLeft } from "lucide-react";
+import { PanelLeftClose, PanelLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as native from "@/lib/native";
 
@@ -226,62 +230,71 @@ export function AppShell() {
           ref={editorAreaRef}
           className="flex-1 flex flex-col overflow-hidden bg-background"
         >
-          <div className="flex items-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 shrink-0 rounded-none"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
-              aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
-            >
-              {sidebarOpen ? (
-                <PanelLeftClose className="h-3 w-3" />
-              ) : (
-                <PanelLeft className="h-3 w-3" />
-              )}
-            </Button>
-            <div className="flex-1 overflow-hidden">
-              <EditorTabs />
-            </div>
-          </div>
-
-          {isDataTab ? (
-            <DataTabContent
-              tableName={activeTab.tableName!}
-              initialFilter={activeTab.initialFilter}
-            />
+          {connections.length === 0 ? (
+            <Welcome />
           ) : (
             <>
-              <div
-                style={{ height: editorHeight }}
-                className="shrink-0 overflow-hidden"
-              >
-                {activeTab && (
-                  <SqlEditor
-                    tabId={activeTab.id}
-                    value={activeTab.sql}
-                    isDark={isDark}
-                    schema={editorSchema}
+              <div className="flex items-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0 rounded-none"
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+                  aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+                >
+                  {sidebarOpen ? (
+                    <PanelLeftClose className="h-3 w-3" />
+                  ) : (
+                    <PanelLeft className="h-3 w-3" />
+                  )}
+                </Button>
+                <div className="flex-1 overflow-hidden">
+                  <EditorTabs />
+                </div>
+                <AssistantToggle />
+              </div>
+
+              {isDataTab ? (
+                <DataTabContent
+                  tableName={activeTab.tableName!}
+                  initialFilter={activeTab.initialFilter}
+                />
+              ) : (
+                <>
+                  <div
+                    style={{ height: editorHeight }}
+                    className="shrink-0 overflow-hidden"
+                  >
+                    {activeTab && (
+                      <SqlEditor
+                        tabId={activeTab.id}
+                        value={activeTab.sql}
+                        isDark={isDark}
+                        schema={editorSchema}
+                      />
+                    )}
+                  </div>
+
+                  <QueryToolbar />
+
+                  <div
+                    role="separator"
+                    aria-orientation="horizontal"
+                    className="h-px cursor-row-resize hover:h-0.5 hover:bg-primary/30 active:bg-primary/50 shrink-0 bg-border/30"
+                    onMouseDown={handleEditorMouseDown}
                   />
-                )}
-              </div>
 
-              <QueryToolbar />
-
-              <div
-                role="separator"
-                aria-orientation="horizontal"
-                className="h-px cursor-row-resize hover:h-0.5 hover:bg-primary/30 active:bg-primary/50 shrink-0 bg-border/30"
-                onMouseDown={handleEditorMouseDown}
-              />
-
-              <div className="flex-1 overflow-hidden">
-                <ResultsPanel />
-              </div>
+                  <div className="flex-1 overflow-hidden">
+                    <ResultsPanel />
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
+
+        <AssistantDock />
       </div>
 
       {/* Status bar */}
@@ -313,6 +326,8 @@ export function AppShell() {
           </>
         )}
         <div className="flex-1" />
+        <QueryTimeoutSelect />
+        <div className="w-px h-3 bg-border/50" />
         <div className="flex items-center px-3 h-full text-muted-foreground/60">
           v{appVersion}
         </div>
@@ -355,5 +370,23 @@ function DataTabContent({
         initialFilter={initialFilter}
       />
     </div>
+  );
+}
+
+function AssistantToggle() {
+  const open = useAssistantStore((s) => s.open);
+  const toggle = useAssistantStore((s) => s.toggle);
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className={cn("h-7 w-7 shrink-0 rounded-none", open && "text-primary")}
+      onClick={toggle}
+      title="Assistant"
+      aria-label={open ? "Hide assistant" : "Show assistant"}
+      aria-pressed={open}
+    >
+      <Sparkles className="h-3.5 w-3.5" />
+    </Button>
   );
 }

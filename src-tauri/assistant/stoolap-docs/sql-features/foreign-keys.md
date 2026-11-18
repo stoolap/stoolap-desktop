@@ -1,0 +1,412 @@
+---
+layout: doc
+title: Foreign Keys
+category: SQL Features
+order: 14
+---
+
+# Foreign Keys
+
+This document explains foreign key constraints in Stoolap, including syntax, referential actions, cascading behavior, and transaction semantics.
+
+## Overview
+
+Stoolap supports foreign key (FK) constraints that enforce referential integrity between tables. A foreign key ensures that values in a child table column always reference an existing row in a parent table. This prevents orphaned records and maintains data consistency.
+
+| Feature | Description |
+|---------|-------------|
+| **Zero cost for non-FK tables** | All checks short-circuit when no FK constraints exist |
+| **Index-based lookups** | Parent existence checks use PK or secondary indexes (O(1) or O(log N)) |
+| **Transaction-aware** | FK checks see uncommitted rows within the same transaction |
+| **Automatic FK indexes** | Indexes are auto-created on FK columns for efficient cascade operations |
+| **WAL and snapshot durable** | FK metadata survives restart and WAL truncation |
+
+## Syntax
+
+### Column-Level REFERENCES
+
+```sql
+CREATE TABLE orders (
+    id INTEGER PRIMARY KEY,
+    customer_id INTEGER REFERENCES customers(id),
+    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    amount FLOAT
+);
+```
+
+When the referenced column is omitted, it defaults to the parent table's primary key:
+
+```sql
+-- References customers(id), the primary key
+CREATE TABLE orders (
+    id INTEGER PRIMARY KEY,
+    customer_id INTEGER REFERENCES customers
+);
+```
+
+### Table-Level FOREIGN KEY
+
+```sql
+CREATE TABLE order_items (
+    id INTEGER PRIMARY KEY,
+    order_id INTEGER,
+    product_id INTEGER,
+    quantity INTEGER,
+    FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE RESTRICT
+);
+```
+
+### Multiple FK Columns
+
+A table can have multiple foreign key columns referencing different parent tables:
+
+```sql
+CREATE TABLE employees (
+    id INTEGER PRIMARY KEY,
+    dept_id INTEGER REFERENCES departments(id),
+    mgr_id INTEGER REFERENCES managers(id),
+    name TEXT
+);
+```
+
+## Referential Actions
+
+Referential actions define what happens to child rows when the referenced parent row is deleted or updated.
+
+### ON DELETE Actions
+
+| Action | Behavior |
+|--------|----------|
+| `RESTRICT` | Block the delete if a child row the statement keeps references the parent (default) |
+| `NO ACTION` | Same as RESTRICT for immediate constraint checking |
+| `CASCADE` | Automatically delete all child rows referencing the parent |
+| `SET NULL` | Set the FK column to NULL in all child rows referencing the parent |
+
+The ON DELETE actions of one statement are worked out from the rows as they were when the statement started, before any row is removed:
+
+- Every row the statement removes is found first: its own rows, and the rows each CASCADE reaches from them, at any depth. A row reached twice is removed once.
+- A RESTRICT key refuses the statement only when a row that stays references a row that goes. A child row that the same statement removes, through a CASCADE or as one of its own rows, does not refuse it.
+- A SET NULL clears only the rows that stay. A row that cannot hold NULL refuses the statement only when it would stay.
+
+### ON UPDATE Actions
+
+| Action | Behavior |
+|--------|----------|
+| `RESTRICT` | Block the update if child rows reference the old PK value (default) |
+| `NO ACTION` | Same as RESTRICT for immediate constraint checking |
+| `CASCADE` | Update the FK column in all child rows to the new PK value |
+| `SET NULL` | Set the FK column to NULL in all child rows referencing the old PK value |
+
+The update of an `INSERT ... ON CONFLICT DO UPDATE` (or `ON DUPLICATE KEY UPDATE`) is checked as an `UPDATE` is: a foreign key value it writes must name an existing parent row, and a referenced value it changes runs the ON UPDATE action of each child that names it. A refusal leaves the statement having written nothing.
+
+A parent's primary key can be updated too, and its children follow their ON UPDATE action. When a child's foreign key column is its own primary key, ON UPDATE CASCADE moves the child row to the new key, at any depth of the cascade.
+
+The ON UPDATE actions of one statement are worked out from the rows as they were when the statement started, and each child row is written once:
+
+- A child row follows the parent row its value named at the start, even when another change of the same statement gives some other parent that value.
+- A column with several foreign keys, each reached by the statement, takes the value they all give it. A SET NULL among them leaves the column NULL, whatever the others give. Otherwise, two keys that give it different values refuse the statement.
+- A SET NULL is a change of the column like any other: the rows that reference the nulled column follow their own ON UPDATE action.
+- A key may reach a column the statement itself changes on other rows: `UPDATE s SET a = a + 10, b = b + 1 WHERE id IN (1, 2)`, with `s.b` referencing `s.a`, moves a third row's `b` from 1 to 11 when row 1's `a` goes from 1 to 11. Keys that form a cycle, as `a` referencing `b` and `b` referencing `a`, end where a cascade reaches no row that still holds the old value; one that keeps reaching rows is refused.
+- Each value a cascade writes is checked against every other foreign key of its column once all the rows are written.
+
+Only a value the statement changes is asked. A row that writes back the value its referenced column holds, as `SET id = id` or `SET code = 'a'` on a row whose code is `'a'`, is left alone by every key: no action runs, RESTRICT does not refuse it, and no other transaction waits on it. A RESTRICT or NO ACTION key refuses a changed value that a row still names once the statement's rows are written, so in a table that references itself, `UPDATE t SET id = id + 10, parent_id = parent_id + 10` moves every row with its parent.
+
+### Examples
+
+```sql
+-- RESTRICT (default): block parent delete if children exist
+CREATE TABLE children (
+    id INTEGER PRIMARY KEY,
+    parent_id INTEGER REFERENCES parents(id)
+);
+
+-- CASCADE: delete children when parent is deleted
+CREATE TABLE orders (
+    id INTEGER PRIMARY KEY,
+    customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE
+);
+
+-- SET NULL: nullify FK when parent is deleted
+CREATE TABLE tasks (
+    id INTEGER PRIMARY KEY,
+    assignee_id INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- Combined actions
+CREATE TABLE line_items (
+    id INTEGER PRIMARY KEY,
+    order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+```
+
+## NULL FK Values
+
+A NULL value in a FK column means "no reference" and is always allowed, regardless of the referential action. This follows the SQL standard:
+
+```sql
+-- NULL FK is valid, the row has no parent reference
+INSERT INTO children (id, parent_id, name) VALUES (1, NULL, 'No Parent');
+```
+
+## Multi-Level Cascading
+
+CASCADE operations recurse through the FK hierarchy. If a grandparent is deleted, the cascade propagates through parent tables to child tables:
+
+```sql
+CREATE TABLE grandparents (id INTEGER PRIMARY KEY, name TEXT);
+
+CREATE TABLE parents (
+    id INTEGER PRIMARY KEY,
+    gp_id INTEGER REFERENCES grandparents(id) ON DELETE CASCADE
+);
+
+CREATE TABLE children (
+    id INTEGER PRIMARY KEY,
+    parent_id INTEGER REFERENCES parents(id) ON DELETE CASCADE
+);
+
+-- Deleting a grandparent cascades through parents to children
+DELETE FROM grandparents WHERE id = 1;
+-- Deletes matching parents AND their children
+```
+
+A DELETE cascade has no depth limit: it removes each row once, so a cycle of keys ends at the rows already removed. An ON UPDATE cascade through more than 16 levels of keys is refused.
+
+### Mixed Actions in Multi-Level Hierarchies
+
+RESTRICT at any level in the cascade chain blocks the entire operation:
+
+```sql
+CREATE TABLE grandparents (id INTEGER PRIMARY KEY, name TEXT);
+
+CREATE TABLE parents (
+    id INTEGER PRIMARY KEY,
+    gp_id INTEGER REFERENCES grandparents(id) ON DELETE CASCADE
+);
+
+-- RESTRICT here blocks the cascade from grandparents
+CREATE TABLE children (
+    id INTEGER PRIMARY KEY,
+    parent_id INTEGER REFERENCES parents(id) ON DELETE RESTRICT
+);
+
+-- This fails: CASCADE would delete parents, but RESTRICT blocks because children exist
+DELETE FROM grandparents WHERE id = 1;
+-- Error: cannot delete row with id = 10, still referenced by table 'children'
+```
+
+## Transaction Semantics
+
+### FK Checks See Uncommitted Rows
+
+Within a single transaction, FK checks see uncommitted inserts and deletes:
+
+```sql
+BEGIN;
+-- Insert a new parent (not yet committed)
+INSERT INTO parents VALUES (100, 'New Parent');
+-- This succeeds: the FK check sees the uncommitted parent row
+INSERT INTO children VALUES (1, 100, 'Child');
+COMMIT;
+```
+
+```sql
+BEGIN;
+-- Delete a parent (not yet committed)
+DELETE FROM parents WHERE id = 1;
+-- This fails: the FK check sees the uncommitted delete
+INSERT INTO children VALUES (2, 1, 'Child');
+-- Error: referenced row does not exist
+ROLLBACK;
+```
+
+### CASCADE Atomicity
+
+CASCADE effects participate in the caller's transaction. A ROLLBACK undoes both the parent operation and all cascaded child changes:
+
+```sql
+BEGIN;
+-- CASCADE deletes matching children
+DELETE FROM parents WHERE id = 1;
+-- Both the parent delete AND child cascade are undone
+ROLLBACK;
+-- All rows are back to their original state
+```
+
+### Concurrent Transactions
+
+A child row's FK check and a delete or key change of its parent row in two open transactions never both commit. The second of the two to reach the key fails with a write conflict, which can be retried once the first transaction has ended:
+
+```sql
+-- Session A
+BEGIN;
+DELETE FROM parents WHERE id = 1;
+
+-- Session B
+INSERT INTO children VALUES (3, 1, 'Child');
+-- Error: write conflict: key id = 1 of table 'parents' is held by transaction ...
+
+-- Session A
+COMMIT;
+```
+
+The same holds the other way round: while a transaction that inserted or updated a child of parent 1 is open, a delete of parent 1, or an update that changes the column the key references, fails with a write conflict. Child rows of the same parent inserted by several transactions at once do not conflict with each other.
+
+FK checks read the newest committed rows, also in a transaction under `SNAPSHOT` isolation. A child insert in such a transaction fails if its parent was deleted after the transaction began. A parent delete or key change finds the children committed after the transaction began: `RESTRICT` refuses it as usual. A `CASCADE` or `SET NULL` that would change such a child, or a child another transaction changed after this one began, fails with a write conflict, as any write of that row by the transaction would.
+
+## DDL Interactions
+
+### DROP TABLE
+
+DROP TABLE is blocked while another table's foreign key references the table, whatever rows the child holds and whatever the key's action. A key of the table into itself goes with it and does not block. `DROP TABLE ... CASCADE` drops the table together with the foreign keys that reference it: the child tables keep their rows and their columns, which are no longer foreign keys. DDL operations do not cascade to child rows:
+
+```sql
+-- Blocked: children's key references this table, with or without rows
+DROP TABLE parents;
+-- Error: cannot drop table 'parents': table 'children' references it, DROP TABLE ... CASCADE drops the reference
+
+-- Either drop the child first, or drop the key with the parent
+DROP TABLE parents CASCADE;
+-- children.parent_id is no longer a FK, inserts with any value succeed
+INSERT INTO children VALUES (1, 999, 'No FK');
+```
+
+### TRUNCATE TABLE
+
+TRUNCATE is blocked when child tables have referencing rows:
+
+```sql
+-- Blocked if children reference this table
+TRUNCATE TABLE parents;
+
+-- Child table truncation is always allowed
+TRUNCATE TABLE children;
+```
+
+### RENAME TO
+
+Renaming a parent table renames it in every foreign key that references it, so the children keep their checks and actions under the new name, also after the database is opened again:
+
+```sql
+ALTER TABLE parents RENAME TO families;
+
+-- Checked against families
+INSERT INTO children VALUES (2, 1, 'Second');
+```
+
+### RENAME COLUMN
+
+Renaming a column a foreign key names renames it in the key too: a referenced column of the parent in every child's key, and a key column of the child in its own key. The keys keep their checks and actions, also after the database is opened again.
+
+### DROP COLUMN
+
+A column another table's foreign key references cannot be dropped; the error names the referencing key. Drop the child table first, or the key's column in it. Dropping a child's key column drops its foreign key with it:
+
+```sql
+-- Refused while a child's foreign key references parents(code)
+ALTER TABLE parents DROP COLUMN code;
+
+-- The foreign key goes with its column
+ALTER TABLE children DROP COLUMN parent_id;
+```
+
+## CREATE TABLE Validation
+
+FK constraints are validated at table creation time:
+
+| Check | Error |
+|-------|-------|
+| Parent table must exist, or be the table being created | `references non-existent table` |
+| Referenced column must exist in parent | `references non-existent column` |
+| Referenced column must be PRIMARY KEY or UNIQUE | `neither PRIMARY KEY nor UNIQUE` |
+| A column cannot reference itself | `cannot reference itself` |
+| SET NULL requires nullable FK column | `SET NULL but is NOT NULL` |
+
+```sql
+-- Rejected: SET NULL on NOT NULL column
+CREATE TABLE bad (
+    id INTEGER PRIMARY KEY,
+    parent_id INTEGER NOT NULL REFERENCES parents(id) ON DELETE SET NULL
+);
+-- Error: foreign key column 'parent_id' has ON DELETE SET NULL but is NOT NULL
+```
+
+## Self-Referencing Keys
+
+A table can reference its own primary key or one of its UNIQUE columns, as a tree of rows does:
+
+```sql
+CREATE TABLE categories (
+    id INTEGER PRIMARY KEY,
+    parent_id INTEGER REFERENCES categories(id) ON DELETE CASCADE,
+    name TEXT
+);
+
+-- A row may name a row of the same statement, before or after it, or itself
+INSERT INTO categories VALUES (1, NULL, 'root'), (2, 3, 'leaf'), (3, 1, 'branch');
+
+-- Removes 1 and every row beneath it, at any depth
+DELETE FROM categories WHERE id = 1;
+```
+
+A key into the row's own table is checked once the statement's rows are written, so an INSERT or COPY may give the parent after the child. The rules above hold unchanged: a RESTRICT key refuses only for a row the statement keeps, so `DELETE FROM categories` removes the whole tree, and DROP TABLE and TRUNCATE ignore the rows that reference their own table.
+
+## Matching Keys
+
+A child row belongs to the parent row whose referenced column equals the child's key: the column the foreign key names, which need not be the primary key. Keys compare as values, so an INTEGER key of 1 and a FLOAT key of 1.0 match. Every check and action finds its rows this way, whether a row was written recently or has been moved to the table's sealed storage.
+
+## Automatic FK Indexes
+
+When a FK constraint is defined, Stoolap automatically creates an index on the FK column (unless the column already has a PRIMARY KEY or UNIQUE index). This ensures efficient:
+
+- CASCADE DELETE / SET NULL operations (find child rows by FK value)
+- RESTRICT checks (quickly determine if child rows exist)
+
+```sql
+CREATE TABLE employees (
+    id INTEGER PRIMARY KEY,
+    dept_id INTEGER REFERENCES departments(id)
+);
+
+-- An index named 'fk_employees_dept_id' is automatically created
+SHOW INDEXES FROM employees;
+```
+
+A unique index on the column serves the same lookups, so the FK column gets no index of its own when it is kept UNIQUE, whether the constraint is written on the column or as a table constraint:
+
+```sql
+CREATE TABLE badges (
+    id INTEGER PRIMARY KEY,
+    employee_id INTEGER,
+    UNIQUE (employee_id),
+    FOREIGN KEY (employee_id) REFERENCES employees(id)
+);
+-- Only the unique index 'unique_badges_0' is created
+```
+
+A unique index created later on a FK column takes the place of the automatic index: `CREATE UNIQUE INDEX` on `employees (dept_id)` above drops `fk_employees_dept_id` once the unique index is built. If the column holds duplicate values, the unique index is refused and the automatic index stays.
+
+## Performance
+
+| Operation | Complexity | Notes |
+|-----------|------------|-------|
+| INSERT FK check | O(1) or O(log N) | PK fast path or index lookup on parent |
+| DELETE RESTRICT check | O(log N) | Index lookup on child FK column |
+| DELETE CASCADE | O(K log N) | K = number of child rows to delete |
+| DELETE SET NULL | O(K log N) | K = number of child rows to update |
+| Non-FK table operations | Zero cost | All checks short-circuit immediately |
+
+Each FK check also holds the parent key until its transaction ends: one lock and one hash entry on the parent table per checked key.
+
+## Persistence
+
+FK constraints are persisted through both WAL (Write-Ahead Log) and snapshots. After a crash and recovery, or after WAL truncation:
+
+- FK constraints are fully restored from the latest snapshot
+- All referential actions (CASCADE, SET NULL, RESTRICT) work as before
+- Auto-created FK indexes are also persisted and restored
+
+## Limitations
+
+- FK constraints reference single columns (composite FK not yet supported)

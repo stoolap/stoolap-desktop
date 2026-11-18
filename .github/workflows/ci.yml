@@ -26,6 +26,8 @@ jobs:
         run: npx tsc --noEmit
       - name: Frontend build
         run: npm run vite:build
+      - name: Unit tests
+        run: npm test
 
   check-rust:
     name: Check - ${{ matrix.name }}
@@ -88,3 +90,7 @@ jobs:
       - name: Cargo check
         working-directory: src-tauri
         run: cargo check --target ${{ matrix.target }}
+
+      - name: Cargo test
+        working-directory: src-tauri
+        run: cargo test --target ${{ matrix.target }}

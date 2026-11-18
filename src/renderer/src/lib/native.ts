@@ -158,14 +158,27 @@ export async function notify(title: string, body?: string) {
 
 // --- Menu event listeners ---
 
-function onEvent(event: string, callback: () => void): () => void {
+/**
+ * Subscribe to a Tauri event. `listen` registers asynchronously, so the
+ * returned cleanup may run before registration finishes (React StrictMode
+ * does exactly that); the listener is then removed as soon as it arrives
+ * instead of leaking and firing twice.
+ */
+function subscribe<T>(event: string, handler: (payload: T) => void): () => void {
+  let disposed = false;
   let unlisten: UnlistenFn | null = null;
-  listen(event, () => callback()).then((fn) => {
-    unlisten = fn;
+  listen<T>(event, (e) => handler(e.payload)).then((fn) => {
+    if (disposed) fn();
+    else unlisten = fn;
   });
   return () => {
+    disposed = true;
     unlisten?.();
   };
+}
+
+function onEvent(event: string, callback: () => void): () => void {
+  return subscribe(event, () => callback());
 }
 
 export function onMenuOpenDatabase(callback: () => void): () => void {
@@ -190,6 +203,10 @@ export function onMenuRestore(callback: () => void): () => void {
 
 export function onMenuToggleSidebar(callback: () => void): () => void {
   return onEvent("menu:toggle-sidebar", callback);
+}
+
+export function onMenuToggleAssistant(callback: () => void): () => void {
+  return onEvent("menu:toggle-assistant", callback);
 }
 
 export function onMenuAbout(callback: () => void): () => void {
@@ -257,16 +274,54 @@ export async function relaunchApp(): Promise<void> {
   await relaunch();
 }
 
+// --- Opening databases and SQL files from outside the window ---
+
+/** Fill File → Open Recent with these databases. */
+export async function setRecentDatabases(
+  entries: Array<{ name: string; path: string }>,
+): Promise<void> {
+  await invoke("set_recent_databases", { entries });
+}
+
+/**
+ * A path to open: picked from File → Open Recent, or passed to a second
+ * launch of the app.
+ */
+export function onOpenPath(callback: (path: string) => void): () => void {
+  return subscribe<string>("app:open-path", callback);
+}
+
+/** Files or folders dropped onto the window; `over` tracks the hover state. */
+export function onDragDrop(handlers: {
+  over: (active: boolean) => void;
+  drop: (paths: string[]) => void;
+}): () => void {
+  let disposed = false;
+  let unlisten: UnlistenFn | null = null;
+  import("@tauri-apps/api/webview").then(({ getCurrentWebview }) =>
+    getCurrentWebview()
+      .onDragDropEvent((e) => {
+        const p = e.payload;
+        if (p.type === "enter" || p.type === "over") handlers.over(true);
+        else if (p.type === "leave") handlers.over(false);
+        else if (p.type === "drop") {
+          handlers.over(false);
+          handlers.drop(p.paths);
+        }
+      })
+      .then((fn) => {
+        if (disposed) fn();
+        else unlisten = fn;
+      }),
+  );
+  return () => {
+    disposed = true;
+    unlisten?.();
+  };
+}
+
 export function onAccentColorChanged(
   callback: (color: string) => void,
 ): () => void {
-  let unlisten: UnlistenFn | null = null;
-  listen<string>("app:accent-color-changed", (event) =>
-    callback(event.payload),
-  ).then((fn) => {
-    unlisten = fn;
-  });
-  return () => {
-    unlisten?.();
-  };
+  return subscribe<string>("app:accent-color-changed", callback);
 }

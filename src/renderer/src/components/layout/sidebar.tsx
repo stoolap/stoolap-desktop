@@ -67,6 +67,7 @@ export function Sidebar() {
                     variant="ghost"
                     size="icon"
                     className="h-5 w-5 shrink-0"
+                    aria-label="Disconnect"
                     onClick={handleDisconnect}
                   >
                     <X className="h-2.5 w-2.5 text-muted-foreground" />

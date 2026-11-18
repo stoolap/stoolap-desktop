@@ -5,6 +5,7 @@ import type {
   ExecResult,
   DdlResult,
   ErrorResult,
+  ScriptResult,
   ColumnInfo,
   IndexInfo,
   ForeignKeyInfo,
@@ -37,13 +38,13 @@ export async function executeQuery(
   connId: string,
   sql: string,
   signal?: AbortSignal,
-): Promise<QueryResult | ExecResult | DdlResult | ErrorResult> {
+): Promise<QueryResult | ExecResult | DdlResult | ScriptResult | ErrorResult> {
   // Wrap the invoke promise to swallow its rejection into a resolved
   // ErrorResult. Without this, if the user cancels and the backend later
   // rejects, the rejection lands unhandled because Promise.race already
   // resolved via the abort path.
-  const invokePromise: Promise<QueryResult | ExecResult | DdlResult | ErrorResult> =
-    invoke<QueryResult | ExecResult | DdlResult>("db_execute_query", {
+  const invokePromise: Promise<QueryResult | ExecResult | DdlResult | ScriptResult | ErrorResult> =
+    invoke<QueryResult | ExecResult | DdlResult | ScriptResult>("db_execute_query", {
       connId,
       sql,
     }).catch((e) => ({
@@ -61,6 +62,20 @@ export async function executeQuery(
     );
   });
   return Promise.race([invokePromise, abortPromise]);
+}
+
+/**
+ * Run SQL and throw when it fails. executeQuery reports a failure as an
+ * `{ error }` result instead of throwing, so a try/catch around it never
+ * sees one; use this where the caller handles errors with catch.
+ */
+export async function runSql(
+  connId: string,
+  sql: string,
+): Promise<QueryResult | ExecResult | DdlResult | ScriptResult> {
+  const result = await executeQuery(connId, sql);
+  if ("error" in result && result.error) throw new Error(result.error);
+  return result as QueryResult | ExecResult | DdlResult | ScriptResult;
 }
 
 // Schema
@@ -190,4 +205,9 @@ export async function deleteRow(
   pkValue: unknown,
 ): Promise<ExecResult> {
   return invoke("db_delete_row", { connId, table, pkColumn, pkValue });
+}
+
+/** Statements running longer than `ms` are cancelled by the engine; 0 turns it off. */
+export async function setQueryTimeout(ms: number): Promise<void> {
+  await invoke("db_set_query_timeout", { ms });
 }

@@ -24,3 +24,8 @@ pub async fn db_list(state: State<'_, DbManager>) -> Result<Vec<ConnectionMeta>,
 pub async fn db_close_example(state: State<'_, DbManager>) -> Result<(), String> {
     state.close_example()
 }
+
+#[tauri::command]
+pub async fn db_set_query_timeout(state: State<'_, DbManager>, ms: u64) -> Result<(), String> {
+    state.set_query_timeout(ms)
+}

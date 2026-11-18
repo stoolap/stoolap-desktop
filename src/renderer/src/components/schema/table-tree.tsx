@@ -279,7 +279,7 @@ function TableNode({
   const doTruncateTable = async () => {
     if (!activeId) return;
     try {
-      await api.executeQuery(activeId, `TRUNCATE TABLE ${quoteId(name)}`);
+      await api.runSql(activeId, `TRUNCATE TABLE ${quoteId(name)}`);
       queryClient.invalidateQueries({ queryKey: ["tableRows"] });
       queryClient.invalidateQueries({ queryKey: ["tableRowCount"] });
       queryClient.invalidateQueries({ queryKey: ["rowcount"] });
@@ -298,7 +298,7 @@ function TableNode({
         type === "table"
           ? `DROP TABLE ${quoteId(name)}`
           : `DROP VIEW ${quoteId(name)}`;
-      await api.executeQuery(activeId, sql);
+      await api.runSql(activeId, sql);
       onRefresh();
       toast.success(`${type === "table" ? "Table" : "View"} "${name}" dropped`);
     } catch (e) {
@@ -311,7 +311,7 @@ function TableNode({
   const doDropIndex = async (indexName: string) => {
     if (!activeId) return;
     try {
-      await api.executeQuery(
+      await api.runSql(
         activeId,
         `DROP INDEX ${quoteId(indexName)} ON ${quoteId(name)}`,
       );
@@ -561,7 +561,6 @@ export function TableTree() {
       queryClient.invalidateQueries({ queryKey: ["fks"] }),
       queryClient.invalidateQueries({ queryKey: ["rowcount"] }),
     ]);
-    toast.success("Schema refreshed");
   };
 
   const filteredTables = useMemo(() => {

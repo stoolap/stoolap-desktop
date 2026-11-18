@@ -1,8 +1,9 @@
 
-import { useState, useEffect } from "react";
-import { errorMessage } from "@/lib/utils";
+import { useState, useEffect, useRef } from "react";
+import { errorMessage, basename } from "@/lib/utils";
 import { useConnection } from "@/hooks/use-connection";
 import { useEditorStore } from "@/stores/editor-store";
+import { useHistoryStore } from "@/stores/history-store";
 import { useQueryClient } from "@tanstack/react-query";
 import { ConnectDialog } from "@/components/dialogs/connect-dialog";
 import { ShortcutsHelpDialog } from "@/components/dialogs/shortcuts-help";
@@ -14,6 +15,7 @@ import { toast } from "sonner";
 import * as api from "@/lib/api-client";
 import * as native from "@/lib/native";
 import { splitStatements } from "@/lib/sql-utils";
+import { FolderOpen } from "lucide-react";
 
 const EXAMPLE_SQL = `-- Create tables
 CREATE TABLE customers (
@@ -146,30 +148,57 @@ export function Toolbar() {
   const addTab = useEditorStore((s) => s.addTab);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
   const queryClient = useQueryClient();
+  const recentConnections = useHistoryStore((s) => s.recentConnections);
+  const [dragOver, setDragOver] = useState(false);
 
-  // Listen for keyboard shortcut to open shortcuts help
+  // Listen for in-app requests: the shortcuts help key and the welcome
+  // screen's actions
   useEffect(() => {
-    const handler = () => setShortcutsOpen(true);
-    window.addEventListener("stoolap:shortcuts-help", handler);
-    return () => window.removeEventListener("stoolap:shortcuts-help", handler);
+    const handlers: Array<[string, () => void]> = [
+      ["stoolap:shortcuts-help", () => setShortcutsOpen(true)],
+      ["stoolap:open-database", () => setConnectOpen(true)],
+      ["stoolap:new-memory-db", () => newMemoryRef.current()],
+      ["stoolap:load-example", () => loadExampleRef.current()],
+    ];
+    for (const [name, h] of handlers) window.addEventListener(name, h);
+    return () => {
+      for (const [name, h] of handlers) window.removeEventListener(name, h);
+    };
   }, []);
 
   // Listen for Electron menu events
   useEffect(() => {
     const cleanups = [
       native.onMenuOpenDatabase(() => setConnectOpen(true)),
-      native.onMenuNewMemoryDb(async () => {
-        try { await connect(":memory:"); } catch { /* ignore */ }
-      }),
-      native.onMenuLoadExample(() => handleLoadExample()),
+      native.onMenuNewMemoryDb(() => newMemoryRef.current()),
+      native.onMenuLoadExample(() => loadExampleRef.current()),
       native.onMenuBackup(() => setBackupOpen(true)),
       native.onMenuRestore(() => setRestoreOpen(true)),
       native.onMenuAbout(() => setAboutOpen(true)),
       native.onMenuCheckUpdates(() => setUpdateOpen(true)),
     ];
     return () => cleanups.forEach((c) => c());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connect]);
+  }, []);
+
+  // Keep File → Open Recent in step with the recent databases
+  useEffect(() => {
+    const entries = recentConnections
+      .filter((e) => e.type === "file")
+      .map(({ name, path }) => ({ name, path }));
+    native.setRecentDatabases(entries).catch(() => {});
+  }, [recentConnections]);
+
+  // Paths from File → Open Recent, a second launch, or a drop on the window
+  useEffect(() => {
+    const cleanups = [
+      native.onOpenPath((path) => openPathsRef.current([path])),
+      native.onDragDrop({
+        over: setDragOver,
+        drop: (paths) => openPathsRef.current(paths),
+      }),
+    ];
+    return () => cleanups.forEach((c) => c());
+  }, []);
 
   // Silent auto-check on launch. Wait a few seconds so the first-paint feels
   // instant, then only pop the dialog if an update is actually available —
@@ -198,7 +227,7 @@ export function Toolbar() {
       const meta = await connect(":memory:", "Example DB");
       const statements = splitStatements(EXAMPLE_SQL);
       for (const stmt of statements) {
-        await api.executeQuery(meta.id, stmt);
+        await api.runSql(meta.id, stmt);
       }
       queryClient.invalidateQueries({ queryKey: ["tables", meta.id] });
       queryClient.invalidateQueries({ queryKey: ["views", meta.id] });
@@ -246,9 +275,16 @@ WHERE category = 'Developer'
 ORDER BY distance
 LIMIT 5;`;
 
-      const tabId = addTab("Examples", sampleQuery);
-      setActiveTab(tabId);
-      toast.success("Example database loaded");
+      // One Examples tab, not saved across launches (the example database
+      // itself is closed at every start)
+      const editor = useEditorStore.getState();
+      const existing = editor.tabs.find((t) => t.transient && t.title === "Examples");
+      if (existing) {
+        editor.updateTabSql(existing.id, sampleQuery);
+        setActiveTab(existing.id);
+      } else {
+        setActiveTab(addTab("Examples", sampleQuery, { transient: true }));
+      }
     } catch (e) {
       toast.error("Failed to load example", {
         description: errorMessage(e),
@@ -256,8 +292,57 @@ LIMIT 5;`;
     }
   };
 
+  /** Open .sql files as query tabs and anything else as a database folder. */
+  const openPaths = async (paths: string[]) => {
+    for (const path of paths) {
+      try {
+        if (/\.sql$/i.test(path)) {
+          const { readTextFile } = await import("@tauri-apps/plugin-fs");
+          const sql = await readTextFile(path);
+          setActiveTab(addTab(basename(path).replace(/\.sql$/i, ""), sql));
+          continue;
+        }
+        const open = connections.find((c) => c.path === path);
+        if (open) {
+          setActiveId(open.id);
+          continue;
+        }
+        await connect(path, basename(path));
+      } catch (e) {
+        toast.error(`Could not open ${basename(path)}`, {
+          description: errorMessage(e),
+        });
+      }
+    }
+  };
+
+  const handleNewMemory = async () => {
+    try {
+      await connect(":memory:");
+    } catch (e) {
+      toast.error("Failed to create database", { description: errorMessage(e) });
+    }
+  };
+
+  // The listeners are registered once; read the latest handlers (and the
+  // connections list they close over) through refs.
+  const loadExampleRef = useRef(handleLoadExample);
+  loadExampleRef.current = handleLoadExample;
+  const newMemoryRef = useRef(handleNewMemory);
+  newMemoryRef.current = handleNewMemory;
+  const openPathsRef = useRef(openPaths);
+  openPathsRef.current = openPaths;
+
   return (
     <>
+      {dragOver && (
+        <div className="pointer-events-none fixed inset-2 z-50 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-primary/10 backdrop-blur-[1px]">
+          <div className="flex items-center gap-2 rounded-lg bg-background/90 px-4 py-2 text-sm shadow-lg">
+            <FolderOpen className="h-4 w-4 text-primary" />
+            Drop a database folder or a .sql file to open it
+          </div>
+        </div>
+      )}
       <ConnectDialog open={connectOpen} onOpenChange={setConnectOpen} />
       <ShortcutsHelpDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <BackupDialog open={backupOpen} onOpenChange={setBackupOpen} />

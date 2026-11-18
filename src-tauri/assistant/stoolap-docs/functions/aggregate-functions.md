@@ -1,0 +1,435 @@
+---
+layout: doc
+title: Aggregate Functions
+category: Functions
+order: 3
+---
+
+# Aggregate Functions
+
+Stoolap supports standard SQL aggregate functions that operate on multiple rows to calculate a single result. These functions are typically used with GROUP BY clauses for summarizing data.
+
+## Basic Aggregate Functions
+
+### COUNT
+
+Counts the number of rows or non-NULL values:
+
+```sql
+-- Count all rows
+SELECT COUNT(*) FROM orders;
+
+-- Count non-NULL values in a column
+SELECT COUNT(status) FROM orders;
+
+-- Count distinct values
+SELECT COUNT(DISTINCT category) FROM products;
+```
+
+COUNT is optimized to use available indexes when possible.
+
+### SUM
+
+Calculates the sum of numeric values:
+
+```sql
+SELECT SUM(amount) FROM orders;
+
+-- With grouping
+SELECT category, SUM(amount) FROM orders GROUP BY category;
+```
+
+SUM follows the arithmetic of `+`. Over INTEGER values it returns the exact INTEGER sum; a BOOLEAN counts as 1 or 0. A running total may pass beyond the INTEGER range and come back, but a final sum outside it is an `Integer overflow` error, as `a + b` is. Once any value is FLOAT, the sum is FLOAT. NULL values are skipped, and SUM of no values is NULL.
+
+### AVG
+
+Calculates the average (mean) of numeric values:
+
+```sql
+SELECT AVG(price) FROM products;
+
+-- With grouping
+SELECT category, AVG(price) FROM products GROUP BY category;
+```
+
+AVG always returns FLOAT. It divides the exact sum that SUM computes, so INTEGER values far beyond 2^53 average without first rounding each one.
+
+### MIN
+
+Finds the minimum value:
+
+```sql
+SELECT MIN(price) FROM products;
+
+-- Works with strings (alphabetical order)
+SELECT MIN(name) FROM products;
+
+-- With grouping
+SELECT category, MIN(price) FROM products GROUP BY category;
+```
+
+### MAX
+
+Finds the maximum value:
+
+```sql
+SELECT MAX(price) FROM products;
+
+-- Works with strings
+SELECT MAX(name) FROM products;
+
+-- With grouping
+SELECT category, MAX(price) FROM products GROUP BY category;
+```
+
+## Statistical Functions
+
+### MEDIAN
+
+Returns the median (middle value) of all non-NULL values. For an even number of values, returns the average of the two middle values.
+
+```sql
+SELECT MEDIAN(salary) FROM employees;
+
+-- Odd count: values 1, 3, 5, 7, 9 → median = 5
+-- Even count: values 1, 3, 5, 7 → median = (3+5)/2 = 4
+```
+
+### STDDEV / STDDEV_SAMP
+
+Calculates the sample standard deviation:
+
+```sql
+SELECT STDDEV(value) FROM measurements;
+SELECT STDDEV_SAMP(value) FROM measurements;  -- same as STDDEV
+
+-- For values: 10, 20, 30, 40, 50
+SELECT STDDEV(value) FROM data;  -- Returns ~15.81
+```
+
+### STDDEV_POP
+
+Calculates the population standard deviation (divides by N instead of N-1):
+
+```sql
+SELECT STDDEV_POP(value) FROM measurements;
+```
+
+### VARIANCE / VAR_SAMP
+
+Calculates the sample variance:
+
+```sql
+SELECT VARIANCE(value) FROM measurements;
+SELECT VAR_SAMP(value) FROM measurements;  -- same as VARIANCE
+
+-- For values: 10, 20, 30, 40, 50
+SELECT VARIANCE(value) FROM data;  -- Returns ~250
+```
+
+### VAR_POP
+
+Calculates the population variance (divides by N instead of N-1):
+
+```sql
+SELECT VAR_POP(value) FROM measurements;
+```
+
+## String and Array Aggregation
+
+### STRING_AGG
+
+Concatenates values into a single string with a separator:
+
+```sql
+-- Basic usage
+SELECT STRING_AGG(name, ', ') FROM employees;
+-- Returns: "Alice, Bob, Charlie, Diana"
+
+-- With ORDER BY clause
+SELECT STRING_AGG(name, ', ' ORDER BY name) FROM employees;
+-- Returns: "Alice, Bob, Charlie, Diana" (alphabetically ordered)
+
+-- With grouping
+SELECT department, STRING_AGG(name, ', ' ORDER BY salary DESC) as team_members
+FROM employees
+GROUP BY department;
+```
+
+The separator is read for each row the call aggregates, as its value is, and each value after the first is preceded by the separator of its own row: `STRING_AGG(name, sep)` over the rows `('a', '-')`, `('b', '+')`, `('c', '/')` gives `a+b/c`. Under `ORDER BY` a value keeps its row's separator as the values are sorted, and under `DISTINCT` a row counts once for its value and separator together. The separator may read the row, a parameter or an enclosing query's row (a double-quoted name reads the column it names, and is its text only when no column carries it), and a function there that draws a new value per call, such as `RANDOM()`, draws one for each row; a row that `FILTER` drops or whose value is NULL adds nothing. It is turned into text as `CONCAT_WS` turns its separator, so `STRING_AGG(n, 0)` joins with `0` and `STRING_AGG(n, DATE '2024-01-01')` with `2024-01-01T00:00:00+00:00`. A NULL separator adds nothing, so `STRING_AGG(name, NULL)` gives `abc`. An error from evaluating the separator, such as an overflow, is reported only when there is a group or a window row to aggregate, as an expression in the select list is. Without a separator the values are joined with `,`.
+
+### GROUP_CONCAT
+
+Alias for STRING_AGG. Concatenates values with a separator:
+
+```sql
+SELECT GROUP_CONCAT(name, ', ') FROM employees;
+-- Returns: "Alice, Bob, Charlie, Diana"
+```
+
+### ARRAY_AGG
+
+Aggregates values into a JSON array:
+
+```sql
+-- Basic usage
+SELECT ARRAY_AGG(name) FROM employees;
+-- Returns: ["Alice", "Bob", "Charlie", "Diana"]
+
+-- With ORDER BY clause
+SELECT ARRAY_AGG(name ORDER BY salary DESC) FROM employees;
+-- Returns names ordered by salary descending
+
+-- With grouping
+SELECT department, ARRAY_AGG(name ORDER BY name) as members
+FROM employees
+GROUP BY department;
+```
+
+## Position Functions
+
+### FIRST
+
+Returns the first value in a group based on row order:
+
+```sql
+SELECT FIRST(name) FROM employees;
+
+-- With grouping
+SELECT department, FIRST(name) FROM employees GROUP BY department;
+```
+
+Note: FIRST depends on the order of rows. Use ORDER BY in a subquery for deterministic results.
+
+### LAST
+
+Returns the last value in a group based on row order:
+
+```sql
+SELECT LAST(name) FROM employees;
+
+-- With grouping
+SELECT department, LAST(name) FROM employees GROUP BY department;
+```
+
+Note: LAST depends on the order of rows. Use ORDER BY in a subquery for deterministic results.
+
+## Using GROUP BY
+
+The GROUP BY clause groups rows with the same values and applies aggregate functions to each group:
+
+```sql
+SELECT
+    category,
+    COUNT(*) as count,
+    SUM(amount) as total,
+    AVG(amount) as average,
+    MIN(amount) as minimum,
+    MAX(amount) as maximum
+FROM sales
+GROUP BY category;
+```
+
+Result:
+```
+category    | count | total   | average | minimum | maximum
+------------+-------+---------+---------+---------+--------
+Electronics | 3     | 2150.00 | 716.67  | 150.00  | 1200.00
+Clothing    | 3     | 145.00  | 48.33   | 25.00   | 70.00
+```
+
+A name in GROUP BY may be a SELECT alias: `SELECT a + 1 AS k, COUNT(*) FROM t GROUP BY k` groups by `a + 1`. An alias of an aggregate cannot be grouped by, so in `SELECT g AS n, COUNT(*) AS g FROM t GROUP BY g` the name `g` is the column of `t`. A number in GROUP BY is a position in the SELECT list, from 1; a position the list does not have is an error.
+
+A GROUP BY key cannot be or hold an aggregate: `GROUP BY COUNT(*)`, a position naming `COUNT(*)` and an alias of `COUNT(*)` that no column of the source carries all fail with "an aggregate function cannot be a GROUP BY key". A name that is no column of the source, no SELECT alias and no column of an enclosing query's row is an error too: `GROUP BY nosuch` fails as `SELECT nosuch` does. Under GROUPING SETS, the statement groups by each set whether or not the SELECT list names its expressions: `SELECT COUNT(*) FROM t GROUP BY GROUPING SETS ((a), ())` gives a count for each `a` and one for all rows.
+
+A query that aggregates, with GROUP BY, with a HAVING or with an aggregate call alone, reads a column of its rows only through a GROUP BY item or inside an aggregate call. Reading one anywhere else is an error, in the SELECT list, HAVING and ORDER BY alike: `SELECT b, COUNT(*) FROM t GROUP BY a` and `SELECT b, COUNT(*) FROM t` both fail with `Column 'b' not found`. A subquery that aggregates follows the same rule, while a column of an enclosing query is one value for it and may be read anywhere. A subquery inside a query that aggregates reads that query's rows the same way: `SELECT a, (SELECT COUNT(*) FROM u WHERE u.id = t.b) FROM t GROUP BY a` fails with `Column 't.b' not found`, at any depth and in the SELECT list of an EXISTS too, though an EXISTS does not compute that list. A subquery that gives `t` another name hides its own name, so `t.b` inside `FROM t AS t2` is still the enclosing row's.
+
+Two rows share a group exactly when their keys are equal the way DISTINCT and UNION compare them, and every row lands in a group:
+
+- all NULL keys form one group;
+- `1` and `1.0` share a group, as do `-0.0` and `0.0`, and every NaN shares one group;
+- a TEXT, BOOLEAN or TIMESTAMP key never shares a group with a number, so `'1'`, `TRUE` and `1` are three groups.
+
+A group's key is the value of the first row that reached it. ROLLUP, CUBE and GROUPING SETS group each of their sets by the same rule.
+
+## Using HAVING
+
+The HAVING clause filters groups based on aggregate results:
+
+```sql
+-- Find categories with more than 2 products and total > 100
+SELECT category, COUNT(*) as count, SUM(amount) as total
+FROM sales
+GROUP BY category
+HAVING COUNT(*) > 2 AND SUM(amount) > 100;
+```
+
+A HAVING makes a query aggregate even without a GROUP BY or an aggregate call in its SELECT list: every row the query reads forms one group, which the HAVING keeps or drops. `SELECT 1 FROM sales HAVING COUNT(*) > 2` returns one row when `sales` holds more than two rows and none otherwise, over a table, a view, a derived table, a CTE, a `VALUES` list or a join alike, and whether or not a clause holds a subquery. Such a query reads its columns as any aggregating query does, so a column outside an aggregate call is an error, and a HAVING cannot read a window function's result.
+
+## Multi-Dimensional Aggregation
+
+### ROLLUP
+
+Creates subtotals rolling up from the most detailed level to a grand total:
+
+```sql
+SELECT
+    region,
+    category,
+    SUM(sales) as total_sales
+FROM orders
+GROUP BY ROLLUP(region, category);
+```
+
+Result includes:
+- Detail rows for each region/category combination
+- Subtotals for each region (category = NULL)
+- Grand total (region = NULL, category = NULL)
+
+### CUBE
+
+Creates subtotals for all combinations of grouping columns:
+
+```sql
+SELECT
+    region,
+    category,
+    SUM(sales) as total_sales
+FROM orders
+GROUP BY CUBE(region, category);
+```
+
+Result includes:
+- Detail rows for each region/category combination
+- Subtotals for each region
+- Subtotals for each category
+- Grand total
+
+### GROUPING SETS
+
+Specifies exactly which grouping combinations to generate:
+
+```sql
+SELECT
+    region,
+    category,
+    SUM(sales) as total_sales
+FROM orders
+GROUP BY GROUPING SETS ((region, category), (region), ());
+```
+
+Result includes only the specified groupings:
+- Detail rows for each region/category combination
+- Subtotals for each region
+- Grand total
+
+GROUPING SETS provides full control over which aggregation levels appear in the result.
+
+### GROUPING() Function
+
+The GROUPING() function identifies super-aggregate rows (subtotals and grand totals):
+
+```sql
+SELECT
+    region,
+    category,
+    SUM(sales) as total_sales,
+    GROUPING(region) as is_region_agg,
+    GROUPING(category) as is_category_agg
+FROM orders
+GROUP BY ROLLUP(region, category);
+```
+
+Returns:
+- `0` if the column is part of the current grouping (normal grouped row)
+- `1` if the column is aggregated (super-aggregate row)
+
+Use GROUPING() to distinguish between actual NULL values and NULLs that indicate subtotal rows.
+
+See [ROLLUP, CUBE, and GROUPING SETS]({% link _docs/sql-features/rollup-cube.md %}) for detailed documentation.
+
+## DISTINCT, ORDER BY and FILTER in a Call
+
+An aggregate call may say which of its rows it reads and in what order:
+
+```sql
+SELECT COUNT(DISTINCT category) FROM products;
+SELECT SUM(price) FILTER (WHERE in_stock) FROM products;
+SELECT STRING_AGG(name, ', ' ORDER BY name) FROM products;
+```
+
+These modifiers belong to aggregate calls, an aggregate used as a window function included. On any other function they are an error, wherever the call stands, since no other call reads rows: `ABS(DISTINCT x)`, `UPPER(s ORDER BY id)` and `ABS(x) FILTER (WHERE x > 0)` each fail with `DISTINCT is allowed only in an aggregate call, and ABS is not an aggregate function` (or `ORDER BY`, `FILTER`, and the function's name). So does `ROW_NUMBER(DISTINCT x) OVER ()`. The statement is checked before it reads a row, so it fails even where the call would never be evaluated: in a branch of an OR its other side decides, in the SELECT list of an EXISTS, in a RETURNING list of a statement that changes no row, or under `LIMIT 0`. A column DEFAULT is checked when an INSERT computes it.
+
+An aggregate call may stand anywhere inside an expression of the SELECT list, HAVING or ORDER BY: as a CASE value or branch, in BETWEEN, IN or LIKE on either side, in a row, or as a function's argument. `SELECT CASE SUM(a) WHEN 0 THEN 'none' END FROM t`, `SELECT COUNT(*) IN (1, 2) FROM t` and `HAVING MIN(name) LIKE 'a%'` each compute the call over the rows, grouped or not.
+
+An aggregate call where the rows are not grouped, such as `ORDER BY MAX(a)` in a query without GROUP BY or an aggregate in its SELECT list, is an error too: `aggregate function MAX is not allowed where the rows are not grouped`. In a WHERE clause it is `aggregate functions are not allowed in WHERE clause (use HAVING instead)`.
+
+## NULL Handling
+
+Stoolap follows standard SQL NULL handling for aggregate functions:
+
+- NULL values are ignored by most aggregate functions (SUM, AVG, MIN, MAX)
+- COUNT(*) includes all rows regardless of NULL values
+- COUNT(column) only counts non-NULL values
+- If all inputs to an aggregate function are NULL, the result is NULL (except COUNT which returns 0)
+
+```sql
+-- Example with NULL values
+CREATE TABLE test (id INTEGER, value INTEGER);
+INSERT INTO test VALUES (1, 10), (2, NULL), (3, 30);
+
+SELECT COUNT(*) FROM test;        -- Returns 3
+SELECT COUNT(value) FROM test;    -- Returns 2
+SELECT SUM(value) FROM test;      -- Returns 40
+SELECT AVG(value) FROM test;      -- Returns 20
+```
+
+## Performance Considerations
+
+- COUNT(*) is optimized to use the smallest available index
+- COUNT DISTINCT can be expensive for large datasets with many unique values
+- Aggregations benefit from indexes on grouped columns
+- Use WHERE clauses to reduce input size before aggregation
+- ROLLUP and CUBE can produce many result rows for high-cardinality columns
+
+## Complete Example
+
+```sql
+-- Create sample data
+CREATE TABLE orders (
+    id INTEGER PRIMARY KEY,
+    customer TEXT,
+    category TEXT,
+    amount FLOAT,
+    order_date TEXT
+);
+
+INSERT INTO orders VALUES
+(1, 'Alice', 'Electronics', 1200.00, '2024-01-15'),
+(2, 'Bob', 'Electronics', 800.00, '2024-01-16'),
+(3, 'Alice', 'Clothing', 150.00, '2024-01-17'),
+(4, 'Charlie', 'Electronics', 450.00, '2024-01-18'),
+(5, 'Bob', 'Clothing', 75.00, '2024-01-19');
+
+-- Multiple aggregates in one query
+SELECT
+    category,
+    COUNT(*) as order_count,
+    COUNT(DISTINCT customer) as unique_customers,
+    SUM(amount) as total_sales,
+    AVG(amount) as avg_order,
+    MIN(amount) as smallest_order,
+    MAX(amount) as largest_order,
+    STRING_AGG(customer, ', ') as customers
+FROM orders
+GROUP BY category
+ORDER BY total_sales DESC;
+```
+
+Result:
+```
+category    | order_count | unique_customers | total_sales | avg_order | smallest_order | largest_order | customers
+------------+-------------+------------------+-------------+-----------+----------------+---------------+--------------------
+Electronics | 3           | 3                | 2450.00     | 816.67    | 450.00         | 1200.00       | Alice, Bob, Charlie
+Clothing    | 2           | 2                | 225.00      | 112.50    | 75.00          | 150.00        | Alice, Bob
+```

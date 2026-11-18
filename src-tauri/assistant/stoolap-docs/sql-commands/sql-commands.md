@@ -1,0 +1,1070 @@
+---
+layout: doc
+title: SQL Commands
+category: SQL Commands
+order: 1
+---
+
+# SQL Commands
+
+This document provides a comprehensive reference to SQL commands supported by Stoolap.
+
+## Data Manipulation Language (DML)
+
+### SELECT
+
+The SELECT statement retrieves data from one or more tables.
+
+#### Basic Syntax
+
+```sql
+SELECT [DISTINCT [ON (expr1, expr2, ...)]] column1, column2, ...
+FROM table_name
+[WHERE condition]
+[GROUP BY column1, ... | ROLLUP(column1, ...) | CUBE(column1, ...) | GROUPING SETS((col1), (col2), ...)]
+[HAVING condition]
+[ORDER BY column1 [ASC|DESC] [NULLS FIRST|NULLS LAST], ...]
+[LIMIT count [OFFSET offset]]
+```
+
+#### Parameters
+
+- **DISTINCT**: Removes duplicate rows from the result
+- **DISTINCT ON (expr, ...)**: Keeps only the first row per unique combination of the given expressions (PostgreSQL-inspired). Unlike PostgreSQL, Stoolap does not require the DISTINCT ON expressions to match the leftmost ORDER BY columns
+- **column1, column2, ...**: Columns to retrieve; use `*` for all columns
+- **table_name**: The table to query
+- **WHERE condition**: Filter condition
+- **GROUP BY**: Groups rows by specified columns
+- **ROLLUP/CUBE/GROUPING SETS**: Multi-dimensional aggregation (see [ROLLUP, CUBE, and GROUPING SETS]({% link _docs/sql-features/rollup-cube.md %}))
+- **HAVING**: Filter applied to groups
+- **ORDER BY**: Sorting of results (`NULLS FIRST` or `NULLS LAST` to control NULL placement)
+- **LIMIT**: Maximum rows to return
+- **OFFSET**: Number of rows to skip
+
+Values sort in one total order, the same in ORDER BY, window ORDER BY, the ORDER BY of an aggregate such as `STRING_AGG`, and in `MIN`, `MAX`, `GREATEST` and `LEAST`. Numbers sort by their exact value, INTEGER and FLOAT together, with NaN after every number. Values of different types sort by type: BOOLEAN, then numbers, then TEXT, then TIMESTAMP. NULL goes where `NULLS FIRST` or `NULLS LAST` puts it (by default last for ASC and first for DESC), and `MIN` and `MAX` skip it. So a column mixing `TRUE`, `10`, `2.5` and `'a'` sorts as `TRUE, 2.5, 10, 'a'` whatever the order of the rows. This order is for sorting only: a comparison such as `10 < '5'` reads the TEXT as a number, as described in [CAST Operations]({% link _docs/sql-features/cast-operations.md %}).
+
+Rows are grouped and deduplicated by one key equality, the same in GROUP BY, ROLLUP, CUBE and GROUPING SETS, DISTINCT and DISTINCT ON, `COUNT(DISTINCT ...)` and the other DISTINCT aggregates, UNION, INTERSECT and EXCEPT, PARTITION BY, and the same clauses inside a subquery. Numbers are one key when their exact values are equal, INTEGER and FLOAT together: INTEGER `1` and FLOAT `1.0` form one group, as do `0`, `0.0` and `-0.0`, while `9007199254740993` and `9007199254740992.0` stay two. Any other two values are one key only when they have the same type and the same value. A TEXT is never read as another type here, unlike in a comparison: `1 = '1'` is true, yet `1` and `'1'` are two groups, and so are `TRUE` and `'true'`. Every NULL falls in one group. A group shows one of its values, the first one the statement reads.
+
+A bare name in ORDER BY that is both a SELECT alias and a column of the tables in FROM sorts by the output column the alias names: `SELECT -id AS id FROM t ORDER BY id` sorts by `-id`. A qualified name such as `t.id`, or an expression such as `id + 0`, sorts by the table's column. Any other bare name sorts by the column of FROM it names, whether or not the SELECT list shows that column: `SELECT u.k AS uk FROM t LEFT JOIN u USING (k) ORDER BY k` sorts by the merged `k`, which no item shows. This holds with or without LIMIT and OFFSET, over joins, CTEs, derived tables and prepared statements. Any other ORDER BY or DISTINCT ON key, such as `ABS(a)` or a window function, is computed from the row, never read from an output column whose alias is spelled like it: `SELECT b AS "ABS(a)" FROM t ORDER BY ABS(a)` sorts by `ABS(a)`.
+
+An integer in ORDER BY is a position: `ORDER BY 2` sorts by the second column the SELECT list shows, a star counting each column it gives. A position below 1 or past the last column fails the statement with `ORDER BY position 3 is not in the select list`, over every source and in a set operation, a subquery or a prepared statement. Without a star it fails when the statement is parsed.
+
+A bare name in WHERE that is a SELECT alias reads the alias's expression: `SELECT price * 2 AS cost FROM products WHERE cost > 100` keeps the rows whose doubled price is above 100. The name is read so under any operator of the WHERE, outside its subqueries: `CAST(cost AS TEXT) = '200'`, `cost IN (100, 200)` and `(cost, id) = (200, 1)` read it too. A column of the tables in FROM with that name wins: `SELECT x AS id FROM u WHERE id = 2` compares the column `id`, not `x`. This holds over a table, a view, a derived table, VALUES, a table function and a CTE, in a subquery and in a prepared statement.
+
+A bare name in GROUP BY that a SELECT alias carries groups by the alias's expression, unless that expression holds an aggregate: `SELECT TIME_TRUNC('5m', time) AS time, SUM(value) FROM events GROUP BY time` groups by the five-minute bucket. A qualified name such as `events.time` groups by the table's column. A SELECT alias is not seen by the other items of its SELECT list: a bare or qualified name there, in a window function's arguments or in its OVER clause, reads the grouped column of that name even when an aggregate's alias is spelled like it, so `SELECT SUM(a) AS b, b FROM t GROUP BY b` returns each group's sum next to its `b`. Whatever its alias, a grouped SELECT item is computed from its expression: in `SELECT g, -k AS k FROM t GROUP BY g, t.k` the second column holds `-k`. A statement may hold both GROUP BY and window functions over any source; the windows run over the groups. A qualified star such as `t.*` expands to the columns of the source `t` names, and only those, whether `t` is a table, one side of a join, a view, a derived table, a CTE, VALUES or a table function; each column keeps its own name.
+
+A qualified name such as `t.id`, or a qualified star such as `t.*`, names a FROM entry of the query it is written in or of an enclosing one; a qualifier that names none fails the statement before it runs, with `unknown table or alias 't'`, whatever the statement and the clause. A qualified name reads a column of the entry its qualifier names and of no other: in `SELECT v.id FROM vy AS v JOIN y ON y.id = v.id`, where the view `vy` has no `id`, the statement fails with `Column 'v.id' not found` though `y` has one; a column a `NATURAL` or `USING` join merges is a column of both its entries. An entry is named by its alias when it has one, and only by it: in `SELECT x FROM orders AS o WHERE orders.id = 1` the name `orders` is not visible (`table or alias 'orders' is not visible here`), though an enclosing query that reads `orders` without an alias can still be named so. A derived table, a `VALUES` list or a table function's arguments do not see the other entries of their FROM; a join's `ON` sees the entries of that join. The `ORDER BY`, `LIMIT` and `OFFSET` of a set operation, and `LIMIT` and `OFFSET` of any query, see no entry of its FROM. In INSERT, the target table is visible in `ON CONFLICT DO UPDATE` and `RETURNING`, not in the `VALUES` or the `SELECT` that give the rows, and `excluded` is visible in `ON CONFLICT DO UPDATE` only. In UPDATE and DELETE the target is visible by its alias, if it has one, else by its name. A table's CHECK may name the table itself.
+
+A quoted name may hold a dot, and it stays one name: `"a.b"` is a column or an entry called `a.b`, never the column `b` of an entry `a`. So `a."b.v"`, the column `b.v` of `a`, and `"a.b".v`, the column `v` of an entry called `a.b`, are two columns, in every clause and over every source. An output column a subquery calls `"p.b"` is not the enclosing query's `p.b`, which the subquery still reads as the enclosing row's value. The control character U+001F cannot appear in a quoted name.
+
+A statement over one table that names a column the table does not have fails with `column 'x' not found`, in every clause, whatever its WHERE keeps: `SELECT nosuch FROM t WHERE 1 = 0` fails too. A name in FROM that is no table, view or CTE fails with `table or view 'x' not found`. An aggregate's argument follows the same rule over any source: `SELECT SUM(nosuch) FROM t` fails as `SELECT nosuch FROM t` does. A double-quoted name that no column carries is its text: `MAX("nosuch")` answers as `MAX('nosuch')`.
+
+Each result column is named by its SELECT item. An alias names it. A column, bare or qualified, gives its own name: `t.id` gives `id`. Any other item is named as it is written, in one spelling with the function name in capitals and one space around an operator: `ABS(a)`, `a + 1`, `CAST(a AS TEXT)`, `COUNT(*)`, `ROW_NUMBER() OVER (ORDER BY id)` or `(SELECT MAX(x) FROM u)`. In such a name a text value's control character U+001F shows as U+FFFD followed by `1`, and a U+FFFD shows twice, so two items that write different values never share a name. A name no bare word spells keeps its quotes inside such an item: `"A b" + 1`, while `"A b"` alone gives `A b`. A star over one source gives each column its own name; over a join it names each column by its source, `t.id`, a column of a source without a name, such as a derived table or a `VALUES` list without an alias, by its own name, `column1`, and a qualified star such as `t.*` gives each column of `t` its own name. Two columns may share a name. In the body of a derived table, a CTE or a view, a star over a join gives each column its own name instead, so `(SELECT * FROM t JOIN u ON ...) AS d` is read as `k` and `d.k`, a column a `NATURAL` or `USING` join merges appears once, and a name two of its columns carry is ambiguous wherever it is read. The rule is the same with or without GROUP BY, window functions, WHERE, ORDER BY or LIMIT, without a FROM, over a view, a CTE, a derived table, VALUES or a table function, in a prepared statement and in RETURNING, and `CREATE TABLE ... AS SELECT` creates its columns under these names.
+
+LIMIT and OFFSET each take an expression evaluated once for the statement, before it reads a row, a literal, a parameter or arithmetic on them. A function that returns a new value on each call, such as `RANDOM()`, is called once too, however the statement reads its rows. The value must be a whole number of zero or more: an INTEGER, or a FLOAT with no fractional part (`LIMIT 2.0` is `LIMIT 2`). NULL, a negative value, a fractional value such as `LIMIT 2.5`, and any other type are an error.
+
+#### Examples
+
+```sql
+-- Basic query
+SELECT id, name, price FROM products;
+
+-- Filtering
+SELECT * FROM products WHERE price > 50.00 AND category = 'Electronics';
+
+-- Sorting
+SELECT * FROM products ORDER BY price DESC, name ASC;
+
+-- Pagination
+SELECT * FROM customers LIMIT 10 OFFSET 20;
+
+-- Unique values
+SELECT DISTINCT category FROM products;
+
+-- First row per group (DISTINCT ON)
+SELECT DISTINCT ON (customer_id) customer_id, order_date, total
+FROM orders
+ORDER BY customer_id, order_date DESC;
+
+-- Aggregation
+SELECT category, AVG(price) AS avg_price, COUNT(*) as count
+FROM products
+GROUP BY category;
+
+-- Filtering groups
+SELECT category, COUNT(*) AS product_count
+FROM products
+GROUP BY category
+HAVING COUNT(*) > 5;
+```
+
+#### JOIN Operations
+
+Stoolap supports all standard JOIN types:
+
+```sql
+-- INNER JOIN
+SELECT p.name, c.name AS category
+FROM products p
+INNER JOIN categories c ON p.category_id = c.id;
+
+-- LEFT JOIN
+SELECT c.name, o.id AS order_id
+FROM customers c
+LEFT JOIN orders o ON c.id = o.customer_id;
+
+-- RIGHT JOIN
+SELECT c.name, o.id AS order_id
+FROM customers c
+RIGHT JOIN orders o ON c.id = o.customer_id;
+
+-- FULL OUTER JOIN
+SELECT c.name, o.id
+FROM customers c
+FULL OUTER JOIN orders o ON c.id = o.customer_id;
+
+-- CROSS JOIN
+SELECT p.name, c.name
+FROM products p
+CROSS JOIN colors c;
+
+-- NATURAL JOIN (auto-matches common column names)
+SELECT *
+FROM orders
+NATURAL JOIN customers;
+```
+
+See [JOIN Operations]({% link _docs/sql-features/join-operations.md %}) for detailed documentation.
+
+#### Subqueries
+
+Using subqueries in various clauses (both correlated and non-correlated):
+
+```sql
+-- Scalar subquery
+SELECT name, price,
+       (SELECT AVG(price) FROM products) as avg_price
+FROM products;
+
+-- IN subquery
+SELECT * FROM customers
+WHERE id IN (SELECT DISTINCT customer_id FROM orders);
+
+-- EXISTS subquery (correlated)
+SELECT * FROM customers c
+WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id);
+
+-- NOT IN subquery
+SELECT * FROM products
+WHERE id NOT IN (SELECT product_id FROM discontinued_items);
+
+-- Correlated subquery in WHERE
+SELECT * FROM employees e1
+WHERE salary > (SELECT AVG(salary) FROM employees e2 WHERE e2.department = e1.department);
+
+-- ANY/ALL subquery
+SELECT * FROM products WHERE price > ALL (SELECT price FROM products WHERE category = 'Books');
+
+-- Derived table (subquery in FROM)
+SELECT * FROM (SELECT id, name FROM products WHERE price > 100) AS expensive;
+```
+
+See [Subqueries]({% link _docs/sql-features/subqueries.md %}) for detailed documentation.
+
+#### Common Table Expressions (CTEs)
+
+```sql
+-- Simple CTE
+WITH high_value_orders AS (
+    SELECT * FROM orders WHERE total > 1000
+)
+SELECT * FROM high_value_orders;
+
+-- Multiple CTEs
+WITH
+customer_totals AS (
+    SELECT customer_id, SUM(total) as total_spent
+    FROM orders
+    GROUP BY customer_id
+),
+vip_customers AS (
+    SELECT * FROM customer_totals WHERE total_spent > 10000
+)
+SELECT c.name, ct.total_spent
+FROM customers c
+JOIN vip_customers ct ON c.id = ct.customer_id;
+
+-- Recursive CTE
+WITH RECURSIVE numbers AS (
+    SELECT 1 as n
+    UNION ALL
+    SELECT n + 1 FROM numbers WHERE n < 10
+)
+SELECT * FROM numbers;
+```
+
+See [Common Table Expressions]({% link _docs/sql-features/common-table-expressions.md %}) for detailed documentation.
+
+#### Set Operations
+
+```sql
+-- UNION (removes duplicates)
+SELECT name FROM customers
+UNION
+SELECT name FROM suppliers;
+
+-- UNION ALL (keeps duplicates)
+SELECT name FROM customers
+UNION ALL
+SELECT name FROM suppliers;
+
+-- INTERSECT
+SELECT id FROM table1
+INTERSECT
+SELECT id FROM table2;
+
+-- INTERSECT ALL (keeps duplicates)
+SELECT id FROM table1
+INTERSECT ALL
+SELECT id FROM table2;
+
+-- EXCEPT
+SELECT id FROM table1
+EXCEPT
+SELECT id FROM table2;
+
+-- EXCEPT ALL (keeps duplicates)
+SELECT id FROM table1
+EXCEPT ALL
+SELECT id FROM table2;
+```
+
+#### VALUES as Table Source
+
+The VALUES clause can be used as an inline table in queries:
+
+```sql
+-- Basic usage with column aliases
+SELECT * FROM (VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')) AS t(id, name);
+
+-- With filtering
+SELECT * FROM (VALUES (1, 10), (2, 20), (3, 30)) AS t(id, val)
+WHERE val >= 20;
+
+-- With expressions
+SELECT id, val * 2 AS doubled
+FROM (VALUES (1, 10), (2, 20), (3, 30)) AS t(id, val);
+
+-- With aggregation
+SELECT SUM(x) FROM (VALUES (1), (2), (3), (4), (5)) AS t(x);
+
+-- Without column aliases (uses column1, column2, ...)
+SELECT * FROM (VALUES (10, 20), (30, 40)) AS t;
+```
+
+#### Temporal Queries (AS OF)
+
+Query historical data at a specific point in time:
+
+```sql
+-- Query data as of a specific timestamp
+SELECT * FROM orders AS OF TIMESTAMP '2024-01-15 10:30:00';
+
+-- Query data as of current time
+SELECT * FROM inventory AS OF TIMESTAMP NOW();
+```
+
+See [Temporal Queries]({% link _docs/sql-features/temporal-queries.md %}) for detailed documentation.
+
+### INSERT
+
+The INSERT statement adds new rows to a table.
+
+#### Basic Syntax
+
+```sql
+-- Single row
+INSERT INTO table_name [(column1, column2, ...)]
+VALUES (value1, value2, ...)
+[RETURNING *|column1, column2, ...];
+
+-- Multiple rows
+INSERT INTO table_name [(column1, column2, ...)]
+VALUES
+  (value1_1, value1_2, ...),
+  (value2_1, value2_2, ...);
+
+-- PostgreSQL-style upsert (ON CONFLICT)
+INSERT INTO table_name [(column1, column2, ...)]
+VALUES (value1, value2, ...)
+ON CONFLICT (conflict_columns) DO UPDATE SET
+  column1 = EXCLUDED.column1;
+
+-- Skip duplicates silently
+INSERT INTO table_name [(column1, column2, ...)]
+VALUES (value1, value2, ...)
+ON CONFLICT DO NOTHING;
+
+-- MySQL-style upsert (ON DUPLICATE KEY UPDATE)
+INSERT INTO table_name [(column1, column2, ...)]
+VALUES (value1, value2, ...)
+ON DUPLICATE KEY UPDATE
+  column1 = EXCLUDED.column1;
+
+-- INSERT ... SELECT with upsert
+INSERT INTO table_name [(column1, column2, ...)]
+SELECT column1, column2, ... FROM source_table
+ON CONFLICT (conflict_columns) DO UPDATE SET
+  column1 = EXCLUDED.column1;
+```
+
+A column list, or an upsert's assignment list, that names one column more than once is an error. Column names compare without regard to case, so `(v, V)` names `v` twice.
+
+#### Examples
+
+```sql
+-- Basic insertion
+INSERT INTO customers (id, name, email)
+VALUES (1, 'John Doe', 'john@example.com');
+
+-- Multiple rows
+INSERT INTO products (id, name, price) VALUES
+(1, 'Laptop', 1200.00),
+(2, 'Smartphone', 800.00),
+(3, 'Tablet', 500.00);
+
+-- With RETURNING clause
+INSERT INTO users (name, email)
+VALUES ('Alice', 'alice@example.com')
+RETURNING id, name;
+
+-- Upsert with ON CONFLICT (PostgreSQL-style)
+INSERT INTO inventory (product_id, quantity)
+VALUES (101, 50)
+ON CONFLICT (product_id) DO UPDATE SET
+  quantity = quantity + EXCLUDED.quantity;
+
+-- Skip duplicates
+INSERT INTO items VALUES (1, 'apple')
+ON CONFLICT DO NOTHING;
+
+-- Bulk upsert from another table
+INSERT INTO metrics (host, metric, value)
+SELECT host, metric, value FROM staging
+ON CONFLICT (host, metric) DO UPDATE SET value = EXCLUDED.value;
+```
+
+Each row of an upsert is judged against the rows before it, the ones its own statement and the earlier statements of its transaction wrote included. With `ON CONFLICT DO NOTHING`, a row whose key an earlier row of the same statement took is skipped, so `INSERT INTO t VALUES (20, 200), (21, 200) ON CONFLICT (u) DO NOTHING` inserts the first row only. With `ON CONFLICT (...) DO UPDATE`, a row that meets a row the same statement already inserted or updated fails the statement: `ON CONFLICT DO UPDATE cannot affect a row a second time in one statement`. `ON DUPLICATE KEY UPDATE`, which names no conflict target, updates such a row again instead.
+
+See [ON DUPLICATE KEY UPDATE]({% link _docs/sql-features/on-duplicate-key-update.md %}) for detailed documentation.
+
+#### INSERT INTO ... SELECT
+
+Inserts rows from a query result into a table:
+
+```sql
+-- Copy rows from another table
+INSERT INTO archive (id, name, amount)
+SELECT id, name, amount FROM orders WHERE status = 'completed';
+
+-- With expressions and aggregation
+INSERT INTO summary (category, total)
+SELECT category, SUM(amount) FROM sales GROUP BY category;
+
+-- With JOIN
+INSERT INTO user_totals (user_name, total_amount)
+SELECT u.name, SUM(o.amount)
+FROM users u
+JOIN orders o ON u.id = o.user_id
+GROUP BY u.name;
+
+-- With UNION
+INSERT INTO combined (val)
+SELECT val FROM table1
+UNION ALL
+SELECT val FROM table2;
+
+-- With CTE
+INSERT INTO results (id, value)
+WITH doubled AS (SELECT id, val * 2 AS val FROM source)
+SELECT id, val FROM doubled;
+
+-- With LIMIT
+INSERT INTO top_items (name, price)
+SELECT name, price FROM products ORDER BY price DESC LIMIT 10;
+```
+
+Columns not specified in the INSERT column list receive their DEFAULT values.
+
+### UPDATE
+
+The UPDATE statement modifies existing data.
+
+#### Basic Syntax
+
+```sql
+UPDATE table_name
+SET column1 = value1, column2 = value2, ...
+[WHERE condition]
+[RETURNING *|column1, column2, ...];
+```
+
+A SET list that assigns one column more than once, `SET v = 1, V = 2` included, is an error.
+
+#### Examples
+
+```sql
+-- Update single row
+UPDATE customers
+SET email = 'new.email@example.com'
+WHERE id = 1;
+
+-- Update multiple rows
+UPDATE products
+SET price = price * 1.1
+WHERE category = 'Electronics';
+
+-- Update all rows
+UPDATE settings
+SET last_updated = NOW();
+
+-- With RETURNING clause
+UPDATE accounts
+SET balance = balance + 100
+WHERE id = 1
+RETURNING id, balance;
+
+-- Update using subquery
+UPDATE products
+SET discount = 0.15
+WHERE category IN (
+    SELECT name FROM categories WHERE is_premium = true
+);
+```
+
+#### Updating the Primary Key
+
+An UPDATE may set the primary key. A row whose key changes moves to the new key, and its `_rowid_` changes with it. Keys collide only with the keys the statement leaves in place, checked once every row is set, so a shift such as `SET id = id + 1` over every row and a swap of two keys go through. A key that collides, is NULL or is not an INTEGER refuses the statement, which writes nothing. Child rows that reference the key follow their ON UPDATE action, and a child whose own primary key is the reference moves the same way. The update of an `INSERT ... ON CONFLICT DO UPDATE` may set the key too.
+
+```sql
+UPDATE orders SET id = id + 1000 WHERE id < 1000;
+```
+
+### DELETE
+
+The DELETE statement removes rows from a table.
+
+#### Basic Syntax
+
+```sql
+DELETE FROM table_name
+[WHERE condition]
+[RETURNING *|column1, column2, ...];
+```
+
+#### Examples
+
+```sql
+-- Delete single row
+DELETE FROM customers WHERE id = 1;
+
+-- Delete multiple rows
+DELETE FROM orders WHERE order_date < '2023-01-01';
+
+-- Delete all rows
+DELETE FROM temporary_logs;
+
+-- With RETURNING clause
+DELETE FROM users WHERE inactive = true
+RETURNING id, name;
+
+-- Delete using subquery
+DELETE FROM orders
+WHERE customer_id IN (
+    SELECT id FROM customers WHERE status = 'inactive'
+);
+```
+
+### TRUNCATE
+
+The TRUNCATE statement removes all rows from a table efficiently.
+
+#### Basic Syntax
+
+```sql
+TRUNCATE TABLE table_name;
+```
+
+#### Example
+
+```sql
+-- Remove all rows (faster than DELETE)
+TRUNCATE TABLE logs;
+```
+
+**Important notes:**
+- TRUNCATE is faster than DELETE because it doesn't log individual row deletions
+- Unlike DELETE, TRUNCATE **cannot be rolled back**. ROLLBACK will not restore truncated rows
+- TRUNCATE will fail if another transaction has uncommitted changes on the table
+- TRUNCATE will fail if the table is referenced by foreign key constraints with existing child rows
+
+### COPY FROM
+
+The COPY statement imports data from CSV or JSON files directly into a table, bypassing per-row SQL parsing for significantly faster bulk loading.
+
+#### Basic Syntax
+
+```sql
+-- Minimal (defaults to CSV with header)
+COPY table_name FROM 'file_path';
+
+-- With explicit format and options
+COPY table_name [(column1, column2, ...)]
+FROM 'file_path'
+WITH (FORMAT CSV|JSON [, HEADER true|false] [, DELIMITER 'c'] [, NULL 'string']);
+```
+
+A column list that names one column more than once is an error.
+
+#### Parameters
+
+- **table_name**: Target table for the imported data
+- **(column1, column2, ...)**: Optional column list. When omitted, CSV headers are matched by name, or all columns are filled in order
+- **file_path**: Absolute or relative path to the data file
+- **FORMAT**: `CSV` (default) or `JSON`
+- **HEADER**: `true` (default) or `false`. When true, the first CSV row is treated as column headers
+- **DELIMITER**: Single character field separator for CSV (default `,`). Common alternatives: `|`, `;`, `\t`
+- **NULL**: String that represents NULL values (default is empty string for CSV)
+
+#### CSV Examples
+
+```sql
+-- Import with header row (columns matched by name)
+COPY users FROM '/data/users.csv' WITH (FORMAT CSV, HEADER true);
+
+-- Pipe-delimited file
+COPY logs FROM '/data/logs.txt' WITH (FORMAT CSV, DELIMITER '|');
+
+-- No header, import into specific columns (positional)
+COPY products (id, name, price) FROM '/data/products.csv'
+WITH (FORMAT CSV, HEADER false);
+
+-- Custom NULL marker
+COPY sensors FROM '/data/readings.csv'
+WITH (FORMAT CSV, HEADER true, NULL 'NA');
+```
+
+#### JSON Examples
+
+COPY supports two JSON formats: JSON arrays and JSON Lines (one object per line).
+
+```sql
+-- JSON array: [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
+COPY users FROM '/data/users.json' WITH (FORMAT JSON);
+
+-- JSON Lines: {"id": 1, "name": "Alice"}
+--             {"id": 2, "name": "Bob"}
+COPY users FROM '/data/users.jsonl' WITH (FORMAT JSON);
+
+-- Only import specific columns (unmatched JSON keys are ignored)
+COPY users (id, name) FROM '/data/users.json' WITH (FORMAT JSON);
+```
+
+For JSON imports, keys are matched to column names case-insensitively. Missing keys receive DEFAULT values. Extra keys in JSON objects are silently ignored.
+
+#### Type Coercion
+
+All field values are automatically coerced to the target column type:
+
+| Target Type | Accepted Values |
+|---|---|
+| INTEGER | Numeric strings (`"42"`, `"-7"`) |
+| FLOAT | Numeric strings (`"3.14"`, `"1e10"`) |
+| BOOLEAN | `true`/`false`, `t`/`f`, `yes`/`no`, `y`/`n`, `1`/`0` (case-insensitive) |
+| TIMESTAMP | ISO 8601 strings (`"2024-01-15T10:30:00"`) |
+| TEXT | Any string value |
+| JSON | Valid JSON strings |
+
+A type conversion failure on any row aborts the entire import with an error.
+
+#### Performance
+
+COPY is faster than INSERT because it skips SQL parsing, expression compilation, and per-row transaction overhead. All rows are inserted in a single auto-commit transaction.
+
+| Method | Relative Speed |
+|---|---|
+| COPY FROM | 1.0x (baseline) |
+| Bulk INSERT VALUES (1000-row chunks, single txn) | ~1.5x slower |
+| INSERT per row (single txn) | ~4x slower |
+| INSERT per row (auto-commit) | ~5x slower |
+
+#### Important Notes
+
+- COPY FROM cannot be used inside an explicit transaction (BEGIN/COMMIT)
+- The entire file is imported atomically. If any row fails, all rows are rolled back
+- CHECK constraints and foreign key constraints are validated per row
+- DEFAULT expressions are evaluated for columns not present in the import
+
+## Data Definition Language (DDL)
+
+### CREATE TABLE
+
+Creates a new table.
+
+#### Basic Syntax
+
+```sql
+CREATE TABLE [IF NOT EXISTS] table_name (
+    column_name data_type [constraints...],
+    column_name data_type [constraints...],
+    ...
+);
+```
+
+#### Data Types
+
+| Type | Description |
+|------|-------------|
+| INTEGER | 64-bit signed integer |
+| FLOAT | 64-bit floating point |
+| TEXT | Variable-length string |
+| BOOLEAN | true/false |
+| TIMESTAMP | Date and time |
+| JSON | JSON data |
+| VECTOR(N) | Fixed-dimension float vector (N dimensions) |
+
+#### Column Constraints
+
+| Constraint | Description |
+|------------|-------------|
+| PRIMARY KEY | Unique identifier, cannot be NULL |
+| NOT NULL | Column cannot contain NULL values |
+| UNIQUE | Enforces unique values in the column |
+| DEFAULT | Sets a default value for the column |
+| CHECK | Validates values against a condition |
+| REFERENCES | Foreign key constraint to another table |
+| AUTO_INCREMENT | Automatically generates sequential values |
+
+#### Examples
+
+```sql
+-- Basic table
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    username TEXT NOT NULL,
+    email TEXT,
+    age INTEGER,
+    created_at TIMESTAMP
+);
+
+-- With AUTO_INCREMENT
+CREATE TABLE posts (
+    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    title TEXT NOT NULL,
+    content TEXT,
+    author_id INTEGER
+);
+
+-- With IF NOT EXISTS
+CREATE TABLE IF NOT EXISTS products (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    price FLOAT NOT NULL
+);
+```
+
+### CREATE TABLE AS SELECT
+
+Creates a new table from the result of a SELECT query.
+
+#### Basic Syntax
+
+```sql
+CREATE TABLE table_name AS SELECT ...;
+```
+
+#### Example
+
+```sql
+-- Create table from query result
+CREATE TABLE active_users AS
+SELECT id, name, email
+FROM users
+WHERE last_login > '2024-01-01';
+
+-- Create summary table
+CREATE TABLE daily_sales AS
+SELECT DATE_TRUNC('day', order_date) as day,
+       SUM(amount) as total
+FROM orders
+GROUP BY DATE_TRUNC('day', order_date);
+```
+
+### ALTER TABLE
+
+Modifies an existing table.
+
+#### Basic Syntax
+
+```sql
+ALTER TABLE table_name operation;
+```
+
+#### Operations
+
+```sql
+-- Add a column
+ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
+
+-- Drop a column
+ALTER TABLE users DROP COLUMN age;
+
+-- Rename a column
+ALTER TABLE users RENAME COLUMN username TO user_name;
+
+-- Modify a column type
+ALTER TABLE users MODIFY COLUMN age FLOAT;
+
+-- Rename table
+ALTER TABLE users RENAME TO customers;
+
+-- Set the next AUTO_INCREMENT id
+ALTER TABLE users AUTO_INCREMENT = 1000;
+```
+
+### DROP TABLE
+
+Removes a table and all its data.
+
+#### Basic Syntax
+
+```sql
+DROP TABLE [IF EXISTS] table_name [CASCADE];
+```
+
+A table another table's foreign key references is not dropped. `CASCADE` drops those foreign keys with it; the referencing tables keep their rows.
+
+#### Examples
+
+```sql
+DROP TABLE temporary_data;
+DROP TABLE IF EXISTS old_logs;
+DROP TABLE customers CASCADE;
+```
+
+### CREATE VIEW
+
+Creates a virtual table based on a SELECT statement.
+
+#### Basic Syntax
+
+```sql
+CREATE VIEW view_name AS SELECT ...;
+```
+
+#### Examples
+
+```sql
+-- Simple view
+CREATE VIEW active_products AS
+SELECT * FROM products WHERE in_stock = true;
+
+-- View with joins
+CREATE VIEW order_details AS
+SELECT o.id, c.name as customer, p.name as product, o.quantity
+FROM orders o
+JOIN customers c ON o.customer_id = c.id
+JOIN products p ON o.product_id = p.id;
+
+-- Query the view
+SELECT * FROM active_products WHERE price > 100;
+```
+
+### DROP VIEW
+
+Removes a view.
+
+#### Basic Syntax
+
+```sql
+DROP VIEW [IF EXISTS] view_name;
+```
+
+#### Example
+
+```sql
+DROP VIEW active_products;
+DROP VIEW IF EXISTS old_report;
+```
+
+### CREATE INDEX
+
+Creates an index on table columns for faster queries.
+
+#### Basic Syntax
+
+```sql
+CREATE [UNIQUE] INDEX [IF NOT EXISTS] index_name
+ON table_name (column_name [, column_name...]);
+```
+
+#### Index Type Selection
+
+Stoolap automatically selects the optimal index type based on column data type:
+
+| Data Type | Index Type | Best For |
+|-----------|------------|----------|
+| INTEGER, FLOAT, TIMESTAMP, TEXT | B-tree | Range queries, equality, sorting, `LIKE 'prefix%'` on TEXT |
+| JSON | Hash | Equality lookups, IN clauses |
+| BOOLEAN | Bitmap | Low-cardinality columns |
+| VECTOR | HNSW | Nearest neighbor search |
+
+#### Examples
+
+```sql
+-- Single-column index
+CREATE INDEX idx_user_email ON users (email);
+
+-- Multi-column index
+CREATE INDEX idx_order_customer_date ON orders (customer_id, order_date);
+
+-- Unique index
+CREATE UNIQUE INDEX idx_unique_email ON users (email);
+
+-- HNSW index for vector similarity search
+CREATE INDEX idx_emb ON embeddings(embedding) USING HNSW;
+
+-- HNSW with custom parameters
+CREATE INDEX idx_emb ON embeddings(embedding) USING HNSW
+WITH (m = 32, ef_construction = 400, metric = 'cosine');
+
+-- With IF NOT EXISTS
+CREATE INDEX IF NOT EXISTS idx_name ON products (name);
+```
+
+See [Indexing]({% link _docs/architecture/indexing.md %}) for detailed documentation.
+
+### DROP INDEX
+
+Removes an index from a table.
+
+#### Basic Syntax
+
+```sql
+DROP INDEX [IF EXISTS] index_name ON table_name;
+```
+
+#### Example
+
+```sql
+DROP INDEX idx_user_email ON users;
+DROP INDEX IF EXISTS idx_old ON products;
+```
+
+Index names are matched without regard to case: `DROP INDEX IDX_OLD ON products` drops `idx_old`, and `CREATE INDEX` refuses a name already taken in the table under another spelling. A database created before this rule may hold two names that differ only in case; both are kept, `DROP INDEX` removes the one whose name is given exactly, and any other spelling is refused as ambiguous, with or without `IF EXISTS`.
+
+## Transaction Control
+
+### BEGIN TRANSACTION
+
+Starts a new transaction.
+
+```sql
+BEGIN TRANSACTION;
+-- or simply
+BEGIN;
+```
+
+### COMMIT
+
+Commits the current transaction, making all changes permanent.
+
+```sql
+COMMIT;
+```
+
+### ROLLBACK
+
+Rolls back the current transaction, discarding all changes.
+
+```sql
+ROLLBACK;
+```
+
+### SAVEPOINT
+
+Creates a savepoint within a transaction for partial rollback.
+
+```sql
+-- Create a savepoint
+SAVEPOINT savepoint_name;
+
+-- Rollback to a savepoint
+ROLLBACK TO SAVEPOINT savepoint_name;
+
+-- Release a savepoint
+RELEASE SAVEPOINT savepoint_name;
+```
+
+#### Example
+
+```sql
+BEGIN TRANSACTION;
+
+INSERT INTO accounts (id, balance) VALUES (1, 1000);
+SAVEPOINT after_insert;
+
+UPDATE accounts SET balance = 500 WHERE id = 1;
+-- Oops, wrong update
+ROLLBACK TO SAVEPOINT after_insert;
+
+-- Continue with correct update
+UPDATE accounts SET balance = 900 WHERE id = 1;
+COMMIT;
+```
+
+See [Savepoints]({% link _docs/sql-features/savepoints.md %}) for detailed documentation.
+
+## Query Analysis
+
+### EXPLAIN
+
+Shows the query execution plan.
+
+```sql
+EXPLAIN SELECT * FROM users WHERE id = 1;
+```
+
+Output:
+```
+plan
+----
+Project id, name, email
+  PkGet users id = 1
+  else IndexScan users (id = 1)
+    PkKey
+```
+
+### EXPLAIN ANALYZE
+
+Runs the statement and shows the plan EXPLAIN shows, with the time and rows of the run on its top line.
+
+```sql
+EXPLAIN ANALYZE SELECT id FROM products WHERE price > 100;
+```
+
+Output:
+```
+plan
+----
+Project id (actual time=1.2ms, rows=150)
+  SeqScan products (price > 100)
+```
+
+See [EXPLAIN]({% link _docs/sql-features/explain.md %}) for detailed documentation.
+
+### ANALYZE
+
+Collects table and column statistics and zone maps.
+
+```sql
+-- Analyze a specific table
+ANALYZE table_name;
+```
+
+The statistics give `EXPLAIN` its row estimates and the build side of a hash join under a small `LIMIT`; the zone maps let a scan skip data no row of which can match (see [Query Planning]({% link _docs/performance/query-optimizer.md %})).
+
+### VACUUM
+
+Performs manual cleanup of deleted rows, old versions, and stale transaction metadata. Also triggers index compaction (e.g., HNSW graph rebuild).
+
+```sql
+-- Vacuum all tables
+VACUUM;
+
+-- Vacuum a specific table
+VACUUM table_name;
+
+-- Also available as a PRAGMA
+PRAGMA vacuum;
+```
+
+Returns a result row with `deleted_rows_cleaned`, `old_versions_cleaned`, and `transactions_cleaned` counts.
+
+**Warning:** VACUUM uses zero retention, meaning all historical row versions not needed by currently active transactions are permanently removed. This destroys [AS OF TIMESTAMP]({% link _docs/sql-features/temporal-queries.md %}) history. A temporal query naming a point before the VACUUM fails with an error naming the oldest point still readable.
+
+VACUUM is especially useful on WASM where the background cleanup thread is unavailable.
+
+## Utility Commands
+
+### SHOW TABLES
+
+Lists all tables in the database.
+
+```sql
+SHOW TABLES;
+```
+
+### SHOW INDEXES
+
+Lists all indexes for a table.
+
+```sql
+SHOW INDEXES FROM table_name;
+```
+
+### SHOW CREATE TABLE
+
+Shows the CREATE TABLE statement for a table.
+
+```sql
+SHOW CREATE TABLE table_name;
+```
+
+### PRAGMA
+
+Sets or gets configuration options.
+
+```sql
+-- Set a value
+PRAGMA name = value;
+
+-- Get current value
+PRAGMA name;
+```
+
+#### Supported PRAGMAs
+
+| PRAGMA | Description | Default |
+|--------|-------------|---------|
+| sync_mode | WAL sync mode (0=None, 1=Normal, 2=Full) | 1 |
+| checkpoint_interval | Seconds between automatic checkpoint cycles | 60 |
+| compact_threshold | Sub-target volumes per table before merging | 4 |
+| keep_snapshots | Backup snapshots to retain per table | 3 |
+| wal_flush_trigger | Buffer size in bytes before WAL flush | 32768 |
+| target_volume_rows | Target rows per cold volume (compaction split boundary) | 1048576 |
+| snapshot | Create a full backup snapshot | - |
+| restore | Restore database from a backup snapshot | - |
+| checkpoint | Run checkpoint cycle (seal + compact + WAL truncate) | - |
+| vacuum | Manual cleanup of deleted rows and index compaction | - |
+
+See [PRAGMA Commands]({% link _docs/sql-commands/pragma-commands.md %}) for detailed documentation.
+
+## Parameter Binding
+
+Use `$N` positional placeholders for parameter binding:
+
+```sql
+SELECT * FROM users WHERE id = $1;
+INSERT INTO products (name, price) VALUES ($1, $2);
+UPDATE orders SET status = $1 WHERE id = $2;
+```
+
+See [Parameter Binding]({% link _docs/sql-features/parameter-binding.md %}) for detailed documentation.
+
+## Notes
+
+1. **Transactions**: Stoolap provides MVCC-based transactions for concurrent operations
+2. **NULL Handling**: Follows standard SQL NULL semantics; use IS NULL or IS NOT NULL for testing
+3. **Type Conversion**: Explicit CAST is recommended for clarity
+4. **Case Sensitivity**: SQL keywords are case-insensitive; identifiers are case-sensitive

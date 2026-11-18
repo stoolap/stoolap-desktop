@@ -29,7 +29,17 @@ pub async fn db_execute_query(
     conn_id: String,
     sql: String,
 ) -> Result<serde_json::Value, String> {
-    let cleaned = strip_comments(&sql);
+    run_script(&state, &conn_id, &sql)
+}
+
+/// Run what the editor holds: one statement, or several (DML wrapped in a
+/// transaction), returning each statement's result.
+pub fn run_script(
+    state: &DbManager,
+    conn_id: &str,
+    sql: &str,
+) -> Result<serde_json::Value, String> {
+    let cleaned = strip_comments(sql);
     if cleaned.is_empty() {
         return Err("Empty query".to_string());
     }
@@ -42,7 +52,7 @@ pub async fn db_execute_query(
     // Share the connection's Database instance (not a clone — stoolap clones
     // are separate sessions with independent transaction state) so a
     // transaction the user opened in a previous call is still visible here.
-    let db = state.get_db(&conn_id)?;
+    let db = state.get_db(conn_id)?;
 
     if statements.len() == 1 {
         return execute_single(&db, &statements[0], None);
@@ -64,29 +74,25 @@ pub async fn db_execute_query(
     // session: commands running concurrently on this connection neither join
     // the wrapper transaction nor roll back with it, and the wrapper's COMMIT
     // no longer commits a transaction the user left open on the connection.
-    let session = has_dml.then(|| db.as_ref().clone());
+    let session = if has_dml { Some(state.session(&db)?) } else { None };
     let db: &Database = session.as_ref().unwrap_or(&db);
 
     if has_dml {
         DbManager::execute_on(db, "BEGIN", None)?;
     }
 
+    // Every statement's result, so the UI can show each one, not only the last
     let result = (|| -> Result<serde_json::Value, String> {
-        for (stmt, stmt_type) in statements
-            .iter()
-            .zip(types.iter())
-            .take(statements.len() - 1)
-        {
-            match stmt_type {
-                StatementType::Query => {
-                    DbManager::query_on(db, stmt, None)?;
-                }
-                _ => {
-                    DbManager::execute_on(db, stmt, None)?;
-                }
-            }
+        let total = statements.len();
+        let mut results = Vec::with_capacity(total);
+        for (i, stmt) in statements.iter().enumerate() {
+            let mut r = execute_single(db, stmt, None)
+                .map_err(|e| format!("Statement {} of {total}: {e}", i + 1))?;
+            r["sql"] = serde_json::Value::String(stmt.clone());
+            results.push(r);
         }
-        execute_single(db, statements.last().unwrap(), Some(start))
+        let time = (start.elapsed().as_secs_f64() * 100_000.0).round() / 100.0;
+        Ok(serde_json::json!({ "results": results, "time": time }))
     })();
 
     match &result {
@@ -144,5 +150,43 @@ fn execute_single(
                 "time": time,
             }))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_script_returns_every_statements_result() {
+        let db = DbManager::new();
+        let id = db.open(":memory:", None).unwrap().id;
+        let out = run_script(
+            &db,
+            &id,
+            "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT);\n\
+             INSERT INTO t VALUES (1, 'a'), (2, 'b');\n\
+             SELECT name FROM t ORDER BY id;\n\
+             SELECT COUNT(*) AS n FROM t;",
+        )
+        .unwrap();
+        let results = out["results"].as_array().unwrap();
+        assert_eq!(results.len(), 4);
+        assert_eq!(results[0]["ddl"], "CREATE TABLE");
+        assert_eq!(results[1]["changes"], 2);
+        assert_eq!(results[2]["rows"], serde_json::json!([["a"], ["b"]]));
+        assert_eq!(results[3]["columns"], serde_json::json!(["n"]));
+        assert_eq!(results[3]["sql"], "SELECT COUNT(*) AS n FROM t");
+    }
+
+    #[test]
+    fn a_failing_statement_is_named_and_rolls_back() {
+        let db = DbManager::new();
+        let id = db.open(":memory:", None).unwrap().id;
+        run_script(&db, &id, "CREATE TABLE t (id INTEGER PRIMARY KEY)").unwrap();
+        let err = run_script(&db, &id, "INSERT INTO t VALUES (1); SELECT * FROM nope;").unwrap_err();
+        assert!(err.starts_with("Statement 2 of 2:"), "{err}");
+        let rows = run_script(&db, &id, "SELECT COUNT(*) FROM t").unwrap();
+        assert_eq!(rows["rows"], serde_json::json!([[0]]));
     }
 }

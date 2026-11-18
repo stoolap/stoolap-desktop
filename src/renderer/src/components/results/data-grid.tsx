@@ -289,6 +289,18 @@ export function DataGrid({
     return map;
   }, [foreignKeys]);
 
+  // Number cells are right-aligned (FK cells render as links, left-aligned);
+  // align their headers the same way.
+  const rightAlignedCols = useMemo(
+    () =>
+      columns.map((col, i) => {
+        if (fkMap.has(col)) return false;
+        const sample = rows.find((r) => r[i] !== null)?.[i];
+        return typeof sample === "number";
+      }),
+    [columns, rows, fkMap],
+  );
+
   const handleCopyCellValue = useCallback((value: string) => {
     try {
       navigator.clipboard.writeText(value);
@@ -651,7 +663,7 @@ export function DataGrid({
                 {onDeleteRow && (
                   <th className="w-8 bg-muted/80 border-r border-border/50" />
                 )}
-                {hg.headers.map((header) => {
+                {hg.headers.map((header, colIndex) => {
                   const colName = String(header.column.columnDef.header);
                   const isServerSorted =
                     serverSort && serverSort.column === colName;
@@ -677,7 +689,12 @@ export function DataGrid({
                           : header.column.getToggleSortingHandler()
                       }
                     >
-                      <div className="flex items-center gap-1">
+                      <div
+                        className={cn(
+                          "flex items-center gap-1",
+                          rightAlignedCols[colIndex] && "flex-row-reverse",
+                        )}
+                      >
                         <span className="truncate">
                           {flexRender(
                             header.column.columnDef.header,
