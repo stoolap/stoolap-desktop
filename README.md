@@ -17,13 +17,14 @@
 
 Stoolap Desktop is a lightweight native database client for the [Stoolap](https://github.com/stoolap/stoolap) embedded SQL engine. It embeds the Rust engine directly — no server, no bundled Chromium, no Node runtime — so the app stays under 15 MB and talks to your database at in-process speed.
 
-Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 frontend) and React. Stoolap Desktop 0.5.0 embeds Stoolap 0.5.0 from crates.io, with the engine's jemalloc allocator.
+Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 frontend) and React. Stoolap Desktop 0.5.1 embeds Stoolap 0.5.0 from crates.io, with the engine's jemalloc allocator.
 
 ## Why Stoolap Desktop?
 
 - **Truly native** — Tauri wraps the system WebView; the whole app is ~12 MB binary + 5 MB DMG instead of the 100+ MB a typical Electron database client ships.
 - **In-process engine** — `stoolap` is linked as a Rust crate. There is no IPC to a driver, no "connector" to misconfigure, and transactions run at the same latency the underlying engine gives you.
 - **Full Stoolap feature surface** — time-travel queries (`AS OF TIMESTAMP`), HNSW vector search, multi-column indexes, MVCC transactions, and rich DDL are first-class in the UI, not bolted on.
+- **SQL assistant that knows Stoolap** — Claude or ChatGPT writes and runs SQL in your query tab, with a Stoolap dialect guide tested against the engine; changes to data only run when you allow them.
 - **Native feel on macOS** — overlay title bar, system accent color, system appearance follows light/dark, native context menus and file dialogs.
 - **Auto-update built in** — code-signed updater ships new versions over a GitHub Releases feed.
 
@@ -47,11 +48,14 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 ### SQL Assistant
 - Right-hand panel (`Cmd/Ctrl+L`, or the sparkle button next to the tabs) that writes, fixes, explains and speeds up the SQL in the current tab
 - Runs through your local Claude Code (your own Claude sign-in and plan) when it is installed. Otherwise it calls the Claude API with your Anthropic account, signed in with the browser (billed to your Console organization; nothing to install or copy), or with an API key. It can also use ChatGPT, through your local Codex signed in with your ChatGPT account, or the OpenAI API with a key
-- Pick the model in the panel: Claude Opus 5.5 (default), Sonnet 5.5, Haiku 5.5 or Fable 5.2
+- Pick the model in the panel: Claude Opus 5.5 (default), Sonnet 5.5, Haiku 5.5 or Fable 5.2; with ChatGPT, the models your account or key offers
 - Knows Stoolap: every request carries a guide to Stoolap's SQL dialect (every type and function that exists, statement syntax, what fails and what to write instead, how the planner uses indexes), checked against the engine: `cargo test` runs each of its examples. For details it searches and reads the bundled Stoolap 0.5 documentation (55 pages)
-- Works in a query tab, in front of you: a new tab of its own by default, or the tab you are on ("New tab" / "This tab"). The SQL appears in the editor as it is written, runs there and fills the result grid, and the assistant reads the outcome (up to 50 rows, sent to Anthropic) and continues. Each edit can be undone from the panel
+- Works in a query tab, in front of you: a new tab of its own by default, or the tab you are on ("New tab" / "This tab"). The SQL appears in the editor as it is written, runs there and fills the result grid, and the assistant reads the outcome (up to 50 rows, sent to the provider you chose) and continues, pausing briefly between runs so you can follow along. Each edit can be undone from the panel
 - Reads always run. SQL that changes data (INSERT, UPDATE, DELETE, DDL) or a script of several statements runs only when you allow writes for that database ("Run writes", off by default); otherwise it is written into the tab and waits for your **Run**
 - **Fix with assistant** on a query error
+- Earlier conversations for each database (the history button); a conversation picked up after a restart sends its earlier messages along
+- `↑`/`↓` recall earlier requests, `Tab` takes a completion drawn from them and the schema, `@` inserts table and column names, and suggested requests follow the open tab (its error, selection, SQL) and the tables
+- Replies can be selected and copied; code blocks have a Copy button
 - With Claude Code, its built-in tools (shell, files, web) are turned off; it only gets this app's database tools, through an MCP server on 127.0.0.1. With the API, requests go from the Rust backend straight to Anthropic: a browser sign-in goes through Anthropic's `ant` CLI, which the app downloads on first use (a pinned release, checked against its SHA-256) and runs with a config directory of its own, so it never touches your own `ant` or Claude Code sign-in; the app asks it for a short-lived token per request and never reads its credentials file, and an API key is kept in the system credential store (Keychain, Windows Credential Manager, Secret Service)
 - Codex runs with a Codex home of the app's own, so your Codex plugins, MCP servers, memories and instructions never load, and you sign in to ChatGPT once from the app. Its shell, browser, computer-use, web-search and plugin tools are turned off, the database tools are passed to it directly, and any command or file change it asks to make is declined. The OpenAI API is called from the Rust backend with `store: false`, so OpenAI keeps no copy of the conversation
 
