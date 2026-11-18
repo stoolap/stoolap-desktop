@@ -78,9 +78,14 @@ jobs:
         id: notes
         shell: bash
         run: |
+          notes="$(node .github/scripts/release-notes.mjs "${{ github.ref_name }}")"
+          if [ -z "$notes" ]; then
+            echo "::error::The release note for ${{ github.ref_name }} came out empty"
+            exit 1
+          fi
           {
             echo 'body<<RELEASE_NOTE_EOF'
-            node .github/scripts/release-notes.mjs "${{ github.ref_name }}"
+            echo "$notes"
             echo 'RELEASE_NOTE_EOF'
           } >> "$GITHUB_OUTPUT"
 

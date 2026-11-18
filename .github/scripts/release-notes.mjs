@@ -4,6 +4,7 @@
 //
 //   node .github/scripts/release-notes.mjs v0.5.1
 import { readFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 
 export function releaseNotes(changelog, tag) {
   const lines = changelog.split("\n");
@@ -15,7 +16,9 @@ export function releaseNotes(changelog, tag) {
   return notes || null;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run directly, not imported. Compare URLs: on Windows the path is D:\..., so
+// "file://" + path would never match and the note would come out empty.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const tag = process.argv[2];
   const notes = tag && releaseNotes(readFileSync(new URL("../../CHANGELOG.md", import.meta.url), "utf8"), tag);
   if (!notes) {
