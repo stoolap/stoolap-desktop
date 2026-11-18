@@ -113,6 +113,10 @@ export async function getVersion(): Promise<string> {
   return tauriGetVersion();
 }
 
+export async function getStoolapVersion(): Promise<string> {
+  return invoke("get_stoolap_version");
+}
+
 export async function closeExample(): Promise<void> {
   await invoke("db_close_example");
 }

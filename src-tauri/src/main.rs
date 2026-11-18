@@ -48,6 +48,7 @@ fn main() {
             // System
             commands::system::get_accent_color,
             commands::system::get_version,
+            commands::system::get_stoolap_version,
         ])
         .setup(|app| {
             // Build application menu
