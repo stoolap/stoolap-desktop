@@ -325,3 +325,24 @@ fn value_to_json(val: Option<&Value>) -> serde_json::Value {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clone_has_its_own_transaction() {
+        let db = Database::open_in_memory().unwrap();
+        DbManager::execute_on(&db, "CREATE TABLE t (id INTEGER PRIMARY KEY)", None).unwrap();
+
+        let session = db.clone();
+        DbManager::execute_on(&session, "BEGIN", None).unwrap();
+        DbManager::execute_on(&session, "INSERT INTO t VALUES (1)", None).unwrap();
+        // A write on the shared handle while the clone's transaction is open
+        DbManager::execute_on(&db, "INSERT INTO t VALUES (2)", None).unwrap();
+        DbManager::execute_on(&session, "ROLLBACK", None).unwrap();
+
+        let rows = DbManager::query_on(&db, "SELECT id FROM t ORDER BY id", None).unwrap();
+        assert_eq!(rows.rows, vec![vec![serde_json::json!(2)]]);
+    }
+}

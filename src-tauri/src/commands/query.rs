@@ -40,8 +40,7 @@ pub async fn db_execute_query(
     }
 
     // Share the connection's Database instance (not a clone — stoolap clones
-    // spin up a fresh executor with independent transaction state) so the
-    // BEGIN/COMMIT wrapper covers every statement in the script, and so any
+    // are separate sessions with independent transaction state) so a
     // transaction the user opened in a previous call is still visible here.
     let db = state.get_db(&conn_id)?;
 
@@ -61,8 +60,15 @@ pub async fn db_execute_query(
     });
     let has_dml = !has_explicit_txn && types.contains(&StatementType::Dml);
 
+    // The BEGIN/COMMIT wrapper runs on a clone of the handle, its own
+    // session: commands running concurrently on this connection neither join
+    // the wrapper transaction nor roll back with it, and the wrapper's COMMIT
+    // no longer commits a transaction the user left open on the connection.
+    let session = has_dml.then(|| db.as_ref().clone());
+    let db: &Database = session.as_ref().unwrap_or(&db);
+
     if has_dml {
-        DbManager::execute_on(&db, "BEGIN", None)?;
+        DbManager::execute_on(db, "BEGIN", None)?;
     }
 
     let result = (|| -> Result<serde_json::Value, String> {
@@ -73,25 +79,25 @@ pub async fn db_execute_query(
         {
             match stmt_type {
                 StatementType::Query => {
-                    DbManager::query_on(&db, stmt, None)?;
+                    DbManager::query_on(db, stmt, None)?;
                 }
                 _ => {
-                    DbManager::execute_on(&db, stmt, None)?;
+                    DbManager::execute_on(db, stmt, None)?;
                 }
             }
         }
-        execute_single(&db, statements.last().unwrap(), Some(start))
+        execute_single(db, statements.last().unwrap(), Some(start))
     })();
 
     match &result {
         Ok(_) => {
             if has_dml {
-                DbManager::execute_on(&db, "COMMIT", None)?;
+                DbManager::execute_on(db, "COMMIT", None)?;
             }
         }
         Err(_) => {
             if has_dml {
-                let _ = DbManager::execute_on(&db, "ROLLBACK", None);
+                let _ = DbManager::execute_on(db, "ROLLBACK", None);
             }
         }
     }
