@@ -10,6 +10,7 @@ use futures_util::StreamExt;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
+use crate::i18n::t;
 
 const API: &str = "https://api.openai.com/v1";
 
@@ -53,9 +54,9 @@ fn error_message(status: u16, text: &str) -> String {
         .and_then(|v| v["error"]["message"].as_str().map(str::to_string))
         .unwrap_or_else(|| text.to_string());
     match status {
-        401 => "The OpenAI API key was rejected. Check it in the agent settings.".into(),
-        429 => format!("OpenAI rate limit or quota: {message}"),
-        _ => format!("OpenAI API error {status}: {message}"),
+        401 => t("errors.openaiKeyRejected", &[]),
+        429 => t("errors.openaiRateLimited", &[("message", &message)]),
+        _ => t("errors.openaiError", &[("status", &status), ("message", &message)]),
     }
 }
 
@@ -67,7 +68,7 @@ pub async fn models(key: &str) -> Result<Vec<(String, String)>, String> {
         .bearer_auth(key)
         .send()
         .await
-        .map_err(|e| format!("Could not reach the OpenAI API: {e}"))?;
+        .map_err(|e| t("errors.reachOpenai", &[("error", &e)]))?;
     let status = resp.status().as_u16();
     let text = resp.text().await.map_err(|e| e.to_string())?;
     if status != 200 {
@@ -154,9 +155,9 @@ impl ResponseBuilder {
             "response.incomplete" => {
                 let reason = event["response"]["incomplete_details"]["reason"].as_str().unwrap_or("unknown");
                 return Err(if reason == "max_output_tokens" {
-                    "The answer ran past the output limit. Try a narrower request.".into()
+                    t("errors.outputLimit", &[])
                 } else {
-                    format!("The response stopped early ({reason}).")
+                    t("errors.stoppedEarly", &[("reason", &reason)])
                 });
             }
             "response.failed" => {
@@ -173,7 +174,7 @@ impl ResponseBuilder {
     }
 
     fn finish(self) -> Result<Vec<Value>, String> {
-        self.output.ok_or_else(|| "The response stream ended early.".into())
+        self.output.ok_or_else(|| t("errors.streamEnded", &[]))
     }
 }
 
@@ -186,7 +187,7 @@ async fn stream_response(
     let request = super::api::client().post(format!("{API}/responses")).bearer_auth(key).json(body);
     let resp = or_cancel(cancel, request.send())
         .await?
-        .map_err(|e| format!("Could not reach the OpenAI API: {e}"))?;
+        .map_err(|e| t("errors.reachOpenai", &[("error", &e)]))?;
     let status = resp.status().as_u16();
     if status != 200 {
         let text = or_cancel(cancel, resp.text()).await?.unwrap_or_default();
@@ -195,7 +196,7 @@ async fn stream_response(
     let mut builder = ResponseBuilder::default();
     let mut stream = resp.bytes_stream();
     while let Some(chunk) = or_cancel(cancel, stream.next()).await? {
-        let chunk = chunk.map_err(|e| format!("The response stream broke off: {e}"))?;
+        let chunk = chunk.map_err(|e| t("errors.streamBroke", &[("error", &e)]))?;
         builder.feed(&chunk, &mut on_event)?;
     }
     builder.finish()
@@ -254,7 +255,7 @@ pub async fn run_loop(
             }));
         }
     }
-    Err("The agent took too many steps without finishing.".into())
+    Err(t("errors.tooManySteps", &[]))
 }
 
 #[cfg(test)]

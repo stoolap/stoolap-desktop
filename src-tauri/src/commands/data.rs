@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use tauri::State;
 
 use serde::Serialize;
+use crate::i18n;
 
 fn quote_id(id: &str) -> String {
     format!("\"{}\"", id.replace('"', "\"\""))
@@ -14,7 +15,7 @@ fn quote_id(id: &str) -> String {
 fn sanitize_vector_literal(s: &str) -> Result<String, String> {
     let t = s.trim();
     if !t.starts_with('[') || !t.ends_with(']') {
-        return Err("Vector value must be in [a, b, c] format".into());
+        return Err(i18n::t("errors.vectorFormat", &[]));
     }
     for c in t.chars() {
         let ok = c.is_ascii_digit()
@@ -28,7 +29,7 @@ fn sanitize_vector_literal(s: &str) -> Result<String, String> {
             || c == ']'
             || c.is_ascii_whitespace();
         if !ok {
-            return Err("Vector value contains invalid characters".into());
+            return Err(i18n::t("errors.vectorInvalid", &[]));
         }
     }
     Ok(t.to_string())
@@ -92,7 +93,7 @@ fn build_where(
                     .filter(|s| !s.is_empty())
                     .collect();
                 if parts.is_empty() {
-                    return Err("IN filter requires at least one value".into());
+                    return Err(i18n::t("errors.inNeedsValue", &[]));
                 }
                 let placeholders: Vec<&str> = parts.iter().map(|_| "?").collect();
                 clauses.push(format!("{} IN ({})", col, placeholders.join(", ")));
@@ -103,7 +104,7 @@ fn build_where(
             op @ ("cosine" | "l2" | "ip") => {
                 // Vector distance filter: "[vector]|threshold"
                 let pipe_idx = filter.value.rfind('|').ok_or_else(|| {
-                    "Vector filter requires format 'vector|threshold'".to_string()
+                    i18n::t("errors.vectorFilterFormat", &[])
                 })?;
                 let vec_part = &filter.value[..pipe_idx];
                 let thresh_part = &filter.value[pipe_idx + 1..];
@@ -111,7 +112,7 @@ fn build_where(
                 let threshold: f64 = thresh_part
                     .trim()
                     .parse()
-                    .map_err(|_| "Invalid threshold value".to_string())?;
+                    .map_err(|_| i18n::t("errors.invalidThreshold", &[]))?;
                 let fn_name = match op {
                     "cosine" => "VEC_DISTANCE_COSINE",
                     "l2" => "VEC_DISTANCE_L2",
@@ -148,7 +149,7 @@ fn sanitize_as_of(ts: &str) -> Result<String, String> {
             || c == '+'
             || c == 'Z';
         if !ok {
-            return Err("Invalid AS OF timestamp".into());
+            return Err(i18n::t("errors.invalidAsOf", &[]));
         }
     }
     Ok(format!(" AS OF TIMESTAMP '{}'", t))
@@ -437,7 +438,7 @@ pub async fn db_import_file(
 fn copy_sql(table: &str, file_path: &str, format: &str, has_header: bool) -> Result<String, String> {
     let fmt = format.to_uppercase();
     if fmt != "CSV" && fmt != "JSON" {
-        return Err(format!("Unsupported format '{}', use CSV or JSON", format));
+        return Err(i18n::t("errors.unsupportedFormat", &[("format", &format)]));
     }
     Ok(format!(
         "COPY {} FROM {} WITH (FORMAT {}, HEADER {})",
@@ -460,7 +461,7 @@ fn copy_path(path: &str) -> Result<String, String> {
         match c {
             '\\' => {
                 out.push(c);
-                out.push(chars.next().ok_or("Can't import from a path that ends with \\.")?);
+                out.push(chars.next().ok_or_else(|| i18n::t("errors.pathEndsInBackslash", &[]))?);
             }
             '\'' => out.push_str("''"),
             _ => out.push(c),

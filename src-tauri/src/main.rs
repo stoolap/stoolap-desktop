@@ -88,6 +88,7 @@ fn main() {
         ])
         .setup(|app| {
             app.manage(RecentMenu(std::sync::Mutex::new(None)));
+            i18n::init(app.handle());
             build_menu(app.handle())?;
             app.on_menu_event(on_menu_event);
             if let Some(window) = app.get_webview_window("main") {
