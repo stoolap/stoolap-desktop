@@ -1,6 +1,6 @@
 [package]
 name = "stoolap-desktop"
-version = "0.5.7"
+version = "0.5.8"
 edition = "2021"
 license = "Apache-2.0"
 
@@ -26,8 +26,8 @@ rustls = { version = "0.23", default-features = false, features = ["ring"] }
 keyring = "4"
 tiny_http = "0.12"
 # Unpacking and checking the on-demand download of Anthropic's ant CLI
-sha2 = "0.10"
-zip = { version = "4", default-features = false, features = ["deflate-flate2"] }
+sha2 = "0.11"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 flate2 = "1"
 tar = "0.4"
 sys-locale = "0.3"

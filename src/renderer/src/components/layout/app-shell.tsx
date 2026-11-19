@@ -200,7 +200,7 @@ export function AppShell() {
       {IS_MAC && (
         <div
           data-tauri-drag-region
-          className="h-[38px] shrink-0 drag-region flex items-center justify-center"
+          className="h-[38px] shrink-0 drag-region flex items-center justify-center border-b border-border/40"
         >
           <span className="text-xs text-muted-foreground/60 font-medium tracking-tight pointer-events-none">
             {activeConn ? activeConn.name : "Stoolap Desktop"}
@@ -304,7 +304,7 @@ export function AppShell() {
       </div>
 
       {/* Status bar */}
-      <div className="flex items-center h-8 border-t text-xs bg-background shrink-0">
+      <div className="flex items-center h-8 border-t border-border/40 text-xs bg-background shrink-0">
         <div className="flex items-center gap-1.5 px-3 h-full">
           {activeConn ? (
             <>

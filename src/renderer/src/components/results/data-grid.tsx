@@ -1,10 +1,18 @@
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
+  useTable,
+  tableFeatures,
+  rowSortingFeature,
+  columnFilteringFeature,
+  globalFilteringFeature,
+  columnSizingFeature,
+  columnResizingFeature,
+  createSortedRowModel,
+  createFilteredRowModel,
+  sortFn_alphanumeric,
+  sortFn_datetime,
+  sortFn_text,
   flexRender,
   type ColumnDef,
   type SortingState,
@@ -34,6 +42,23 @@ import {
 } from "@/lib/vector-utils";
 import type { ForeignKeyInfo } from "@/lib/types";
 import { Tip } from "@/components/ui/tip";
+
+/**
+ * What the grid uses of the table: sorting (by column type, the "auto"
+ * sort picks among these), the search over every cell, and column widths
+ * the user drags. Filtering comes before the global search, sizing before
+ * resizing, as the features depend on each other.
+ */
+const features = tableFeatures({
+  rowSortingFeature,
+  columnFilteringFeature,
+  globalFilteringFeature,
+  columnSizingFeature,
+  columnResizingFeature,
+  sortedRowModel: createSortedRowModel(),
+  filteredRowModel: createFilteredRowModel(),
+  sortFns: { alphanumeric: sortFn_alphanumeric, datetime: sortFn_datetime, text: sortFn_text },
+});
 
 interface DataGridProps {
   columns: string[];
@@ -315,7 +340,7 @@ export function DataGrid({
   }, [t]);
 
   // Stable column defs with resizing
-  const columnDefs = useMemo<ColumnDef<unknown[]>[]>(
+  const columnDefs = useMemo<ColumnDef<typeof features, unknown[]>[]>(
     () =>
       columns.map((col, i) => ({
         id: String(i),
@@ -519,7 +544,7 @@ export function DataGrid({
             </Tip>
           );
         },
-        sortingFn: "auto",
+        sortFn: "auto",
       })),
     [
       columns,
@@ -554,16 +579,14 @@ export function DataGrid({
     [columns.length, formatCellValue],
   );
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data: rows,
     columns: columnDefs,
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     columnResizeMode,
     enableColumnResizing: true,
   });
@@ -800,7 +823,8 @@ export function DataGrid({
                         </td>
                       )}
                       {/* Data cells */}
-                      {row.getVisibleCells().map((cell) => (
+                      {/* Every cell: the grid never hides a column */}
+                      {row.getAllCells().map((cell) => (
                         <td
                           key={cell.id}
                           className="px-3 py-1 border-r border-border/20 overflow-hidden"
