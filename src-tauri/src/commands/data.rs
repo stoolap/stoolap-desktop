@@ -433,25 +433,41 @@ pub async fn db_import_file(
     })
 }
 
-/// The COPY statement for an import. The engine's COPY takes the path
-/// between the quotes as written, with no escapes, so a path holding a quote
-/// (or ending in a backslash, which would escape the closing quote) can't be
-/// written at all.
+/// The COPY statement for an import.
 fn copy_sql(table: &str, file_path: &str, format: &str, has_header: bool) -> Result<String, String> {
     let fmt = format.to_uppercase();
     if fmt != "CSV" && fmt != "JSON" {
         return Err(format!("Unsupported format '{}', use CSV or JSON", format));
     }
-    if file_path.contains('\'') || file_path.ends_with('\\') {
-        return Err("Can't import from a path that contains ' or ends with \\. Rename or move the file.".into());
-    }
     Ok(format!(
-        "COPY {} FROM '{}' WITH (FORMAT {}, HEADER {})",
+        "COPY {} FROM {} WITH (FORMAT {}, HEADER {})",
         quote_id(table),
-        file_path,
+        copy_path(file_path)?,
         fmt,
         if has_header { "true" } else { "false" },
     ))
+}
+
+/// A file path as COPY reads it. The lexer turns '' into ' and keeps a
+/// backslash with the character after it; COPY then takes the text between
+/// the quotes as is. So a quote is doubled, except right after a backslash,
+/// where it is already kept; only a path ending in a lone backslash (which
+/// would take the closing quote) can't be written.
+fn copy_path(path: &str) -> Result<String, String> {
+    let mut out = String::from("'");
+    let mut chars = path.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => {
+                out.push(c);
+                out.push(chars.next().ok_or("Can't import from a path that ends with \\.")?);
+            }
+            '\'' => out.push_str("''"),
+            _ => out.push(c),
+        }
+    }
+    out.push('\'');
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -474,16 +490,24 @@ mod tests {
     }
 
     #[test]
-    fn copy_reads_a_path_with_backslashes() {
+    fn copy_reads_paths_with_quotes_and_backslashes() {
         let dir = std::env::temp_dir().join(format!("stoolap-copy-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let file = dir.join(if cfg!(windows) { "a b.csv" } else { r"a\b.csv" });
-        std::fs::write(&file, "id,name\n1,x\n").unwrap();
+        let names: &[&str] = if cfg!(windows) {
+            &["it's.csv", "it''s.csv"]
+        } else {
+            &["it's.csv", "it''s.csv", r"a\b.csv", r"a\'b.csv", r"a\\'b.csv", r"a\.csv"]
+        };
         let db = stoolap::api::Database::open_in_memory().unwrap();
         DbManager::execute_on(&db, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)", None).unwrap();
-        let sql = copy_sql("t", file.to_str().unwrap(), "csv", true).unwrap();
-        assert_eq!(DbManager::execute_on(&db, &sql, None).unwrap().changes, 1);
+        for (i, name) in names.iter().enumerate() {
+            let file = dir.join(name);
+            std::fs::write(&file, format!("id,name\n{i},x\n")).unwrap();
+            let sql = copy_sql("t", file.to_str().unwrap(), "csv", true).unwrap();
+            let imported = DbManager::execute_on(&db, &sql, None).map(|r| r.changes);
+            assert_eq!(imported, Ok(1), "{name}");
+        }
         std::fs::remove_dir_all(&dir).unwrap();
-        assert!(copy_sql("t", "/tmp/it's.csv", "csv", true).is_err());
+        assert!(copy_sql("t", r"/tmp/a\", "csv", true).is_err());
     }
 }
