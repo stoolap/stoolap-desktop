@@ -68,9 +68,13 @@ export function useQueryExecution() {
   }, []);
 
   const executeQuery = useCallback(
-    /** Run `sql` in the tab; resolves to what the tab ended up showing. */
-    async (tabId: string, sql: string): Promise<ApiResult | ScriptResult | undefined> => {
+    /**
+     * Run `sql` in the tab; resolves to what the tab ended up showing.
+     * With `onlyOn`, it runs only while that connection is the active one.
+     */
+    async (tabId: string, sql: string, onlyOn?: string): Promise<ApiResult | ScriptResult | undefined> => {
       if (!activeId || !sql.trim()) return undefined;
+      if (onlyOn && onlyOn !== useConnectionStore.getState().activeId) return undefined;
 
       const { setTabRunning, setTabLastExecutedSql, addToHistory } =
         useEditorStore.getState();

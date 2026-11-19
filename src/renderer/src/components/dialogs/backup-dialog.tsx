@@ -19,7 +19,6 @@ import * as api from "@/lib/api-client";
 import {
   DEFAULT_DUMP_OPTIONS,
   generateHeader,
-  generateInserts,
   generateTableDrops,
   generateTableIndexes,
   generateViewSection,
@@ -113,24 +112,18 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
           if (options.data) {
             const PAGE = 10000;
             let pageOffset = 0;
-            let columns: string[] = [];
             // Stream each page of rows straight to disk — never materialize the
             // whole table in memory.
             // eslint-disable-next-line no-constant-condition
             while (true) {
-              const page = await api.fetchTableRows(
+              const page = await api.fetchTableInserts(
                 activeId,
                 tableName,
                 pageOffset,
                 PAGE,
               );
-              if (columns.length === 0) columns = page.columns;
-              if (page.rows.length > 0) {
-                await writeChunk(
-                  generateInserts(tableName, columns, page.rows) + "\n",
-                );
-              }
-              if (page.rows.length < PAGE) break;
+              if (page.rows > 0) await writeChunk(page.sql + "\n");
+              if (page.rows < PAGE) break;
               pageOffset += PAGE;
             }
             await writeChunk("\n");

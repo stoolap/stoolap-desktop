@@ -221,6 +221,27 @@ pub async fn db_table_rows(
     })
 }
 
+#[derive(Serialize)]
+pub struct TableInserts {
+    sql: String,
+    rows: usize,
+}
+
+/// One page of a table's rows as INSERT statements, for a SQL backup. Made
+/// here from the engine's values, so JSON and 64-bit integers stay exact.
+#[tauri::command]
+pub async fn db_table_inserts(
+    state: State<'_, DbManager>,
+    conn_id: String,
+    table: String,
+    offset: i64,
+    limit: i64,
+) -> Result<TableInserts, String> {
+    let db = state.get_db(&conn_id)?;
+    let (sql, rows) = crate::db::table_inserts(&db, &table, offset, limit)?;
+    Ok(TableInserts { sql, rows })
+}
+
 #[tauri::command]
 pub async fn db_table_count(
     state: State<'_, DbManager>,

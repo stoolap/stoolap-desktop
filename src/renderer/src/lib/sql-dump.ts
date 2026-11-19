@@ -17,38 +17,6 @@ export const DEFAULT_DUMP_OPTIONS: DumpOptions = {
 };
 
 /**
- * Escape a value for use in a SQL INSERT statement.
- */
-export function escapeSqlValue(value: unknown): string {
-  if (value === null || value === undefined) return "NULL";
-  if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
-  if (typeof value === "number")
-    return isFinite(value) ? String(value) : "NULL";
-  const str = String(value);
-  return `'${str.replace(/'/g, "''")}'`;
-}
-
-/**
- * Generate INSERT statements for rows. One INSERT per row.
- */
-export function generateInserts(
-  tableName: string,
-  columns: string[],
-  rows: unknown[][],
-): string {
-  if (rows.length === 0) return "";
-  const quotedCols = columns.map(quoteId).join(", ");
-  const lines: string[] = [];
-  for (const row of rows) {
-    const values = row.map(escapeSqlValue).join(", ");
-    lines.push(
-      `INSERT INTO ${quoteId(tableName)} (${quotedCols}) VALUES (${values});`,
-    );
-  }
-  return lines.join("\n");
-}
-
-/**
  * Generate the SQL dump file header comment.
  */
 export function generateHeader(connectionName: string): string {

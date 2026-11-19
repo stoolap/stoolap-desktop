@@ -158,7 +158,11 @@ pub fn classify_statement(sql: &str) -> StatementType {
         // Look past the CTE chain for the actual body keyword. CTEs can chain
         // (`WITH a AS (...), b AS (...) SELECT ...`), so scan for the first
         // top-level SELECT/INSERT/UPDATE/DELETE after depth returns to zero.
-        return classify_with_body(sql.trim_start());
+        // As below, DML with RETURNING returns its rows as a query
+        return match classify_with_body(sql.trim_start()) {
+            StatementType::Dml if has_returning(sql) => StatementType::Query,
+            t => t,
+        };
     }
     if upper.starts_with("CREATE")
         || upper.starts_with("DROP")
@@ -177,6 +181,18 @@ pub fn classify_statement(sql: &str) -> StatementType {
         return StatementType::Query;
     }
     StatementType::Dml
+}
+
+/// True when the statement changes rows, whatever it returns: an INSERT
+/// with RETURNING runs as a query but still needs a script's transaction.
+pub fn modifies_data(sql: &str) -> bool {
+    let upper = sql.trim_start().to_uppercase();
+    if upper.starts_with("WITH") {
+        return classify_with_body(sql.trim_start()) == StatementType::Dml;
+    }
+    ["INSERT", "UPDATE", "DELETE", "MERGE", "UPSERT", "REPLACE"]
+        .iter()
+        .any(|k| upper.starts_with(k))
 }
 
 /// True if `RETURNING` appears as a word outside string literals and quoted

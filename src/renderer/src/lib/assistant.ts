@@ -32,6 +32,8 @@ export type AssistantEvent =
   | {
       kind: "write";
       requestId: string;
+      /** The database the request is about: it runs only there */
+      connId: string;
       tabId: string;
       sql: string;
       explanation: string;

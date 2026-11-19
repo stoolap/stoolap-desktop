@@ -55,6 +55,7 @@ fn main() {
             commands::schema::db_ddl,
             // Data
             commands::data::db_table_rows,
+            commands::data::db_table_inserts,
             commands::data::db_table_count,
             commands::data::db_insert_row,
             commands::data::db_insert_rows,

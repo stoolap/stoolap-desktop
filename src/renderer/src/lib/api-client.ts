@@ -131,6 +131,16 @@ export interface TableCountResult {
   time: number;
 }
 
+/** One page of a table's rows as INSERT statements (a line each), for a SQL backup. */
+export async function fetchTableInserts(
+  connId: string,
+  table: string,
+  offset: number,
+  limit: number,
+): Promise<{ sql: string; rows: number }> {
+  return invoke("db_table_inserts", { connId, table, offset, limit });
+}
+
 export async function fetchTableRows(
   connId: string,
   table: string,

@@ -19,6 +19,7 @@ import { Loader2, FileInput, FileUp } from "lucide-react";
 import { toast } from "sonner";
 import * as api from "@/lib/api-client";
 import { splitStatements } from "@/lib/sql-utils";
+import { restoreStatements } from "@/lib/restore";
 
 interface RestoreDialogProps {
   open: boolean;
@@ -97,67 +98,12 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
     const statements = splitStatements(fileContent);
     setProgress({ current: 0, total: statements.length });
 
-    // DDL (CREATE/DROP/ALTER) auto-commits in stoolap and breaks any active
-    // transaction, so we must NOT wrap DDL+DML in a single BEGIN/COMMIT.
-    // Instead, batch consecutive DML statements into their own transactions.
-    let inDmlBatch = false;
-
     try {
-      const BATCH_SIZE = 50;
-      let dmlBatch: string[] = [];
-
-      const flushBatch = async () => {
-        if (dmlBatch.length === 0) return;
-        await api.executeQuery(activeId, dmlBatch.join(";\n"));
-        dmlBatch = [];
-      };
-
-      for (let i = 0; i < statements.length; i++) {
-        if (abortRef.current) {
-          if (inDmlBatch) {
-            try {
-              await api.executeQuery(activeId, "ROLLBACK");
-            } catch {
-              /* ignore */
-            }
-            inDmlBatch = false;
-          }
-          throw new Error("Restore cancelled by user");
-        }
-        setProgress({ current: i + 1, total: statements.length });
-
-        const trimmed = statements[i].trimStart().toUpperCase();
-        const isDml =
-          trimmed.startsWith("INSERT") ||
-          trimmed.startsWith("UPDATE") ||
-          trimmed.startsWith("DELETE");
-
-        if (isDml && !inDmlBatch && useTransaction) {
-          await api.executeQuery(activeId, "BEGIN");
-          inDmlBatch = true;
-        } else if (!isDml && inDmlBatch) {
-          await flushBatch();
-          await api.executeQuery(activeId, "COMMIT");
-          inDmlBatch = false;
-        }
-
-        if (isDml) {
-          dmlBatch.push(statements[i]);
-          if (dmlBatch.length >= BATCH_SIZE) {
-            await flushBatch();
-          }
-        } else {
-          await api.executeQuery(activeId, statements[i]);
-        }
-      }
-
-      // Flush remaining batch
-      await flushBatch();
-
-      // Commit any remaining DML batch
-      if (inDmlBatch) {
-        await api.executeQuery(activeId, "COMMIT");
-      }
+      await restoreStatements((sql) => api.runSql(activeId, sql), statements, {
+        useTransaction,
+        aborted: () => abortRef.current,
+        onProgress: (done) => setProgress({ current: done, total: statements.length }),
+      });
 
       queryClient.invalidateQueries({ queryKey: ["tables", activeId] });
       queryClient.invalidateQueries({ queryKey: ["views", activeId] });
@@ -172,13 +118,6 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
       toast.success(msg);
       resetAndClose();
     } catch (e) {
-      if (inDmlBatch) {
-        try {
-          await api.executeQuery(activeId, "ROLLBACK");
-        } catch {
-          /* ignore */
-        }
-      }
       setError(errorMessage(e));
     } finally {
       setLoading(false);

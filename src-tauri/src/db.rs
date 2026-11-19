@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -84,6 +84,10 @@ struct Connection {
     // would otherwise spin up a fresh executor with independent txn state.
     db: Arc<Database>,
     meta: ConnectionMeta,
+    /// The user ran BEGIN on this handle and has not committed or rolled
+    /// back yet. The engine can't be asked (a second BEGIN or a stray
+    /// ROLLBACK succeeds silently), so it is tracked here.
+    in_transaction: Arc<AtomicBool>,
 }
 
 /// Statements running longer than this are cancelled by the engine. The UI
@@ -149,6 +153,13 @@ impl DbManager {
         let conns = self.lock_conns()?;
         let conn = conns.get(conn_id).ok_or("Connection not found")?;
         Ok(Arc::clone(&conn.db))
+    }
+
+    /// Whether the user has a transaction open on the connection's handle.
+    pub fn transaction_state(&self, conn_id: &str) -> Result<Arc<AtomicBool>, String> {
+        let conns = self.lock_conns()?;
+        let conn = conns.get(conn_id).ok_or("Connection not found")?;
+        Ok(Arc::clone(&conn.in_transaction))
     }
 
     /// Run a query against an already-cloned Database handle.
@@ -242,6 +253,7 @@ impl DbManager {
             Connection {
                 db: Arc::new(db),
                 meta: meta.clone(),
+                in_transaction: Arc::new(AtomicBool::new(false)),
             },
         );
         Ok(meta)
@@ -342,9 +354,16 @@ fn json_to_params(values: &[serde_json::Value]) -> stoolap::api::ParamVec {
     params
 }
 
+/// Number.MAX_SAFE_INTEGER
+const MAX_SAFE_INTEGER: u64 = (1 << 53) - 1;
+
 fn value_to_json(val: Option<&Value>) -> serde_json::Value {
     match val {
         None | Some(Value::Null(_)) => serde_json::Value::Null,
+        // JavaScript numbers hold integers exactly only up to 2^53; beyond
+        // that the grid would show, edit and delete a rounded key, so those
+        // travel as text (the engine reads text back into INTEGER columns)
+        Some(Value::Integer(i)) if i.unsigned_abs() > MAX_SAFE_INTEGER => serde_json::json!(i.to_string()),
         Some(Value::Integer(i)) => serde_json::json!(*i),
         Some(Value::Float(f)) => serde_json::json!(*f),
         Some(Value::Boolean(b)) => serde_json::json!(*b),
@@ -364,9 +383,54 @@ fn value_to_json(val: Option<&Value>) -> serde_json::Value {
     }
 }
 
+/// `val` as a SQL literal that restores it exactly: integers in full (no
+/// JavaScript rounding), JSON as its own text (so `null` and strings in a
+/// JSON column stay JSON, apart from SQL NULL and TEXT).
+pub fn sql_literal(val: Option<&Value>) -> String {
+    // The engine reads backslash escapes inside quotes, so \ is doubled too
+    let quote = |s: &str| format!("'{}'", s.replace('\\', "\\\\").replace('\'', "''"));
+    match val {
+        None | Some(Value::Null(_)) => "NULL".into(),
+        Some(Value::Integer(i)) => i.to_string(),
+        // Debug keeps the shortest form that reads back the same (1e300, 0.1)
+        Some(Value::Float(f)) if f.is_finite() => format!("{f:?}"),
+        Some(Value::Float(_)) => "NULL".into(),
+        Some(Value::Boolean(b)) => (if *b { "TRUE" } else { "FALSE" }).into(),
+        Some(Value::Text(s)) => quote(s),
+        Some(Value::Timestamp(ts)) => quote(&ts.to_rfc3339()),
+        Some(v @ Value::Extension(_)) => match v.as_json() {
+            Some(json) => quote(json),
+            None => quote(&v.to_string()),
+        },
+    }
+}
+
+/// INSERT statements for one page of `table`'s rows, for a SQL backup,
+/// and how many rows they hold.
+pub fn table_inserts(db: &Database, table: &str, offset: i64, limit: i64) -> Result<(String, usize), String> {
+    let quote_id = |id: &str| format!("\"{}\"", id.replace('"', "\"\""));
+    let table = quote_id(table);
+    let sql = format!("SELECT * FROM {table} LIMIT {} OFFSET {}", limit.max(0), offset.max(0));
+    let rows = db.query(&sql, ()).map_err(|e| e.to_string())?;
+    let columns: Vec<String> = rows.columns().iter().map(|c| quote_id(c)).collect();
+    let head = format!("INSERT INTO {table} ({}) VALUES (", columns.join(", "));
+    let mut out = String::new();
+    let mut count = 0;
+    for row in rows {
+        let row = row.map_err(|e| e.to_string())?;
+        let values: Vec<String> = (0..columns.len()).map(|i| sql_literal(row.get_value(i))).collect();
+        out.push_str(&head);
+        out.push_str(&values.join(", "));
+        out.push_str(");\n");
+        count += 1;
+    }
+    Ok((out, count))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn clone_has_its_own_transaction() {
@@ -407,5 +471,70 @@ mod tests {
         manager.set_query_timeout(0).unwrap();
         let rows = DbManager::query_on(&db, "SELECT COUNT(*) FROM t", None).unwrap();
         assert_eq!(rows.rows, vec![vec![serde_json::json!(100)]]);
+    }
+
+    #[test]
+    fn backup_inserts_restore_every_value_exactly() {
+        let src = Database::open_in_memory().unwrap();
+        let schema = "CREATE TABLE t (id INTEGER PRIMARY KEY, big INTEGER, f FLOAT, s TEXT, b BOOLEAN, \
+                      ts TIMESTAMP, j JSON, v VECTOR(3))";
+        DbManager::execute_on(&src, schema, None).unwrap();
+        DbManager::execute_on(
+            &src,
+            "INSERT INTO t VALUES \
+             (1, 9007199254740993, 0.1, 'it''s', TRUE, '2026-01-02T03:04:05Z', '{\"a\":1}', '[1, 2.5, -3]'), \
+             (2, -9223372036854775808, 1e300, '{\"a\":1}', FALSE, NULL, '[1,2]', NULL), \
+             (3, NULL, NULL, NULL, NULL, NULL, 'null', NULL), \
+             (4, 0, -2.5, '', NULL, NULL, '\"text\"', NULL)",
+            None,
+        )
+        .unwrap();
+        // Backslashes, bound as parameters so they are stored as typed
+        DbManager::execute_on(
+            &src,
+            "INSERT INTO t (id, s, j) VALUES (5, ?, ?)",
+            Some(vec![json!("C:\\ and a\\nb and it's"), json!(r#"{"text":"a\nb","path":"C:\\"}"#)]),
+        )
+        .unwrap();
+        let (sql, count) = table_inserts(&src, "t", 0, 100).unwrap();
+        assert_eq!(count, 5);
+
+        let dst = Database::open_in_memory().unwrap();
+        DbManager::execute_on(&dst, schema, None).unwrap();
+        for stmt in sql.lines() {
+            DbManager::execute_on(&dst, stmt, None).unwrap_or_else(|e| panic!("{stmt}: {e}"));
+        }
+        let read = |db: &Database| {
+            let rows = db.query("SELECT * FROM t ORDER BY id", ()).unwrap();
+            let n = rows.columns().len();
+            rows.map(|r| {
+                let r = r.unwrap();
+                (0..n).map(|i| sql_literal(r.get_value(i))).collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>()
+        };
+        assert_eq!(read(&dst), read(&src));
+        // SQL NULL and JSON null stay apart, as do TEXT and JSON
+        assert!(sql.contains("9007199254740993"), "{sql}");
+        assert!(sql.lines().nth(2).unwrap().ends_with("NULL, 'null', NULL);"), "{sql}");
+    }
+
+    #[test]
+    fn integers_beyond_javascripts_range_round_trip_as_text() {
+        let db = Database::open_in_memory().unwrap();
+        DbManager::execute_on(&db, "CREATE TABLE t (id INTEGER PRIMARY KEY, n INTEGER)", None).unwrap();
+        DbManager::execute_on(&db, "INSERT INTO t VALUES (9007199254740993, 1), (9007199254740992, 2), (5, 3)", None)
+            .unwrap();
+        let rows = DbManager::query_on(&db, "SELECT id FROM t ORDER BY id", None).unwrap().rows;
+        assert_eq!(
+            rows,
+            vec![vec![json!(5)], vec![json!("9007199254740992")], vec![json!("9007199254740993")]]
+        );
+        // The grid sends the key back as it got it, and hits only that row
+        let changed =
+            DbManager::execute_on(&db, "DELETE FROM t WHERE id = ?", Some(vec![json!("9007199254740993")])).unwrap();
+        assert_eq!(changed.changes, 1);
+        let left = DbManager::query_on(&db, "SELECT n FROM t ORDER BY id", None).unwrap().rows;
+        assert_eq!(left, vec![vec![json!(3)], vec![json!(2)]]);
     }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDefaultValue, isExplain, isSingleReadOnly, quoteId, splitStatements } from "./sql-utils";
+import { explainAll, formatDefaultValue, isExplain, isSingleReadOnly, quoteId, splitStatements } from "./sql-utils";
 
 describe("isExplain", () => {
   it("sees EXPLAIN after leading comments", () => {
@@ -9,14 +9,19 @@ describe("isExplain", () => {
     expect(isExplain("-- EXPLAIN\nSELECT 1")).toBe(false);
   });
 });
-import {
-  escapeSqlValue,
-  generateInserts,
-  generateTableDrops,
-  generateTableIndexes,
-} from "./sql-dump";
+import { generateTableDrops, generateTableIndexes } from "./sql-dump";
 import { basename } from "./utils";
 import { foldUnchanged, lineDiff } from "./line-diff";
+
+describe("explainAll", () => {
+  it("explains every statement, so none of them runs", () => {
+    expect(explainAll("SELECT 1; DELETE FROM t")).toBe("EXPLAIN SELECT 1;\nEXPLAIN DELETE FROM t");
+  });
+
+  it("keeps an EXPLAIN that is there and drops empty statements", () => {
+    expect(explainAll("explain analyze select 1;\n-- done\n;")).toBe("explain analyze select 1");
+  });
+});
 
 describe("splitStatements", () => {
   it("splits on semicolons outside strings, identifiers and comments", () => {
@@ -40,10 +45,6 @@ describe("splitStatements", () => {
 describe("quoting", () => {
   it("doubles embedded quotes", () => {
     expect(quoteId('a"b')).toBe('"a""b"');
-    expect(escapeSqlValue("it's")).toBe("'it''s'");
-    expect(escapeSqlValue(null)).toBe("NULL");
-    expect(escapeSqlValue(Number.NaN)).toBe("NULL");
-    expect(escapeSqlValue(true)).toBe("TRUE");
   });
 
   it("passes keywords and numbers through as DEFAULT values", () => {
@@ -61,13 +62,6 @@ describe("dump generation", () => {
       'DROP TABLE IF EXISTS "orders";\nDROP TABLE IF EXISTS "customers";\n\n',
     );
     expect(generateTableDrops([])).toBe("");
-  });
-
-  it("writes one INSERT per row", () => {
-    expect(generateInserts("t", ["id", "name"], [[1, "a"], [2, null]])).toBe(
-      'INSERT INTO "t" ("id", "name") VALUES (1, \'a\');\n' +
-        'INSERT INTO "t" ("id", "name") VALUES (2, NULL);',
-    );
   });
 
   it("recreates indexes with an explicit type and skips primary keys", () => {

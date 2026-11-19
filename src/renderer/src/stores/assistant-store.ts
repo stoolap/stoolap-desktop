@@ -83,8 +83,11 @@ interface AssistantState {
   startRequest: (id: string, text: string) => void;
   failRequest: (id: string, message: string) => void;
   handleEvent: (id: string, event: AssistantEvent) => void;
-  addProposal: (id: string, proposal: NewProposal) => void;
+  /** Returns the new item's id */
+  addProposal: (id: string, proposal: NewProposal) => number;
   setApplied: (id: string, itemId: number, applied: boolean) => void;
+  /** It was going to run but was stopped before it did */
+  setNotRun: (id: string, itemId: number) => void;
 }
 
 // Unique across launches, since conversations are kept
@@ -243,11 +246,23 @@ export const useAssistantStore = create<AssistantState>()(
             }
           }),
         ),
-      addProposal: (id, proposal) =>
+      addProposal: (id, proposal) => {
+        const itemId = nextId++;
         set((s) =>
           update(s, id, (c) => ({
             ...c,
-            items: [...c.items, { id: nextId++, ...proposal }],
+            items: [...c.items, { id: itemId, ...proposal }],
+          })),
+        );
+        return itemId;
+      },
+      setNotRun: (id, itemId) =>
+        set((s) =>
+          update(s, id, (c) => ({
+            ...c,
+            items: c.items.map((it) =>
+              it.id === itemId && it.kind === "proposal" ? { ...it, autoRan: false } : it,
+            ),
           })),
         ),
       setApplied: (id, itemId, applied) =>
