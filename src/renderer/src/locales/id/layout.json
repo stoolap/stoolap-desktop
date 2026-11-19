@@ -1,0 +1,35 @@
+{
+  "appShell": {
+    "hideSidebar": "Sembunyikan bar samping",
+    "showSidebar": "Tampilkan bar samping"
+  },
+  "statusBar": {
+    "inMemory": "Dalam Memori",
+    "noConnection": "Tidak ada koneksi"
+  },
+  "dataTab": {
+    "unavailable": "Tabel \"{{table}}\" tidak lagi tersedia: {{error}}",
+    "loading": "Memuat skema tabel..."
+  },
+  "agentToggle": {
+    "title": "Agen",
+    "hide": "Sembunyikan agen",
+    "show": "Tampilkan agen"
+  },
+  "welcome": {
+    "intro": "Buka basis data, atau letakkan foldernya ke jendela ini.",
+    "openDatabase": "Buka Basis Data…",
+    "newMemory": "Basis Data Dalam Memori Baru",
+    "loadExample": "Muat Basis Data Contoh",
+    "recent": "Terbaru",
+    "opening": "Membuka…",
+    "openFailed": "Tidak dapat membuka {{name}}"
+  },
+  "toolbar": {
+    "examplesTab": "Contoh",
+    "loadExampleFailed": "Gagal memuat contoh",
+    "openFailed": "Tidak dapat membuka {{name}}",
+    "createFailed": "Gagal membuat basis data",
+    "dropHint": "Letakkan folder basis data atau file .sql untuk membukanya"
+  }
+}

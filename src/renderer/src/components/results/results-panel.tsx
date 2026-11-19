@@ -1,4 +1,5 @@
 
+import { Trans, useTranslation } from "react-i18next";
 import { useEditorStore } from "@/stores/editor-store";
 import { DataGrid } from "./data-grid";
 import { ExplainView } from "@/components/explain/explain-view";
@@ -14,6 +15,7 @@ import { isExplain } from "@/lib/sql-utils";
  * returned. Only shown when more than one statement ran.
  */
 export function ResultsPanel() {
+  const { t } = useTranslation("editor");
   const tab = useEditorStore((s) => s.tabs.find((t) => t.id === s.activeTabId) ?? null);
   const selectTabResult = useEditorStore((s) => s.selectTabResult);
   const results = tab?.results;
@@ -22,16 +24,16 @@ export function ResultsPanel() {
     <div className="flex h-full flex-col overflow-hidden">
       <div
         role="tablist"
-        aria-label="Statement results"
+        aria-label={t("results.statementResults")}
         className="flex shrink-0 items-end gap-0.5 overflow-x-auto border-b border-border bg-muted/40 px-1.5 pt-1 scrollbar-none"
       >
         {results.map((r, i) => {
           const [Icon, detail] =
             "columns" in r
-              ? [Table2, `${r.rows.length.toLocaleString()} row${r.rows.length === 1 ? "" : "s"}`]
+              ? [Table2, t("results.rows", { count: r.rows.length })]
               : "ddl" in r
                 ? [CheckCircle2, r.ddl]
-                : [PenLine, `${r.changes.toLocaleString()} changed`];
+                : [PenLine, t("results.changed", { count: r.changes })];
           const selected = i === tab.resultIndex;
           return (
             <button
@@ -50,8 +52,12 @@ export function ResultsPanel() {
             >
               <Icon className={cn("h-3.5 w-3.5", selected ? "text-primary" : "opacity-60")} />
               <span>
-                Result #{i + 1}:{" "}
-                <span className="font-normal text-muted-foreground">{detail}</span>
+                <Trans
+                  t={t}
+                  i18nKey="results.resultTab"
+                  values={{ n: i + 1, detail }}
+                  components={{ d: <span className="font-normal text-muted-foreground" /> }}
+                />
               </span>
             </button>
           );
@@ -65,6 +71,7 @@ export function ResultsPanel() {
 }
 
 function ResultView() {
+  const { t } = useTranslation("editor");
   const result = useEditorStore(
     (s) => s.tabs.find((t) => t.id === s.activeTabId)?.result ?? null,
   );
@@ -79,9 +86,9 @@ function ResultView() {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-1.5">
         <Terminal className="h-6 w-6 opacity-15" />
-        <p className="text-xs text-muted-foreground/50">Run a query to see results</p>
+        <p className="text-xs text-muted-foreground/50">{t("results.empty")}</p>
         <p className="text-xs text-muted-foreground/30">
-          {mod}+Enter to execute
+          {t("results.emptyHint", { mod })}
         </p>
       </div>
     );
@@ -99,9 +106,9 @@ function ResultView() {
             variant="outline"
             size="sm"
             className="h-7 text-xs"
-            onClick={() => useAgentStore.getState().ask("Fix the error in this query")}
+            onClick={() => useAgentStore.getState().ask(t("results.fixPrompt"))}
           >
-            <Sparkles className="h-3.5 w-3.5" /> Fix with agent
+            <Sparkles className="h-3.5 w-3.5" /> {t("results.fixWithAgent")}
           </Button>
         </div>
       </div>
@@ -124,8 +131,7 @@ function ResultView() {
       <div className="flex flex-col h-full overflow-hidden">
         {result.rows.length >= 10000 && (
           <div className="px-3 py-1 bg-amber-500/10 border-b text-xs text-amber-600 dark:text-amber-400 shrink-0">
-            Large result set ({result.rows.length.toLocaleString()} rows).
-            Consider adding LIMIT to your query for better performance.
+            {t("results.largeResult", { count: result.rows.length })}
           </div>
         )}
         <div className="flex-1 overflow-hidden">
@@ -140,7 +146,7 @@ function ResultView() {
       <div className="p-4 flex items-center gap-2">
         <CheckCircle2 className="h-4 w-4 text-green-500" />
         <span className="text-sm">
-          {result.ddl} completed
+          {t("results.ddlCompleted", { ddl: result.ddl })}
           <span className="text-muted-foreground ml-1 tabular-nums">
             ({result.time}ms)
           </span>
@@ -154,7 +160,7 @@ function ResultView() {
       <div className="p-4 flex items-center gap-2">
         <CheckCircle2 className="h-4 w-4 text-green-500" />
         <span className="text-sm">
-          {result.changes} row{result.changes !== 1 ? "s" : ""} affected
+          {t("results.rowsAffected", { count: result.changes })}
           <span className="text-muted-foreground ml-1 tabular-nums">
             ({result.time}ms)
           </span>
@@ -166,7 +172,7 @@ function ResultView() {
   return (
     <div className="p-4 flex items-center gap-2 text-muted-foreground">
       <CheckCircle2 className="h-4 w-4" />
-      <span className="text-sm">Query executed successfully</span>
+      <span className="text-sm">{t("results.success")}</span>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 
 import { useState, useRef, useCallback } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { errorMessage, basename } from "@/lib/utils";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -27,6 +28,7 @@ interface RestoreDialogProps {
 }
 
 export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
+  const { t } = useTranslation("dialogs");
   const activeId = useConnectionStore((s) => s.activeId);
   const connections = useConnectionStore((s) => s.connections);
   const activeConn = connections.find((c) => c.id === activeId);
@@ -57,8 +59,8 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
     const selected = await openDialog({
       multiple: false,
       filters: [
-        { name: "SQL Files", extensions: ["sql"] },
-        { name: "All Files", extensions: ["*"] },
+        { name: t("common:fileTypes.sql"), extensions: ["sql"] },
+        { name: t("common:fileTypes.all"), extensions: ["*"] },
       ],
     });
     if (typeof selected !== "string") return;
@@ -70,7 +72,7 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
       setFileContent(content);
       setStatementCount(splitStatements(content).length);
     } catch {
-      setError("Failed to read file");
+      setError(t("restore.readFailed"));
     }
   };
 
@@ -84,10 +86,10 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
       setStatementCount(splitStatements(content).length);
     };
     reader.onerror = () => {
-      setError("Failed to read file");
+      setError(t("restore.readFailed"));
     };
     reader.readAsText(file);
-  }, []);
+  }, [t]);
 
   const handleRestore = async () => {
     if (!activeId || !fileContent) return;
@@ -113,8 +115,8 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
       queryClient.invalidateQueries({ queryKey: ["rowcount", activeId] });
       queryClient.invalidateQueries({ queryKey: ["ddl", activeId] });
 
-      const msg = `Restore complete: ${statements.length} statements executed`;
-      import("@/lib/native").then((n) => n.notify("Restore Complete", msg));
+      const msg = t("restore.complete", { count: statements.length });
+      import("@/lib/native").then((n) => n.notify(t("restore.notifyTitle"), msg));
       toast.success(msg);
       resetAndClose();
     } catch (e) {
@@ -149,23 +151,24 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileInput className="h-5 w-5" />
-            Restore Database
+            {t("restore.title")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           {activeConn && (
             <p className="text-sm text-muted-foreground">
-              Import a SQL dump into{" "}
-              <span className="font-medium text-foreground">
-                {activeConn.name}
-              </span>
-              .
+              <Trans
+                t={t}
+                i18nKey="restore.intro"
+                values={{ name: activeConn.name }}
+                components={{ b: <span className="font-medium text-foreground" /> }}
+              />
             </p>
           )}
 
           <div className="space-y-2">
-            <Label>SQL File</Label>
+            <Label>{t("restore.file")}</Label>
             <div
               className={`flex items-center justify-center border-2 border-dashed rounded-lg p-6 cursor-pointer transition-colors ${dragOver ? "border-primary bg-primary/10" : "hover:border-primary/50 hover:bg-muted/30"}`}
               onClick={!loading ? handleFileSelect : undefined}
@@ -187,15 +190,14 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
                   <FileUp className="h-8 w-8 mx-auto mb-2 text-primary" />
                   <p className="text-sm font-medium">{fileName}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {statementCount} statement
-                    {statementCount !== 1 ? "s" : ""} detected
+                    {t("restore.detected", { count: statementCount })}
                   </p>
                 </div>
               ) : (
                 <div className="text-center">
                   <FileUp className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">
-                    Click or drag and drop a .sql file
+                    {t("restore.dropHint")}
                   </p>
                 </div>
               )}
@@ -209,11 +211,10 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
                 onCheckedChange={(v) => setUseTransaction(!!v)}
                 disabled={loading}
               />
-              Insert rows in transactions
+              {t("restore.useTransaction")}
             </label>
             <p className="pl-6 text-xs text-muted-foreground">
-              On an error, only the rows since the last CREATE (or other non-row statement) are
-              rolled back. Tables, indexes and rows restored before that stay.
+              {t("restore.useTransactionHint")}
             </p>
           </div>
 
@@ -222,7 +223,7 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-muted-foreground">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Executing statements...
+                  {t("restore.executing")}
                 </span>
                 <span className="text-muted-foreground tabular-nums">
                   {progress.current}/{progress.total} ({pct}%)
@@ -242,13 +243,13 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
 
         <DialogFooter>
           <Button variant="outline" onClick={handleCancel}>
-            {loading ? "Cancel" : "Close"}
+            {loading ? t("actions.cancel") : t("actions.close")}
           </Button>
           <Button
             onClick={handleRestore}
             disabled={loading || !fileContent || !activeId}
           >
-            {loading ? "Restoring..." : "Restore"}
+            {loading ? t("restore.restoring") : t("restore.restore")}
           </Button>
         </DialogFooter>
       </DialogContent>

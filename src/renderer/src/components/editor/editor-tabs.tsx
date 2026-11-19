@@ -1,5 +1,6 @@
 
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useEditorStore } from "@/stores/editor-store";
 import { useQueryExecution } from "@/hooks/use-query-execution";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { Plus, X, Table2, FileCode, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function EditorTabs() {
+  const { t } = useTranslation("editor");
   const tabs = useEditorStore((s) => s.tabs);
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const addTab = useEditorStore((s) => s.addTab);
@@ -102,7 +104,7 @@ export function EditorTabs() {
                 {tab.isRunning && (
                   <Loader2
                     className="ml-0.5 h-2.5 w-2.5 animate-spin text-yellow-500"
-                    aria-label="Running"
+                    aria-label={t("tabs.running")}
                   />
                 )}
                 {tabs.length > 1 && (
@@ -113,7 +115,7 @@ export function EditorTabs() {
                       cancelQuery(tab.id);
                       closeTab(tab.id);
                     }}
-                    aria-label={`Close ${tab.title}`}
+                    aria-label={t("tabs.close", { title: tab.title })}
                   >
                     <X className="h-2.5 w-2.5" />
                   </button>
@@ -121,9 +123,9 @@ export function EditorTabs() {
               </div>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="text-xs">
-              {tab.title}
-              {tab.mode === "data" && " (Data)"}
-              {tab.mode !== "data" && " — double-click to rename"}
+              {tab.mode === "data"
+                ? t("tabs.dataTooltip", { title: tab.title })
+                : t("tabs.renameTooltip", { title: tab.title })}
             </TooltipContent>
           </Tooltip>
         ))}
@@ -134,8 +136,8 @@ export function EditorTabs() {
         size="icon"
         className="h-5 w-5 shrink-0 mx-1 opacity-40 hover:opacity-100"
         onClick={() => addTab()}
-        title="New query tab"
-        aria-label="New query tab"
+        title={t("tabs.newTab")}
+        aria-label={t("tabs.newTab")}
       >
         <Plus className="h-2.5 w-2.5" />
       </Button>

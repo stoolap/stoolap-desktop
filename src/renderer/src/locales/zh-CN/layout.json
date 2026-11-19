@@ -1,0 +1,35 @@
+{
+  "appShell": {
+    "hideSidebar": "隐藏边栏",
+    "showSidebar": "显示边栏"
+  },
+  "statusBar": {
+    "inMemory": "内存",
+    "noConnection": "未连接"
+  },
+  "dataTab": {
+    "unavailable": "表“{{table}}”已不可用：{{error}}",
+    "loading": "正在加载表结构..."
+  },
+  "agentToggle": {
+    "title": "智能体",
+    "hide": "隐藏智能体",
+    "show": "显示智能体"
+  },
+  "welcome": {
+    "intro": "打开数据库，或将其文件夹拖放到此窗口。",
+    "openDatabase": "打开数据库…",
+    "newMemory": "新建内存数据库",
+    "loadExample": "加载示例数据库",
+    "recent": "最近使用",
+    "opening": "正在打开…",
+    "openFailed": "无法打开 {{name}}"
+  },
+  "toolbar": {
+    "examplesTab": "示例",
+    "loadExampleFailed": "加载示例失败",
+    "openFailed": "无法打开 {{name}}",
+    "createFailed": "创建数据库失败",
+    "dropHint": "拖放数据库文件夹或 .sql 文件以打开"
+  }
+}

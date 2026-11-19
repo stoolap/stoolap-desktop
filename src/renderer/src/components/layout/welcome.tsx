@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Database, FolderOpen, Sparkles, Zap } from "lucide-react";
 import { StoolapLogo } from "@/components/common/stoolap-logo";
@@ -14,6 +15,7 @@ function requestAction(name: "open-database" | "new-memory-db" | "load-example")
 
 /** Shown in place of the editor while no database is open. */
 export function Welcome() {
+  const { t } = useTranslation("layout");
   const mod = useModKey();
   const { connect } = useConnection();
   const recentConnections = useHistoryStore((s) => s.recentConnections);
@@ -25,7 +27,7 @@ export function Welcome() {
     try {
       await connect(path, name);
     } catch (e) {
-      toast.error(`Could not open ${name}`, { description: errorMessage(e) });
+      toast.error(t("welcome.openFailed", { name }), { description: errorMessage(e) });
     } finally {
       setOpening(null);
     }
@@ -33,19 +35,19 @@ export function Welcome() {
 
   const actions = [
     {
-      label: "Open Database…",
+      label: t("welcome.openDatabase"),
       hint: `${mod}O`,
       icon: FolderOpen,
       run: () => requestAction("open-database"),
     },
     {
-      label: "New In-Memory Database",
+      label: t("welcome.newMemory"),
       hint: `${mod}N`,
       icon: Zap,
       run: () => requestAction("new-memory-db"),
     },
     {
-      label: "Load Example Database",
+      label: t("welcome.loadExample"),
       hint: "",
       icon: Sparkles,
       run: () => requestAction("load-example"),
@@ -59,7 +61,7 @@ export function Welcome() {
           <img src="/icon.png" alt="" width={208} height={208} className="rounded-[3rem]" draggable={false} />
           <StoolapLogo height={36} className="text-foreground" />
           <p className="text-sm text-muted-foreground">
-            Open a database, or drop its folder onto this window.
+            {t("welcome.intro")}
           </p>
         </div>
 
@@ -83,7 +85,7 @@ export function Welcome() {
         {recent.length > 0 && (
           <div className="flex flex-col gap-1">
             <h2 className="px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Recent
+              {t("welcome.recent")}
             </h2>
             {recent.map((entry) => (
               <button
@@ -101,7 +103,7 @@ export function Welcome() {
                   </span>
                 </span>
                 {opening === entry.path && (
-                  <span className="text-xs text-muted-foreground">Opening…</span>
+                  <span className="text-xs text-muted-foreground">{t("welcome.opening")}</span>
                 )}
               </button>
             ))}

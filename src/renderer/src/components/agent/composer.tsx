@@ -1,4 +1,5 @@
 import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Table2, Columns3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -97,6 +98,7 @@ export const Composer = forwardRef<
     placeholder?: string;
   }
 >(function Composer({ value, onChange, onSubmit, hints, placeholder }, ref) {
+  const { t } = useTranslation("agent");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const ghostRef = useRef<HTMLDivElement>(null);
   const [caret, setCaret] = useState(0);
@@ -194,7 +196,7 @@ export const Composer = forwardRef<
       {options.length > 0 && (
         <div
           role="listbox"
-          aria-label="Tables and columns"
+          aria-label={t("composer.mentions")}
           className="absolute bottom-full left-0 z-20 mb-1 w-64 overflow-hidden rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-md"
         >
           {options.map((o, i) => (
@@ -248,7 +250,7 @@ export const Composer = forwardRef<
         onFocus={() => setMentionClosed(false)}
         rows={3}
         placeholder={placeholder}
-        aria-label="Message the agent"
+        aria-label={t("composer.label")}
         className={cn(TEXT, "relative resize-none bg-transparent outline-none placeholder:text-muted-foreground")}
       />
     </div>

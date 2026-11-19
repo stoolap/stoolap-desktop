@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -46,6 +47,7 @@ import { getEditorSelection } from "@/lib/editor-registry";
 import { foldUnchanged, lineDiff } from "@/lib/line-diff";
 import { runInTab, startWrites, stopWrites } from "@/lib/agent-edits";
 import { cn, errorMessage } from "@/lib/utils";
+import i18n, { locale } from "@/lib/i18n";
 import { useAgentStore, type AgentItem } from "@/stores/agent-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useEditorStore } from "@/stores/editor-store";
@@ -58,11 +60,11 @@ import { Composer, type ComposerHandle } from "./composer";
 /** "5 min ago", "yesterday", or the date */
 function ago(ms: number): string {
   const m = Math.round((Date.now() - ms) / 60_000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m} min ago`;
+  if (m < 1) return i18n.t("agent:ago.justNow");
+  if (m < 60) return i18n.t("agent:ago.minutes", { count: m });
   const h = Math.round(m / 60);
-  if (h < 24) return `${h} h ago`;
-  return h < 48 ? "yesterday" : new Date(ms).toLocaleDateString();
+  if (h < 24) return i18n.t("agent:ago.hours", { count: h });
+  return h < 48 ? i18n.t("agent:ago.yesterday") : new Date(ms).toLocaleDateString(locale());
 }
 
 /** What was said so far, for a conversation the backend no longer holds */
@@ -79,6 +81,7 @@ function transcript(items: AgentItem[]): string {
 }
 
 export function AgentPanel() {
+  const { t } = useTranslation("agent");
   const mod = useModKey();
   const [models, setModels] = useState<AgentModel[]>([]);
   const [info, setInfo] = useState<Backends | null>(null);
@@ -187,7 +190,7 @@ export function AgentPanel() {
       .catch((e) => {
         if (stale) return;
         setModels([]);
-        toast.error("Could not load the models", { description: errorMessage(e) });
+        toast.error(t("panel.loadModelsFailed"), { description: errorMessage(e) });
       });
     return () => {
       stale = true;
@@ -205,7 +208,7 @@ export function AgentPanel() {
     if (!trimmed || !conn || !activeId || !accessKey || running || !model) return;
     const looking = activeTab?.mode === "query" ? activeTab : null;
     if (target === "current" && !looking) {
-      toast.error("Open a query tab for the agent to work in, or let it use a new tab.");
+      toast.error(t("panel.openQueryTab"));
       return;
     }
     const lastError =
@@ -227,7 +230,7 @@ export function AgentPanel() {
         targetTab = own;
         editor.setActiveTab(own.id);
       } else {
-        const tabId = editor.addTab("Agent", "");
+        const tabId = editor.addTab(t("tabTitle"), "");
         store.setConversationTab(id, tabId);
         targetTab = useEditorStore.getState().tabs.find((t) => t.id === tabId) ?? null;
       }
@@ -301,7 +304,7 @@ export function AgentPanel() {
       await logout();
       await refreshBackends();
     } catch (e) {
-      toast.error("Could not sign out", { description: errorMessage(e) });
+      toast.error(t("panel.signOutFailed"), { description: errorMessage(e) });
     }
   };
 
@@ -310,7 +313,7 @@ export function AgentPanel() {
       await agent.deleteKey(provider);
       await refreshBackends();
     } catch (e) {
-      toast.error("Could not remove the key", { description: errorMessage(e) });
+      toast.error(t("panel.removeKeyFailed"), { description: errorMessage(e) });
     }
   };
 
@@ -319,37 +322,37 @@ export function AgentPanel() {
       {/* Header */}
       <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border/40 pl-3 pr-1">
         <Sparkles className="h-3.5 w-3.5 text-primary" />
-        <span className="text-xs font-medium">Agent</span>
+        <span className="text-xs font-medium">{t("panel.title")}</span>
         <div className="flex-1" />
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={newChat} aria-label="New conversation" disabled={!accessKey}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={newChat} aria-label={t("panel.newConversation")} disabled={!accessKey}>
               <SquarePen className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>New conversation</TooltipContent>
+          <TooltipContent>{t("panel.newConversation")}</TooltipContent>
         </Tooltip>
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Earlier conversations" disabled={!accessKey}>
+                <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={t("panel.earlierConversations")} disabled={!accessKey}>
                   <History className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent>Earlier conversations</TooltipContent>
+            <TooltipContent>{t("panel.earlierConversations")}</TooltipContent>
           </Tooltip>
           <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-y-auto">
             {pastChats.length === 0 ? (
-              <div className="px-2 py-1.5 text-xs text-muted-foreground">No conversations about this database yet.</div>
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">{t("panel.noConversations")}</div>
             ) : (
               pastChats.map(([id, c]) => (
                 <DropdownMenuItem key={id} onSelect={() => openChat(id)} className="flex items-start gap-2">
                   <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-xs">{c.title || "Untitled"}</span>
+                    <span className="truncate text-xs">{c.title || t("panel.untitled")}</span>
                     <span className="text-[11px] text-muted-foreground">
-                      {c.running ? "Working…" : ago(c.updatedAt)}
+                      {c.running ? t("panel.working") : ago(c.updatedAt)}
                     </span>
                   </span>
                   {id === chatId && <Check className="mt-0.5 h-3.5 w-3.5" />}
@@ -361,7 +364,7 @@ export function AgentPanel() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={deleteChat} className="text-xs">
                   <Trash2 className="h-3.5 w-3.5" />
-                  Delete this conversation
+                  {t("panel.deleteConversation")}
                 </DropdownMenuItem>
               </>
             )}
@@ -369,58 +372,58 @@ export function AgentPanel() {
         </DropdownMenu>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Agent settings">
+            <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={t("panel.settings")}>
               <MoreHorizontal className="h-3.5 w-3.5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem onSelect={() => setBackend("claude-code")} disabled={!info?.claudeCode}>
               <Terminal className="h-3.5 w-3.5" />
-              <span className="flex-1">Use Claude Code</span>
+              <span className="flex-1">{t("panel.useClaudeCode")}</span>
               {backend === "claude-code" && <Check className="h-3.5 w-3.5" />}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setBackend("console")}>
               <UserRound className="h-3.5 w-3.5" />
-              <span className="flex-1">Use my Anthropic account</span>
+              <span className="flex-1">{t("panel.useAnthropicAccount")}</span>
               {backend === "console" && <Check className="h-3.5 w-3.5" />}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setBackend("api")}>
               <KeyRound className="h-3.5 w-3.5" />
-              <span className="flex-1">Use an Anthropic API key</span>
+              <span className="flex-1">{t("panel.useAnthropicKey")}</span>
               {backend === "api" && <Check className="h-3.5 w-3.5" />}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => setBackend("codex")} disabled={!info?.codex}>
               <Terminal className="h-3.5 w-3.5" />
-              <span className="flex-1">Use ChatGPT (Codex)</span>
+              <span className="flex-1">{t("panel.useCodex")}</span>
               {backend === "codex" && <Check className="h-3.5 w-3.5" />}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setBackend("openai")}>
               <KeyRound className="h-3.5 w-3.5" />
-              <span className="flex-1">Use an OpenAI API key</span>
+              <span className="flex-1">{t("panel.useOpenaiKey")}</span>
               {backend === "openai" && <Check className="h-3.5 w-3.5" />}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => setEditingKey(openai ? "openai" : "anthropic")}>
-              Add or change an API key…
+              {t("panel.changeKey")}
             </DropdownMenuItem>
             {info?.hasApiKey && (
-              <DropdownMenuItem onSelect={() => removeKey("anthropic")}>Remove Anthropic API key</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => removeKey("anthropic")}>{t("panel.removeAnthropicKey")}</DropdownMenuItem>
             )}
             {info?.hasOpenaiKey && (
-              <DropdownMenuItem onSelect={() => removeKey("openai")}>Remove OpenAI API key</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => removeKey("openai")}>{t("panel.removeOpenaiKey")}</DropdownMenuItem>
             )}
             {info?.console?.signedIn && (
               <DropdownMenuItem onSelect={() => signOut(agent.consoleLogout)}>
-                Sign out of Anthropic account
+                {t("panel.signOutAnthropic")}
               </DropdownMenuItem>
             )}
             {info?.codex?.signedIn && (
-              <DropdownMenuItem onSelect={() => signOut(agent.codexLogout)}>Sign out of ChatGPT</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => signOut(agent.codexLogout)}>{t("panel.signOutChatgpt")}</DropdownMenuItem>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setOpen(false)} aria-label="Close agent">
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setOpen(false)} aria-label={t("panel.closeAgent")}>
           <X className="h-3.5 w-3.5" />
         </Button>
       </div>
@@ -439,7 +442,7 @@ export function AgentPanel() {
         />
       ) : !conn ? (
         <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
-          Open a database to use the agent.
+          {t("panel.openDatabase")}
         </div>
       ) : (
         <>
@@ -448,10 +451,12 @@ export function AgentPanel() {
             {items.length === 0 ? (
               <div className="flex flex-col gap-3 pt-6 text-sm">
                 <p className="text-muted-foreground">
-                  Ask about the SQL in <span className="text-foreground">{activeTab?.title ?? "your tab"}</span>, or
-                  for a new query on <span className="text-foreground">{conn.name}</span>. The agent writes and runs
-                  its SQL in {target === "new" ? "a new tab" : "this tab"}; reads run right away, changes to data only
-                  when you allow writes.
+                  <Trans
+                    t={t}
+                    i18nKey={target === "new" ? "panel.introNew" : "panel.introCurrent"}
+                    values={{ tab: activeTab?.title ?? t("panel.yourTab"), name: conn.name }}
+                    components={{ b: <span className="text-foreground" /> }}
+                  />
                 </p>
                 <div className="flex flex-col gap-1">
                   {prompts.map((e) => (
@@ -474,7 +479,7 @@ export function AgentPanel() {
                 {running && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-                    Working…
+                    {t("panel.working")}
                   </div>
                 )}
               </div>
@@ -490,17 +495,17 @@ export function AgentPanel() {
                 onChange={setDraft}
                 onSubmit={() => ask(draft)}
                 hints={{ history: promptHistory, prompts, schema }}
-                placeholder="Ask about this query… (@ for tables)"
+                placeholder={t("panel.placeholder")}
               />
               <div className="flex items-center gap-1 px-1.5 pb-1.5">
                 <Select value={model} onValueChange={setModel}>
-                  <SelectTrigger aria-label="Model" className="h-6 w-auto gap-1 border-0 bg-transparent px-1.5 text-xs shadow-none">
+                  <SelectTrigger aria-label={t("panel.model")} className="h-6 w-auto gap-1 border-0 bg-transparent px-1.5 text-xs shadow-none">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent position="popper" side="top" align="start">
                     {models.length === 0 && (
                       <SelectItem value="__loading" disabled className="text-xs">
-                        Loading…
+                        {t("panel.loading")}
                       </SelectItem>
                     )}
                     {models.map((m) => (
@@ -512,15 +517,15 @@ export function AgentPanel() {
                 </Select>
                 <Select value={target} onValueChange={(v) => setTarget(v as "new" | "current")}>
                   <SelectTrigger
-                    aria-label="Where the agent writes"
-                    title="Where the agent writes and runs its SQL"
+                    aria-label={t("panel.whereLabel")}
+                    title={t("panel.whereTitle")}
                     className="h-6 w-auto gap-1 border-0 bg-transparent px-1.5 text-xs shadow-none"
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent position="popper" side="top" align="start">
-                    <SelectItem value="new" className="text-xs">New tab</SelectItem>
-                    <SelectItem value="current" className="text-xs">This tab</SelectItem>
+                    <SelectItem value="new" className="text-xs">{t("panel.newTab")}</SelectItem>
+                    <SelectItem value="current" className="text-xs">{t("panel.thisTab")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <label
@@ -528,26 +533,26 @@ export function AgentPanel() {
                     "flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap px-1.5 text-xs",
                     allowWrites ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground",
                   )}
-                  title="Let the agent run SQL that changes this database (INSERT, UPDATE, DELETE, DDL) without asking. Reads always run."
+                  title={t("panel.writesTitle")}
                 >
                   <Switch
                     checked={allowWrites}
                     onCheckedChange={(v) => setWriteAccess(accessKey, v)}
                     className="scale-75"
-                    aria-label="Allow the agent to run writes"
+                    aria-label={t("panel.allowWrites")}
                   />
-                  Run writes
+                  {t("panel.runWrites")}
                 </label>
                 <div className="flex-1" />
                 {running ? (
                   <Button size="icon" variant="secondary" className="h-6 w-6" onClick={() => {
                       stopWrites(chatId!);
                       agent.cancel(chatId!);
-                    }} aria-label="Stop">
+                    }} aria-label={t("panel.stop")}>
                     <Square className="h-3 w-3" />
                   </Button>
                 ) : (
-                  <Button size="icon" className="h-6 w-6" onClick={() => ask(draft)} disabled={!draft.trim() || !model} aria-label="Send">
+                  <Button size="icon" className="h-6 w-6" onClick={() => ask(draft)} disabled={!draft.trim() || !model} aria-label={t("panel.send")}>
                     <ArrowUp className="h-3.5 w-3.5" />
                   </Button>
                 )}
@@ -557,13 +562,13 @@ export function AgentPanel() {
               {backend === "claude-code"
                 ? `Claude Code${info?.claudeCode?.version ? ` ${info.claudeCode.version.split(" ")[0]}` : ""}`
                 : backend === "console"
-                  ? "Anthropic account"
+                  ? t("panel.anthropicAccount")
                   : backend === "codex"
-                    ? "ChatGPT via Codex"
+                    ? t("panel.chatgptViaCodex")
                     : backend === "openai"
-                      ? "OpenAI API key"
-                      : "Anthropic API key"}{" "}
-              · {mod}L toggles the panel · ↑ earlier requests · Tab completes
+                      ? t("panel.openaiKey")
+                      : t("panel.anthropicKey")}{" "}
+              · {t("panel.hints", { mod })}
             </p>
           </div>
         </>
@@ -586,6 +591,7 @@ function Setup({
   onRecheck: () => void;
   onCancel?: () => void;
 }) {
+  const { t } = useTranslation("agent");
   const [key, setKey] = useState("");
   const [provider, setProvider] = useState<KeyProvider>(keyProvider);
   const [codexSigningIn, setCodexSigningIn] = useState(false);
@@ -599,7 +605,7 @@ function Setup({
       setKey("");
       onUse(provider === "openai" ? "openai" : "api");
     } catch (e) {
-      toast.error("Could not save the key", { description: errorMessage(e) });
+      toast.error(t("setup.saveKeyFailed"), { description: errorMessage(e) });
     } finally {
       setSaving(false);
     }
@@ -615,7 +621,7 @@ function Setup({
       await agent.consoleLogin();
       onUse("console");
     } catch (e) {
-      toast.error("Sign-in did not finish", { description: errorMessage(e) });
+      toast.error(t("setup.signInFailed"), { description: errorMessage(e) });
     } finally {
       setSignInStep("idle");
     }
@@ -626,7 +632,7 @@ function Setup({
       await agent.codexLogin();
       onUse("codex");
     } catch (e) {
-      toast.error("Sign-in did not finish", { description: errorMessage(e) });
+      toast.error(t("setup.signInFailed"), { description: errorMessage(e) });
     } finally {
       setCodexSigningIn(false);
     }
@@ -636,22 +642,20 @@ function Setup({
       <section className="flex flex-col gap-2">
         <h3 className="flex items-center gap-1.5 font-medium">
           <Terminal className="h-3.5 w-3.5" /> Claude Code
-          <span className="text-xs font-normal text-muted-foreground">recommended</span>
+          <span className="text-xs font-normal text-muted-foreground">{t("setup.recommended")}</span>
         </h3>
         {info.claudeCode ? (
           <>
             <p className="text-muted-foreground">
-              Found {info.claudeCode.version ?? "Claude Code"}. The agent runs through it with your Claude
-              sign-in and plan, and only gets this app's database tools.
+              {t("setup.claudeCodeFound", { version: info.claudeCode.version ?? "Claude Code" })}
             </p>
             <Button size="sm" onClick={() => onUse("claude-code")}>
-              Use Claude Code
+              {t("panel.useClaudeCode")}
             </Button>
           </>
         ) : (
           <p className="text-muted-foreground">
-            Install Claude Code (claude.ai/code) and sign in once with <span className="font-data text-xs">claude</span>{" "}
-            in a terminal. The agent then uses your Claude plan.
+            <Trans t={t} i18nKey="setup.claudeCodeInstall" components={{ cmd: <span className="font-data text-xs" /> }} />
           </p>
         )}
       </section>
@@ -659,24 +663,23 @@ function Setup({
       {info.console && (
         <section className="flex flex-col gap-2 border-t border-border/60 pt-4">
           <h3 className="flex items-center gap-1.5 font-medium">
-            <UserRound className="h-3.5 w-3.5" /> Anthropic account
+            <UserRound className="h-3.5 w-3.5" /> {t("setup.anthropicAccount")}
           </h3>
           <p className="text-muted-foreground">
-            Sign in with your browser to call the Claude API, billed to your Anthropic Console organization. No key
-            to copy.
+            {t("setup.anthropicAccountText")}
           </p>
           {info.console?.signedIn ? (
             <Button size="sm" variant="outline" onClick={() => onUse("console")}>
-              Use my Anthropic account
+              {t("panel.useAnthropicAccount")}
             </Button>
           ) : (
             <Button size="sm" variant="outline" onClick={signIn} disabled={signInStep !== "idle"}>
               <LogIn className="h-3.5 w-3.5" />
               {signInStep === "setup"
-                ? "Setting up sign-in…"
+                ? t("setup.settingUp")
                 : signInStep === "approve"
-                  ? "Waiting for you to approve in the browser…"
-                  : "Sign in with browser"}
+                  ? t("setup.waitingApproval")
+                  : t("setup.signInBrowser")}
             </Button>
           )}
         </section>
@@ -689,30 +692,29 @@ function Setup({
         {info.codex ? (
           <>
             <p className="text-muted-foreground">
-              Through {info.codex.version ?? "Codex"}, with your ChatGPT plan. The app signs Codex in on its own, so
-              your Codex settings and plugins stay out, and it only gets this app&apos;s database tools.
+              {t("setup.codexFound", { version: info.codex.version ?? "Codex" })}
             </p>
             {info.codex.signedIn ? (
               <Button size="sm" variant="outline" onClick={() => onUse("codex")}>
-                Use ChatGPT
+                {t("setup.useChatgpt")}
               </Button>
             ) : (
               <Button size="sm" variant="outline" onClick={codexSignIn} disabled={codexSigningIn}>
                 <LogIn className="h-3.5 w-3.5" />
-                {codexSigningIn ? "Waiting for you to approve in the browser…" : "Sign in with ChatGPT"}
+                {codexSigningIn ? t("setup.waitingApproval") : t("setup.signInChatgpt")}
               </Button>
             )}
           </>
         ) : (
           <p className="text-muted-foreground">
-            Install Codex (developers.openai.com/codex) to use your ChatGPT plan here.
+            {t("setup.codexInstall")}
           </p>
         )}
       </section>
 
       {!info.claudeCode || !info.codex ? (
         <Button size="sm" variant="ghost" className="self-start" onClick={onRecheck}>
-          Check again for Claude Code and Codex
+          {t("setup.checkAgain")}
         </Button>
       ) : null}
 
@@ -725,9 +727,9 @@ function Setup({
           }}
         >
           <h3 className="flex items-center gap-1.5 font-medium">
-            <KeyRound className="h-3.5 w-3.5" /> API key
+            <KeyRound className="h-3.5 w-3.5" /> {t("setup.apiKey")}
           </h3>
-          <div className="flex gap-1" role="radiogroup" aria-label="Whose API key">
+          <div className="flex gap-1" role="radiogroup" aria-label={t("setup.whoseKey")}>
             {(["anthropic", "openai"] as const).map((p) => (
               <Button
                 key={p}
@@ -744,8 +746,10 @@ function Setup({
             ))}
           </div>
           <p className="text-muted-foreground">
-            A key from {provider === "anthropic" ? "console.anthropic.com" : "platform.openai.com"}, kept in your
-            system&apos;s credential store and only sent to {provider === "anthropic" ? "Anthropic" : "OpenAI"}.
+            {t("setup.keyText", {
+              site: provider === "anthropic" ? "console.anthropic.com" : "platform.openai.com",
+              provider: provider === "anthropic" ? "Anthropic" : "OpenAI",
+            })}
           </p>
           <Input
             type="password"
@@ -753,15 +757,15 @@ function Setup({
             placeholder={provider === "anthropic" ? "sk-ant-…" : "sk-…"}
             value={key}
             onChange={(e) => setKey(e.target.value)}
-            aria-label={provider === "anthropic" ? "Anthropic API key" : "OpenAI API key"}
+            aria-label={provider === "anthropic" ? t("panel.anthropicKey") : t("panel.openaiKey")}
           />
           <div className="flex gap-2">
             <Button type="submit" size="sm" variant="outline" className="flex-1" disabled={!key.trim() || saving}>
-              {saving ? "Saving…" : "Save key and use it"}
+              {saving ? t("setup.saving") : t("setup.saveKey")}
             </Button>
             {onCancel && (
               <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
-                Cancel
+                {t("setup.cancel")}
               </Button>
             )}
           </div>
@@ -772,7 +776,7 @@ function Setup({
           onClick={() => setShowKey(true)}
           className="self-start text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
         >
-          Use an API key instead
+          {t("setup.useKeyInstead")}
         </button>
       )}
     </div>
@@ -813,12 +817,13 @@ function ItemView({ item, conversationId }: { item: AgentItem; conversationId: s
 }
 
 function Thinking({ text }: { text: string }) {
+  const { t } = useTranslation("agent");
   const [open, setOpen] = useState(false);
   return (
     <div className="text-xs text-muted-foreground">
       <button type="button" className="flex items-center gap-1 hover:text-foreground" onClick={() => setOpen(!open)}>
         <ChevronRight className={cn("h-3 w-3 transition-transform", open && "rotate-90")} />
-        Thinking
+        {t("thinking")}
       </button>
       {open && <p className="mt-1 whitespace-pre-wrap border-l-2 border-border pl-2">{text}</p>}
     </div>
@@ -832,6 +837,7 @@ function Proposal({
   item: Extract<AgentItem, { kind: "proposal" }>;
   conversationId: string;
 }) {
+  const { t } = useTranslation("agent");
   const tab = useEditorStore((s) => s.tabs.find((t) => t.id === item.tabId));
   const diff = useMemo(() => {
     // Written into an empty tab: it is all new
@@ -864,14 +870,14 @@ function Proposal({
   // tab, so a later edit or query in that tab is neither run nor lost
   const run = () => {
     const editor = useEditorStore.getState();
-    const id = tab && tab.sql === item.sql ? tab.id : editor.addTab("Agent", item.sql);
+    const id = tab && tab.sql === item.sql ? tab.id : editor.addTab(t("tabTitle"), item.sql);
     runInTab(id, item.sql);
   };
 
   const copy = () => {
     navigator.clipboard.writeText(item.sql).then(
-      () => toast.success("SQL copied"),
-      () => toast.error("Could not copy"),
+      () => toast.success(t("proposal.sqlCopied")),
+      () => toast.error(t("proposal.copyFailed")),
     );
   };
 
@@ -880,8 +886,13 @@ function Proposal({
       <div className="flex items-center gap-1.5 border-b border-border/60 px-2.5 py-1.5 text-xs">
         <SquarePen className="h-3 w-3 text-primary" />
         <span className="flex-1 truncate">
-          {item.applied ? "Edited" : "Undone in"} <span className="font-medium">{tab?.title ?? "a closed tab"}</span>
-          {item.applied && item.autoRan && <span className="text-muted-foreground"> · ran it</span>}
+          <Trans
+            t={t}
+            i18nKey={item.applied ? "proposal.edited" : "proposal.undoneIn"}
+            values={{ tab: tab?.title ?? t("proposal.closedTab") }}
+            components={{ b: <span className="font-medium" /> }}
+          />
+          {item.applied && item.autoRan && <span className="text-muted-foreground">{t("proposal.ranIt")}</span>}
         </span>
       </div>
       {item.explanation && (
@@ -892,8 +903,8 @@ function Proposal({
           line.type === "skip" ? (
             <div key={i} className="select-none px-2.5 text-muted-foreground/60">
               {"replaced" in line
-                ? `Replaced ${line.count} line${line.count === 1 ? "" : "s"} with:`
-                : `⋯ ${line.count} unchanged line${line.count === 1 ? "" : "s"}`}
+                ? t("proposal.replaced", { count: line.count })
+                : t("proposal.unchanged", { count: line.count })}
             </div>
           ) : (
             <div
@@ -919,27 +930,27 @@ function Proposal({
             className="h-6 px-2 text-xs"
             variant={item.autoRan ? "ghost" : "default"}
             onClick={run}
-            title={item.autoRan ? "Run it again" : "Run it in the tab; this SQL may change data"}
+            title={item.autoRan ? t("proposal.runAgainTitle") : t("proposal.runTitle")}
           >
-            <Play className="h-3 w-3" /> {item.autoRan ? "Run again" : "Run"}
+            <Play className="h-3 w-3" /> {item.autoRan ? t("proposal.runAgain") : t("proposal.run")}
           </Button>
         )}
         {tab &&
           (item.applied ? (
             <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setApplied(false)}>
-              <Undo2 className="h-3 w-3" /> Undo
+              <Undo2 className="h-3 w-3" /> {t("proposal.undo")}
             </Button>
           ) : (
             <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setApplied(true)}>
-              <Redo2 className="h-3 w-3" /> Apply again
+              <Redo2 className="h-3 w-3" /> {t("proposal.applyAgain")}
             </Button>
           ))}
         <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={copy}>
-          <Copy className="h-3 w-3" /> Copy
+          <Copy className="h-3 w-3" /> {t("proposal.copy")}
         </Button>
         {editedSince && (
           <span className="ml-auto truncate pr-1 text-[11px] text-amber-600 dark:text-amber-400">
-            Edited since; Undo drops those edits
+            {t("proposal.editedSince")}
           </span>
         )}
       </div>

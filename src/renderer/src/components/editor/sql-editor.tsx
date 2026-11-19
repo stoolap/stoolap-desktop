@@ -1,5 +1,6 @@
 
 import { useCallback, useRef, useMemo, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import CodeMirror, { Prec, ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { sql, SQLDialect } from "@codemirror/lang-sql";
 import { oneDark } from "@codemirror/theme-one-dark";
@@ -73,6 +74,7 @@ interface SqlEditorProps {
 }
 
 export function SqlEditor({ tabId, value, isDark, schema }: SqlEditorProps) {
+  const { t } = useTranslation("editor");
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const updateTabSql = useEditorStore((s) => s.updateTabSql);
   const { executeQuery } = useQueryExecution();
@@ -186,7 +188,7 @@ export function SqlEditor({ tabId, value, isDark, schema }: SqlEditorProps) {
         onChange={handleChange}
         theme={isDark ? oneDark : undefined}
         extensions={extensions}
-        placeholder="Type your SQL query here... (Ctrl/Cmd+Enter to run)"
+        placeholder={t("sqlEditor.placeholder")}
         basicSetup={{
           lineNumbers: true,
           highlightActiveLineGutter: true,

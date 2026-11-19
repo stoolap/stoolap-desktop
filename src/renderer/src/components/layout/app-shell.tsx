@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { cn, errorMessage } from "@/lib/utils";
 import { Toolbar } from "./toolbar";
 import { QueryTimeoutSelect } from "./query-timeout-select";
@@ -24,6 +25,7 @@ const EDITOR_HEIGHT_DEFAULT = 220;
 const IS_MAC = navigator.userAgent.includes("Mac");
 
 export function AppShell() {
+  const { t } = useTranslation("layout");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH_DEFAULT);
   const [editorHeight, setEditorHeight] = useState(EDITOR_HEIGHT_DEFAULT);
@@ -240,8 +242,8 @@ export function AppShell() {
                   size="icon"
                   className="h-7 w-7 shrink-0 rounded-none"
                   onClick={() => setSidebarOpen(!sidebarOpen)}
-                  title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
-                  aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+                  title={sidebarOpen ? t("appShell.hideSidebar") : t("appShell.showSidebar")}
+                  aria-label={sidebarOpen ? t("appShell.hideSidebar") : t("appShell.showSidebar")}
                 >
                   {sidebarOpen ? (
                     <PanelLeftClose className="h-3 w-3" />
@@ -308,13 +310,13 @@ export function AppShell() {
               <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
               <span className="text-foreground/80">{activeConn.name}</span>
               <span className="text-muted-foreground">
-                — {activeConn.type === "memory" ? "In-Memory" : activeConn.path}
+                — {activeConn.type === "memory" ? t("statusBar.inMemory") : activeConn.path}
               </span>
             </>
           ) : (
             <>
               <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/40" />
-              <span className="text-muted-foreground">No connection</span>
+              <span className="text-muted-foreground">{t("statusBar.noConnection")}</span>
             </>
           )}
         </div>
@@ -346,13 +348,13 @@ function DataTabContent({
   tableName: string;
   initialFilter?: { column: string; value: string };
 }) {
+  const { t } = useTranslation("layout");
   const { data: columns, isLoading, error } = useTableColumns(tableName);
 
   if (error) {
     return (
       <div className="flex-1 flex items-center justify-center text-destructive text-xs">
-        Table &quot;{tableName}&quot; is no longer available:{" "}
-        {errorMessage(error)}
+        {t("dataTab.unavailable", { table: tableName, error: errorMessage(error) })}
       </div>
     );
   }
@@ -360,7 +362,7 @@ function DataTabContent({
   if (isLoading || !columns) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs">
-        Loading table schema...
+        {t("dataTab.loading")}
       </div>
     );
   }
@@ -377,6 +379,7 @@ function DataTabContent({
 }
 
 function AgentToggle() {
+  const { t } = useTranslation("layout");
   const open = useAgentStore((s) => s.open);
   const toggle = useAgentStore((s) => s.toggle);
   return (
@@ -385,8 +388,8 @@ function AgentToggle() {
       size="icon"
       className={cn("h-7 w-7 shrink-0 rounded-none", open && "text-primary")}
       onClick={toggle}
-      title="Agent"
-      aria-label={open ? "Hide agent" : "Show agent"}
+      title={t("agentToggle.title")}
+      aria-label={open ? t("agentToggle.hide") : t("agentToggle.show")}
       aria-pressed={open}
     >
       <Sparkles className="h-3.5 w-3.5" />

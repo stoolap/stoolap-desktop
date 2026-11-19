@@ -1,0 +1,35 @@
+{
+  "appShell": {
+    "hideSidebar": "Seitenleiste ausblenden",
+    "showSidebar": "Seitenleiste einblenden"
+  },
+  "statusBar": {
+    "inMemory": "In-Memory",
+    "noConnection": "Keine Verbindung"
+  },
+  "dataTab": {
+    "unavailable": "Tabelle „{{table}}“ ist nicht mehr verfügbar: {{error}}",
+    "loading": "Tabellenschema wird geladen..."
+  },
+  "agentToggle": {
+    "title": "Agent",
+    "hide": "Agent ausblenden",
+    "show": "Agent einblenden"
+  },
+  "welcome": {
+    "intro": "Öffnen Sie eine Datenbank oder ziehen Sie ihren Ordner auf dieses Fenster.",
+    "openDatabase": "Datenbank öffnen…",
+    "newMemory": "Neue In-Memory-Datenbank",
+    "loadExample": "Beispieldatenbank laden",
+    "recent": "Zuletzt verwendet",
+    "opening": "Wird geöffnet…",
+    "openFailed": "{{name}} konnte nicht geöffnet werden"
+  },
+  "toolbar": {
+    "examplesTab": "Beispiele",
+    "loadExampleFailed": "Beispiel konnte nicht geladen werden",
+    "openFailed": "{{name}} konnte nicht geöffnet werden",
+    "createFailed": "Datenbank konnte nicht erstellt werden",
+    "dropHint": "Datenbankordner oder .sql-Datei hierher ziehen, um sie zu öffnen"
+  }
+}

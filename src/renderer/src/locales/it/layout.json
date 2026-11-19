@@ -1,0 +1,35 @@
+{
+  "appShell": {
+    "hideSidebar": "Nascondi barra laterale",
+    "showSidebar": "Mostra barra laterale"
+  },
+  "statusBar": {
+    "inMemory": "In memoria",
+    "noConnection": "Nessuna connessione"
+  },
+  "dataTab": {
+    "unavailable": "La tabella \"{{table}}\" non è più disponibile: {{error}}",
+    "loading": "Caricamento dello schema della tabella..."
+  },
+  "agentToggle": {
+    "title": "Agente",
+    "hide": "Nascondi agente",
+    "show": "Mostra agente"
+  },
+  "welcome": {
+    "intro": "Apri un database o trascina la sua cartella su questa finestra.",
+    "openDatabase": "Apri database…",
+    "newMemory": "Nuovo database in memoria",
+    "loadExample": "Carica database di esempio",
+    "recent": "Recenti",
+    "opening": "Apertura…",
+    "openFailed": "Impossibile aprire {{name}}"
+  },
+  "toolbar": {
+    "examplesTab": "Esempi",
+    "loadExampleFailed": "Impossibile caricare l'esempio",
+    "openFailed": "Impossibile aprire {{name}}",
+    "createFailed": "Impossibile creare il database",
+    "dropHint": "Trascina qui una cartella di database o un file .sql per aprirlo"
+  }
+}

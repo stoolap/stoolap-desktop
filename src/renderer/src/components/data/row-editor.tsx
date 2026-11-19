@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { errorMessage } from "@/lib/utils";
 import {
   Dialog,
@@ -32,6 +33,7 @@ export function RowEditorDialog({
   columns,
   onSave,
 }: RowEditorDialogProps) {
+  const { t } = useTranslation("data");
   const [values, setValues] = useState<Record<string, string>>({});
   const [boolValues, setBoolValues] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
@@ -60,19 +62,19 @@ export function RowEditorDialog({
         const val = values[col.field];
         if (val === undefined || val === "") {
           if (!col.nullable && !col.defaultValue && col.key !== "PRI") {
-            throw new Error(`${col.field} is required`);
+            throw new Error(t("rowEditor.required", { column: col.field }));
           }
           continue;
         }
         if (upper === "INTEGER" || upper === "INT") {
           const text = val.trim();
-          if (!/^[-+]?\d+$/.test(text)) throw new Error(`${col.field}: invalid integer`);
+          if (!/^[-+]?\d+$/.test(text)) throw new Error(t("rowEditor.invalidInteger", { column: col.field }));
           // Past 2^53 a JavaScript number rounds; the engine reads the text exactly
           const parsed = Number(text);
           row[col.field] = Number.isSafeInteger(parsed) ? parsed : text;
         } else if (upper === "FLOAT") {
           const parsed = parseFloat(val);
-          if (isNaN(parsed)) throw new Error(`${col.field}: invalid number`);
+          if (isNaN(parsed)) throw new Error(t("rowEditor.invalidNumber", { column: col.field }));
           row[col.field] = parsed;
         } else if (upper.startsWith("VECTOR")) {
           // Pass vector as string — the database parses the [0.1, 0.2, ...] format
@@ -104,7 +106,7 @@ export function RowEditorDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Insert Row</DialogTitle>
+          <DialogTitle>{t("rowEditor.title")}</DialogTitle>
         </DialogHeader>
         <form
           className="space-y-3 py-2"
@@ -158,7 +160,7 @@ export function RowEditorDialog({
                       isVector
                         ? "[0.1, 0.2, 0.3, ...]"
                         : col.defaultValue
-                          ? `Default: ${col.defaultValue}`
+                          ? t("rowEditor.defaultPlaceholder", { value: col.defaultValue })
                           : col.nullable
                             ? "NULL"
                             : ""
@@ -177,7 +179,7 @@ export function RowEditorDialog({
           })}
           {columns.length > editableColumns.length && (
             <p className="text-xs text-muted-foreground">
-              Auto-increment columns are automatically generated.
+              {t("rowEditor.autoIncrementHint")}
             </p>
           )}
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -187,10 +189,10 @@ export function RowEditorDialog({
               variant="outline"
               onClick={() => handleOpenChange(false)}
             >
-              Cancel
+              {t("rowEditor.cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Inserting..." : "Insert"}
+              {loading ? t("rowEditor.inserting") : t("rowEditor.insert")}
             </Button>
           </DialogFooter>
         </form>

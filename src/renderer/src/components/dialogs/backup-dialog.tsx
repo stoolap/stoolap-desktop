@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,7 @@ interface BackupDialogProps {
 }
 
 export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
+  const { t } = useTranslation("dialogs");
   const activeId = useConnectionStore((s) => s.activeId);
   const connections = useConnectionStore((s) => s.connections);
   const activeConn = connections.find((c) => c.id === activeId);
@@ -58,7 +60,7 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
     if (!activeId || !activeConn) return;
     setLoading(true);
     setError("");
-    setProgress("Choosing file...");
+    setProgress(t("backup.choosingFile"));
 
     const { save } = await import("@tauri-apps/plugin-dialog");
     const { writeTextFile } = await import("@tauri-apps/plugin-fs");
@@ -67,7 +69,7 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
     const connName = activeConn.name.replace(/\s+/g, "_").toLowerCase();
     const path = await save({
       defaultPath: `${connName}_${ts}.sql`,
-      filters: [{ name: "SQL Files", extensions: ["sql"] }],
+      filters: [{ name: t("common:fileTypes.sql"), extensions: ["sql"] }],
     });
     if (!path) {
       setLoading(false);
@@ -85,14 +87,14 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
     };
 
     try {
-      setProgress("Writing header...");
+      setProgress(t("backup.writingHeader"));
       await writeChunk(generateHeader(activeConn.name));
 
       if (options.tables) {
-        setProgress("Fetching table list...");
+        setProgress(t("backup.fetchingTables"));
         const tables = await api.fetchTables(activeId);
 
-        setProgress("Analyzing table dependencies...");
+        setProgress(t("backup.analyzing"));
         const tableOrder = await sortTablesByFKDeps(activeId, tables);
 
         if (options.dropBeforeCreate) {
@@ -102,7 +104,7 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
         for (let i = 0; i < tableOrder.length; i++) {
           const tableName = tableOrder[i];
           setProgress(
-            `Exporting table ${i + 1}/${tableOrder.length}: ${tableName}`,
+            t("backup.exportingTable", { index: i + 1, total: tableOrder.length, name: tableName }),
           );
 
           const ddl = await api.fetchDDL(activeId, tableName, "table");
@@ -140,20 +142,20 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
       }
 
       if (options.views) {
-        setProgress("Fetching views...");
+        setProgress(t("backup.fetchingViews"));
         const views = await api.fetchViews(activeId);
         for (let i = 0; i < views.length; i++) {
           const viewName = views[i];
-          setProgress(`Exporting view ${i + 1}/${views.length}: ${viewName}`);
+          setProgress(t("backup.exportingView", { index: i + 1, total: views.length, name: viewName }));
           const ddl = await api.fetchDDL(activeId, viewName, "view");
           await writeChunk(generateViewSection(viewName, ddl, options));
         }
       }
 
       import("@/lib/native").then((n) =>
-        n.notify("Backup Complete", `${activeConn.name} exported successfully`),
+        n.notify(t("backup.notifyTitle"), t("backup.notifyBody", { name: activeConn.name })),
       );
-      toast.success("Backup exported");
+      toast.success(t("backup.exported"));
       resetAndClose();
     } catch (e) {
       setError(errorMessage(e));
@@ -174,30 +176,31 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Save className="h-5 w-5" />
-            Backup Database
+            {t("backup.title")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           {activeConn && (
             <p className="text-sm text-muted-foreground">
-              Export{" "}
-              <span className="font-medium text-foreground">
-                {activeConn.name}
-              </span>{" "}
-              as a SQL dump file.
+              <Trans
+                t={t}
+                i18nKey="backup.intro"
+                values={{ name: activeConn.name }}
+                components={{ b: <span className="font-medium text-foreground" /> }}
+              />
             </p>
           )}
 
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Include</Label>
+            <Label className="text-sm font-medium">{t("backup.include")}</Label>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <Checkbox
                 checked={options.tables}
                 onCheckedChange={() => toggleOption("tables")}
                 disabled={loading}
               />
-              Table structures (DDL)
+              {t("backup.tables")}
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <Checkbox
@@ -205,7 +208,7 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
                 onCheckedChange={() => toggleOption("data")}
                 disabled={loading || !options.tables}
               />
-              Table data (INSERT statements)
+              {t("backup.data")}
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <Checkbox
@@ -213,7 +216,7 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
                 onCheckedChange={() => toggleOption("indexes")}
                 disabled={loading || !options.tables}
               />
-              Indexes
+              {t("backup.indexes")}
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <Checkbox
@@ -221,7 +224,7 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
                 onCheckedChange={() => toggleOption("views")}
                 disabled={loading}
               />
-              Views
+              {t("backup.views")}
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <Checkbox
@@ -229,7 +232,7 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
                 onCheckedChange={() => toggleOption("dropBeforeCreate")}
                 disabled={loading}
               />
-              DROP IF EXISTS before CREATE
+              {t("backup.dropBeforeCreate")}
             </label>
           </div>
 
@@ -245,10 +248,10 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
 
         <DialogFooter>
           <Button variant="outline" onClick={resetAndClose} disabled={loading}>
-            Cancel
+            {t("actions.cancel")}
           </Button>
           <Button onClick={handleBackup} disabled={loading}>
-            {loading ? "Exporting..." : "Export .sql"}
+            {loading ? t("backup.exporting") : t("backup.export")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { errorMessage } from "@/lib/utils";
+import i18n from "@/lib/i18n";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { queryTimeoutLabel, useSettingsStore } from "@/stores/settings-store";
@@ -25,15 +26,15 @@ function notifyIfLong(tabId: string, result: ApiResult | ScriptResult, elapsedMs
   const secs = Math.round(elapsedMs / 1000);
   const outcome =
     result.error !== undefined
-      ? `Failed after ${secs} s: ${result.error}`
+      ? i18n.t("editor:run.failedAfter", { secs, error: result.error })
       : "results" in result
-        ? `${result.results.length} statements in ${secs} s`
+        ? i18n.t("editor:run.statements", { count: result.results.length, secs })
         : "rows" in result
-        ? `${result.rows.length.toLocaleString()} rows in ${secs} s`
+        ? i18n.t("editor:run.rows", { count: result.rows.length, secs })
         : "changes" in result
-          ? `${result.changes.toLocaleString()} rows changed in ${secs} s`
-          : `Done in ${secs} s`;
-  native.notify(`${tab?.title ?? "Query"} finished`, outcome);
+          ? i18n.t("editor:run.changed", { count: result.changes, secs })
+          : i18n.t("editor:run.done", { secs });
+  native.notify(i18n.t("editor:run.finished", { title: tab?.title ?? i18n.t("editor:tabs.defaultTitle") }), outcome);
 }
 
 /**
@@ -43,8 +44,8 @@ function notifyIfLong(tabId: string, result: ApiResult | ScriptResult, elapsedMs
 function stoppedMessage(): string {
   const ms = useSettingsStore.getState().queryTimeoutMs;
   return ms === 0
-    ? "Stopped waiting. The query keeps running in the background until it finishes."
-    : `Stopped waiting. The query keeps running in the background until it finishes or reaches the ${queryTimeoutLabel(ms)} timeout.`;
+    ? i18n.t("editor:run.stopped")
+    : i18n.t("editor:run.stoppedTimeout", { timeout: queryTimeoutLabel(ms) });
 }
 
 /**

@@ -1,5 +1,7 @@
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -42,13 +44,13 @@ function resultStats(result: ApiResult | null) {
   if (!result) return null;
   if ("error" in result && result.error) return null;
   if ("columns" in result) {
-    return `${result.rows.length} row${result.rows.length !== 1 ? "s" : ""} | ${result.time}ms`;
+    return i18n.t("editor:toolbar.statsRows", { count: result.rows.length, time: result.time });
   }
   if ("ddl" in result) {
     return `${result.ddl} | ${result.time}ms`;
   }
   if ("changes" in result) {
-    return `${result.changes} affected | ${result.time}ms`;
+    return i18n.t("editor:toolbar.statsChanges", { count: result.changes, time: result.time });
   }
   return null;
 }
@@ -77,6 +79,7 @@ function exportJSON(result: QueryResult, name: string) {
 }
 
 export function QueryToolbar() {
+  const { t } = useTranslation("editor");
   const { executeQuery, cancelQuery, isConnected } = useQueryExecution();
 
   // The agent asks to run SQL in a tab (lib/agent-edits.ts)
@@ -133,17 +136,17 @@ export function QueryToolbar() {
     const selected = await open({
       multiple: false,
       filters: [
-        { name: "SQL Files", extensions: ["sql"] },
-        { name: "All Files", extensions: ["*"] },
+        { name: t("toolbar.sqlFiles"), extensions: ["sql"] },
+        { name: t("toolbar.allFiles"), extensions: ["*"] },
       ],
     });
     if (typeof selected !== "string") return;
     try {
       const sql = await readTextFile(selected);
-      const tabName = basename(selected).replace(/\.sql$/i, "") || "Query";
+      const tabName = basename(selected).replace(/\.sql$/i, "") || t("tabs.defaultTitle");
       setActiveTab(addTab(tabName, sql));
     } catch (e) {
-      toast.error(`Could not open ${basename(selected)}`, { description: errorMessage(e) });
+      toast.error(t("toolbar.openFailed", { name: basename(selected) }), { description: errorMessage(e) });
     }
   };
 
@@ -210,7 +213,7 @@ export function QueryToolbar() {
               className="h-7 gap-1.5 px-2.5 text-xs"
             >
               <Square className="h-3 w-3" />
-              Stop
+              {t("toolbar.stop")}
             </Button>
           ) : (
             <Button
@@ -220,18 +223,18 @@ export function QueryToolbar() {
               className="h-7 gap-1.5 px-2.5 text-xs"
             >
               <Play className="h-3 w-3" />
-              Run
+              {t("toolbar.run")}
             </Button>
           )}
         </TooltipTrigger>
         <TooltipContent side="bottom">
           {activeTab?.isRunning
-            ? "Cancel query"
+            ? t("toolbar.cancelQuery")
             : !isConnected
-              ? "Connect to a database first"
+              ? t("toolbar.connectFirst")
               : !activeTab?.sql.trim()
-                ? "Write a query to execute"
-                : `Execute query (${mod}+Enter)`}
+                ? t("toolbar.writeQuery")
+                : t("toolbar.execute", { mod })}
         </TooltipContent>
       </Tooltip>
 
@@ -241,7 +244,7 @@ export function QueryToolbar() {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            aria-label="Explain query plan"
+            aria-label={t("toolbar.explain")}
             onClick={handleExplain}
             disabled={
               !isConnected || !activeTab?.sql.trim() || activeTab?.isRunning
@@ -251,7 +254,7 @@ export function QueryToolbar() {
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">
-          Explain query plan ({mod}+E)
+          {t("toolbar.explainShortcut", { mod })}
         </TooltipContent>
       </Tooltip>
 
@@ -264,7 +267,7 @@ export function QueryToolbar() {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            aria-label="Format SQL"
+            aria-label={t("toolbar.format")}
             onClick={handleFormat}
             disabled={!activeTab?.sql.trim()}
           >
@@ -272,7 +275,7 @@ export function QueryToolbar() {
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">
-          Format SQL ({mod}+Shift+F)
+          {t("toolbar.formatShortcut", { mod })}
         </TooltipContent>
       </Tooltip>
 
@@ -282,13 +285,13 @@ export function QueryToolbar() {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            aria-label="Open .sql file"
+            aria-label={t("toolbar.openFile")}
             onClick={handleOpenFile}
           >
             <FolderOpen className="h-3.5 w-3.5" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Open .sql file</TooltipContent>
+        <TooltipContent side="bottom">{t("toolbar.openFile")}</TooltipContent>
       </Tooltip>
 
       <Tooltip>
@@ -297,7 +300,7 @@ export function QueryToolbar() {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            aria-label="Save as .sql"
+            aria-label={t("toolbar.saveFile")}
             onClick={() => {
               if (activeTab?.sql.trim()) {
                 const name = activeTab.title.replace(/\s+/g, "_");
@@ -309,7 +312,7 @@ export function QueryToolbar() {
             <Save className="h-3.5 w-3.5" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Save as .sql</TooltipContent>
+        <TooltipContent side="bottom">{t("toolbar.saveFile")}</TooltipContent>
       </Tooltip>
 
 
@@ -318,12 +321,12 @@ export function QueryToolbar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Export results">
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("toolbar.exportResults")}>
                   <FileOutput className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Export results</TooltipContent>
+            <TooltipContent side="bottom">{t("toolbar.exportResults")}</TooltipContent>
           </Tooltip>
           <DropdownMenuContent>
             <DropdownMenuItem
@@ -333,7 +336,7 @@ export function QueryToolbar() {
                   exportCSV(r as QueryResult, exportName);
               }}
             >
-              Export as CSV
+              {t("toolbar.exportCsv")}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
@@ -342,7 +345,7 @@ export function QueryToolbar() {
                   exportJSON(r as QueryResult, exportName);
               }}
             >
-              Export as JSON
+              {t("toolbar.exportJson")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -356,12 +359,12 @@ export function QueryToolbar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Query history">
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("toolbar.history")}>
                   <History className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Query history</TooltipContent>
+            <TooltipContent side="bottom">{t("toolbar.history")}</TooltipContent>
           </Tooltip>
           <DropdownMenuContent align="start" className="w-80">
             <ScrollArea className="max-h-60">
@@ -389,14 +392,14 @@ export function QueryToolbar() {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            aria-label="Save bookmark"
+            aria-label={t("toolbar.saveBookmark")}
             onClick={handleSaveBookmark}
             disabled={!activeTab?.sql.trim()}
           >
             <BookmarkCheck className="h-3.5 w-3.5" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Save bookmark</TooltipContent>
+        <TooltipContent side="bottom">{t("toolbar.saveBookmark")}</TooltipContent>
       </Tooltip>
 
       {showSaveInput && (
@@ -410,7 +413,7 @@ export function QueryToolbar() {
           <input
             ref={saveInputRef}
             className="h-7 w-32 px-2 text-xs border rounded bg-background"
-            placeholder="Bookmark name"
+            placeholder={t("toolbar.bookmarkName")}
             value={bookmarkName}
             onChange={(e) => setBookmarkName(e.target.value)}
             onKeyDown={(e) => {
@@ -421,7 +424,7 @@ export function QueryToolbar() {
             }}
           />
           <Button type="submit" size="sm" variant="ghost" className="h-7 px-2 text-xs">
-            OK
+            {t("toolbar.ok")}
           </Button>
         </form>
       )}
@@ -431,12 +434,12 @@ export function QueryToolbar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Bookmarks">
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("toolbar.bookmarks")}>
                   <Bookmark className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Bookmarks</TooltipContent>
+            <TooltipContent side="bottom">{t("toolbar.bookmarks")}</TooltipContent>
           </Tooltip>
           <DropdownMenuContent align="start" className="w-72">
             <ScrollArea className="max-h-60">
@@ -458,7 +461,7 @@ export function QueryToolbar() {
                       e.stopPropagation();
                       removeBookmark(bm.id);
                     }}
-                    aria-label={`Remove bookmark ${bm.name}`}
+                    aria-label={t("toolbar.removeBookmark", { name: bm.name })}
                   >
                     <X className="h-3 w-3" />
                   </button>

@@ -1,18 +1,21 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import i18n from "@/lib/i18n";
 
 /** Choices for the engine's query timeout; 0 turns it off. */
 export const QUERY_TIMEOUT_OPTIONS = [
-  { ms: 30_000, label: "30 s" },
-  { ms: 60_000, label: "1 min" },
-  { ms: 300_000, label: "5 min" },
-  { ms: 900_000, label: "15 min" },
-  { ms: 3_600_000, label: "1 hour" },
-  { ms: 0, label: "Off" },
+  { ms: 30_000, unit: "seconds", count: 30 },
+  { ms: 60_000, unit: "minutes", count: 1 },
+  { ms: 300_000, unit: "minutes", count: 5 },
+  { ms: 900_000, unit: "minutes", count: 15 },
+  { ms: 3_600_000, unit: "hours", count: 1 },
+  { ms: 0, unit: "off", count: 0 },
 ] as const;
 
+/** The option's label in the app's language */
 export function queryTimeoutLabel(ms: number): string {
-  return QUERY_TIMEOUT_OPTIONS.find((o) => o.ms === ms)?.label ?? `${ms / 1000} s`;
+  const o = QUERY_TIMEOUT_OPTIONS.find((o) => o.ms === ms) ?? { unit: "seconds", count: ms / 1000 };
+  return i18n.t(`editor:timeout.${o.unit}`, { count: o.count });
 }
 
 interface SettingsState {

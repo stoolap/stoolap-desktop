@@ -1,0 +1,35 @@
+{
+  "appShell": {
+    "hideSidebar": "Ukryj pasek boczny",
+    "showSidebar": "Pokaż pasek boczny"
+  },
+  "statusBar": {
+    "inMemory": "W pamięci",
+    "noConnection": "Brak połączenia"
+  },
+  "dataTab": {
+    "unavailable": "Tabela \"{{table}}\" nie jest już dostępna: {{error}}",
+    "loading": "Wczytywanie schematu tabeli..."
+  },
+  "agentToggle": {
+    "title": "Agent",
+    "hide": "Ukryj agenta",
+    "show": "Pokaż agenta"
+  },
+  "welcome": {
+    "intro": "Otwórz bazę danych lub upuść jej folder na to okno.",
+    "openDatabase": "Otwórz bazę danych…",
+    "newMemory": "Nowa baza danych w pamięci",
+    "loadExample": "Wczytaj przykładową bazę danych",
+    "recent": "Ostatnie",
+    "opening": "Otwieranie…",
+    "openFailed": "Nie można otworzyć: {{name}}"
+  },
+  "toolbar": {
+    "examplesTab": "Przykłady",
+    "loadExampleFailed": "Nie udało się wczytać przykładu",
+    "openFailed": "Nie można otworzyć: {{name}}",
+    "createFailed": "Nie udało się utworzyć bazy danych",
+    "dropHint": "Upuść folder bazy danych lub plik .sql, aby go otworzyć"
+  }
+}

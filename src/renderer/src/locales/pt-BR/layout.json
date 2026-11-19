@@ -1,0 +1,35 @@
+{
+  "appShell": {
+    "hideSidebar": "Ocultar barra lateral",
+    "showSidebar": "Mostrar barra lateral"
+  },
+  "statusBar": {
+    "inMemory": "Em memória",
+    "noConnection": "Sem conexão"
+  },
+  "dataTab": {
+    "unavailable": "A tabela \"{{table}}\" não está mais disponível: {{error}}",
+    "loading": "Carregando esquema da tabela..."
+  },
+  "agentToggle": {
+    "title": "Agente",
+    "hide": "Ocultar agente",
+    "show": "Mostrar agente"
+  },
+  "welcome": {
+    "intro": "Abra um banco de dados ou solte a pasta dele nesta janela.",
+    "openDatabase": "Abrir banco de dados…",
+    "newMemory": "Novo banco de dados em memória",
+    "loadExample": "Carregar banco de dados de exemplo",
+    "recent": "Recentes",
+    "opening": "Abrindo…",
+    "openFailed": "Não foi possível abrir {{name}}"
+  },
+  "toolbar": {
+    "examplesTab": "Exemplos",
+    "loadExampleFailed": "Falha ao carregar o exemplo",
+    "openFailed": "Não foi possível abrir {{name}}",
+    "createFailed": "Falha ao criar o banco de dados",
+    "dropHint": "Solte uma pasta de banco de dados ou um arquivo .sql para abrir"
+  }
+}

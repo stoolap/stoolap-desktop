@@ -2,6 +2,7 @@
 import { Component, type ReactNode } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import i18n from "@/lib/i18n";
 
 interface Props {
   children: ReactNode;
@@ -28,9 +29,9 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="h-screen flex items-center justify-center bg-background text-foreground">
           <div className="max-w-md text-center space-y-4 p-8">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <h2 className="text-lg font-semibold">Something went wrong</h2>
+            <h2 className="text-lg font-semibold">{i18n.t("common:errorBoundary.title")}</h2>
             <p className="text-sm text-muted-foreground">
-              {this.state.error?.message || "An unexpected error occurred."}
+              {this.state.error?.message || i18n.t("common:errorBoundary.unexpected")}
             </p>
             <Button
               onClick={() => {
@@ -39,7 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
               className="gap-2"
             >
               <RefreshCw className="h-4 w-4" />
-              Try Again
+              {i18n.t("common:errorBoundary.tryAgain")}
             </Button>
           </div>
         </div>

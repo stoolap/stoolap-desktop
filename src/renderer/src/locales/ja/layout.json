@@ -1,0 +1,35 @@
+{
+  "appShell": {
+    "hideSidebar": "サイドバーを非表示",
+    "showSidebar": "サイドバーを表示"
+  },
+  "statusBar": {
+    "inMemory": "インメモリ",
+    "noConnection": "未接続"
+  },
+  "dataTab": {
+    "unavailable": "テーブル「{{table}}」は使用できなくなりました: {{error}}",
+    "loading": "テーブルスキーマを読み込み中..."
+  },
+  "agentToggle": {
+    "title": "エージェント",
+    "hide": "エージェントを非表示",
+    "show": "エージェントを表示"
+  },
+  "welcome": {
+    "intro": "データベースを開くか、そのフォルダをこのウインドウにドロップしてください。",
+    "openDatabase": "データベースを開く…",
+    "newMemory": "新規インメモリデータベース",
+    "loadExample": "サンプルデータベースを読み込む",
+    "recent": "最近使った項目",
+    "opening": "開いています…",
+    "openFailed": "{{name}}を開けませんでした"
+  },
+  "toolbar": {
+    "examplesTab": "サンプル",
+    "loadExampleFailed": "サンプルを読み込めませんでした",
+    "openFailed": "{{name}}を開けませんでした",
+    "createFailed": "データベースを作成できませんでした",
+    "dropHint": "データベースフォルダまたは.sqlファイルをドロップして開きます"
+  }
+}
