@@ -6,7 +6,9 @@
   "statusBar": {
     "inMemory": "In memoria",
     "noConnection": "Nessuna connessione",
-    "inMemoryHint": "Solo in memoria: le modifiche vanno perse alla chiusura del database o dell'app. Esegui un backup per conservarlo."
+    "inMemoryHint": "Solo in memoria: le modifiche vanno perse alla chiusura del database o dell'app. Esegui un backup per conservarlo.",
+    "transactionOpen": "Transazione aperta",
+    "transactionOpenHint": "La sessione è dentro una transazione: ciò che hai eseguito non è confermato e le altre sessioni non lo vedono. Esegui COMMIT per mantenerlo o ROLLBACK per annullarlo."
   },
   "dataTab": {
     "unavailable": "La tabella \"{{table}}\" non è più disponibile: {{error}}",

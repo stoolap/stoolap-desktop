@@ -58,7 +58,7 @@ import { highlightSql, MessageText } from "./message-text";
 import { resources } from "@/lib/i18n";
 import { Composer, type ComposerHandle } from "./composer";
 import { Tip } from "@/components/ui/tip";
-import { editorSnapshot, localTime } from "@/lib/agent-context";
+import { editorSnapshot, localTime, tabError } from "@/lib/agent-context";
 
 /** Titles an agent tab starts with: in every language, and from before the rename */
 const AGENT_TAB_TITLES = new Set([
@@ -164,8 +164,7 @@ export function AgentPanel() {
   );
 
   const lookingTab = activeTab?.mode === "query" ? activeTab : null;
-  const lookingError =
-    lookingTab?.result && "error" in lookingTab.result && lookingTab.result.error ? lookingTab.result.error : undefined;
+  const lookingError = tabError(lookingTab);
   const prompts = useMemo(
     () =>
       contextPrompts(
@@ -220,10 +219,7 @@ export function AgentPanel() {
       toast.error(t("panel.openQueryTab"));
       return;
     }
-    const lastError =
-      looking?.result && "error" in looking.result && looking.result.error
-        ? looking.result.error
-        : undefined;
+    const lastError = tabError(looking);
 
     const store = useAgentStore.getState();
     const id = chatId && store.conversations[chatId] ? chatId : store.newChat(accessKey);

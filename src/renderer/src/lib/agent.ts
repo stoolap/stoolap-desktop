@@ -156,7 +156,7 @@ export function send(args: {
 /** What running a write_query in the tab gave; the Rust side decides what the model sees. */
 /** One statement's result, with how long it took (ms) */
 export type StatementOutcome = (
-  | { columns: string[]; rows: unknown[][]; rowCount: number }
+  | { columns: string[]; rows: unknown[][]; rowCount: number; plan?: "read" | "write" }
   | { changes: number }
   | { ddl: string }
 ) & { time: number };
@@ -165,7 +165,7 @@ export type WriteOutcome =
   | { ran: false; reason?: string }
   | { ran: true; error: string }
   | ({ ran: true } & StatementOutcome)
-  | { ran: true; statements: StatementOutcome[]; time: number };
+  | { ran: true; statements: StatementOutcome[]; time: number; error?: string };
 
 /** A write's outcome, with the tab's name now and the editor as it is now */
 export type WriteReport = WriteOutcome & {

@@ -20,9 +20,22 @@ export function ResultsPanel() {
   const tab = useEditorStore((s) => s.tabs.find((t) => t.id === s.activeTabId) ?? null);
   const selectTabResult = useEditorStore((s) => s.selectTabResult);
   const results = tab?.results;
-  if (!tab || !results || results.length < 2) return <ResultView />;
+  // A script that failed partway: its failure over the statements that ran
+  const failed = tab?.resultsError ? <FailedBar error={tab.resultsError} /> : null;
+  if (!tab || !results || results.length < 2) {
+    if (!failed) return <ResultView />;
+    return (
+      <div className="flex h-full flex-col overflow-hidden">
+        {failed}
+        <div className="flex-1 overflow-hidden">
+          <ResultView />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex h-full flex-col overflow-hidden">
+      {failed}
       <div
         role="tablist"
         aria-label={t("results.statementResults")}
@@ -67,6 +80,24 @@ export function ResultsPanel() {
       <div className="flex-1 overflow-hidden">
         <ResultView />
       </div>
+    </div>
+  );
+}
+
+function FailedBar({ error }: { error: string }) {
+  const { t } = useTranslation("editor");
+  return (
+    <div className="flex shrink-0 items-start gap-2 border-b border-destructive/30 bg-destructive/10 px-3 py-2">
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+      <pre className="flex-1 whitespace-pre-wrap font-data text-xs text-destructive">{error}</pre>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-6 shrink-0 text-xs"
+        onClick={() => useAgentStore.getState().ask(t("results.fixPrompt"))}
+      >
+        <Sparkles className="h-3.5 w-3.5" /> {t("results.fixWithAgent")}
+      </Button>
     </div>
   );
 }

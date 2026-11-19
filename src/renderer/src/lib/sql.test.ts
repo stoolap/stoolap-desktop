@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import splitCases from "./sql-split-cases.json";
-import { explainAll, formatDefaultValue, isExplain, isSingleReadOnly, quoteId, splitStatements } from "./sql-utils";
+import { explainAll, explainKind, formatDefaultValue, hasReturning, isExplain, isSingleReadOnly, quoteId, splitStatements } from "./sql-utils";
 
 describe("isExplain", () => {
   it("sees EXPLAIN after leading comments", () => {
@@ -145,6 +145,25 @@ describe("foldUnchanged", () => {
       { type: "same", text: "g" },
       { type: "same", text: "h" },
     ]);
+  });
+});
+
+describe("explainKind", () => {
+  it("tells a plan from one whose EXPLAIN ANALYZE ran a write", () => {
+    expect(explainKind("EXPLAIN SELECT 1")).toBe("read");
+    expect(explainKind("EXPLAIN UPDATE t SET x = 1")).toBe("read");
+    expect(explainKind("-- why\nexplain analyze update t set x = 1")).toBe("write");
+    expect(explainKind("EXPLAIN ANALYZE SELECT 'DELETE' FROM t")).toBe("read");
+    expect(explainKind("SELECT 1")).toBeUndefined();
+  });
+});
+
+describe("hasReturning", () => {
+  it("sees RETURNING outside strings, names and comments", () => {
+    expect(hasReturning("INSERT INTO t VALUES (1) RETURNING id")).toBe(true);
+    expect(hasReturning("delete from t returning *")).toBe(true);
+    expect(hasReturning("EXPLAIN ANALYZE SELECT * FROM t")).toBe(false);
+    expect(hasReturning("SELECT 'RETURNING', \"returning\" FROM t -- RETURNING")).toBe(false);
   });
 });
 

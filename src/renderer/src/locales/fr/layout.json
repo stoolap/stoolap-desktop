@@ -6,7 +6,9 @@
   "statusBar": {
     "inMemory": "En mémoire",
     "noConnection": "Aucune connexion",
-    "inMemoryHint": "En mémoire uniquement : les modifications sont perdues à la fermeture de la base ou de l'application. Sauvegardez-la pour la conserver."
+    "inMemoryHint": "En mémoire uniquement : les modifications sont perdues à la fermeture de la base ou de l'application. Sauvegardez-la pour la conserver.",
+    "transactionOpen": "Transaction ouverte",
+    "transactionOpenHint": "Votre session est dans une transaction : ce que vous avez exécuté n'est pas validé et les autres sessions ne le voient pas. Exécutez COMMIT pour le garder ou ROLLBACK pour l'annuler."
   },
   "dataTab": {
     "unavailable": "La table « {{table}} » n'est plus disponible : {{error}}",

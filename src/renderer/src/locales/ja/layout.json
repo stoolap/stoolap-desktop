@@ -6,7 +6,9 @@
   "statusBar": {
     "inMemory": "インメモリ",
     "noConnection": "未接続",
-    "inMemoryHint": "メモリ上のみ：データベースまたはアプリを閉じると変更は失われます。残すにはバックアップしてください。"
+    "inMemoryHint": "メモリ上のみ：データベースまたはアプリを閉じると変更は失われます。残すにはバックアップしてください。",
+    "transactionOpen": "トランザクション実行中",
+    "transactionOpenHint": "セッションはトランザクション内にあります。実行した内容はコミットされておらず、ほかのセッションからは見えません。保持するには COMMIT、取り消すには ROLLBACK を実行してください。"
   },
   "dataTab": {
     "unavailable": "テーブル「{{table}}」は使用できなくなりました: {{error}}",

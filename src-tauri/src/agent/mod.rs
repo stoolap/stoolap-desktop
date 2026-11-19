@@ -449,7 +449,9 @@ pub fn agent_send(
         (conv.messages.clone(), conv.claude_session.clone(), conv.openai_items.clone(), conv.codex.take(), fresh)
     };
 
-    let mut prompt = user_text(&text, &connection_name, allow_writes, &context);
+    // The user's session may be inside a transaction they began
+    let in_transaction = open_transaction(&app, &conn_id);
+    let mut prompt = user_text(&text, &connection_name, allow_writes, in_transaction, &context);
     if let Some(earlier) = earlier.filter(|e| fresh && !e.trim().is_empty()) {
         prompt = format!("<earlier_conversation>\n{}\n</earlier_conversation>\n\n{prompt}", earlier.trim());
     }
@@ -685,6 +687,13 @@ pub(super) fn run_tool(app: &AppHandle, target: &McpSession, name: &str, input: 
     }
 }
 
+/// Whether the user's session on the connection is inside a transaction
+fn open_transaction(app: &AppHandle, conn_id: &str) -> bool {
+    app.state::<DbManager>()
+        .transaction_state(conn_id)
+        .is_ok_and(|t| t.load(std::sync::atomic::Ordering::Relaxed))
+}
+
 /// Stream write_query's SQL into the tab as it is generated.
 pub(super) fn draft(app: &AppHandle, target: &McpSession, tool: &str, partial: &str) {
     if tool != "write_query" && !tool.ends_with("__write_query") {
@@ -715,6 +724,7 @@ fn write_query(app: &AppHandle, target: &McpSession, input: &Value) -> tools::Ou
             detail: None,
         };
     }
+    let was_open = open_transaction(app, &target.conn_id);
     let request_id = uuid::Uuid::new_v4().to_string();
     let (tx, rx) = std::sync::mpsc::channel();
     let state = app.state::<AgentState>();
@@ -749,7 +759,21 @@ fn write_query(app: &AppHandle, target: &McpSession, input: &Value) -> tools::Ou
             }
             // The tab's name now: the agent may have just named it
             let tab = outcome["tabTitle"].as_str().unwrap_or(&target.tab_title);
-            tools::format_run(&outcome, tab)
+            let mut output = tools::format_run(&outcome, tab);
+            // Say where the user's transaction stands, every time, without
+            // repeating what an error already said
+            let now_open = open_transaction(app, &target.conn_id);
+            let note = match (was_open, now_open) {
+                (false, true) => "The user's session now has an open transaction: what ran is not committed until COMMIT (or undone by ROLLBACK).",
+                (true, true) if output.content.contains("still open") => "",
+                (true, true) => "The user's session is still in its open transaction: nothing is committed until COMMIT.",
+                (true, false) => "The user's transaction is now closed.",
+                (false, false) => "The user's session has no open transaction.",
+            };
+            if !note.is_empty() {
+                output.content.push_str(&format!("\n\n{note}"));
+            }
+            output
         }
         Err(_) => tools::Output {
             content: "Written into the tab; no result came back from running it.".into(),
@@ -770,7 +794,7 @@ pub fn agent_write_result(state: State<'_, AgentState>, request_id: String, outc
     }
 }
 
-fn user_text(text: &str, connection: &str, allow_writes: bool, ctx: &EditorContext) -> String {
+fn user_text(text: &str, connection: &str, allow_writes: bool, in_transaction: bool, ctx: &EditorContext) -> String {
     // Where the database lives: COPY paths and AS OF depend on it
     let storage = match (ctx.storage.as_str(), ctx.path.as_deref()) {
         ("memory", _) => match ctx.opened_at.as_deref() {
@@ -781,8 +805,9 @@ fn user_text(text: &str, connection: &str, allow_writes: bool, ctx: &EditorConte
         _ => String::new(),
     };
     let mut s = format!(
-        "{text}\n\n<editor tab=\"{}\" connection=\"{connection}\"{storage} write_into=\"{}\" run_writes=\"{}\">\n<sql>\n{}\n</sql>\n",
+        "{text}\n\n<editor tab=\"{}\" connection=\"{connection}\"{storage}{} write_into=\"{}\" run_writes=\"{}\">\n<sql>\n{}\n</sql>\n",
         ctx.tab_title,
+        if in_transaction { " transaction=\"open\"" } else { "" },
         ctx.target_tab_title,
         if allow_writes { "allowed" } else { "ask" },
         ctx.sql,
@@ -805,7 +830,8 @@ How to work:\n\
 - Each user message ends with an <editor> block: the SQL in the tab the user is looking at, their selection if any, and the last error that tab showed. \
 \"This query\" means that SQL; a selection narrows what they are asking about. write_into names the tab your write_query calls go to: \
 that same tab, or a tab of your own (then start from the SQL above when the user asks about it). storage says whether the database is in memory \
-or a folder on disk (path), which matters for COPY file paths and for what survives a restart. Other tabs: list_tabs, then read_tab. \
+or a folder on disk (path), which matters for COPY file paths and for what survives a restart. transaction=\"open\" means the user's session \
+is inside a transaction: what runs in the tab is not committed until COMMIT, and your checks don't see its uncommitted changes. Other tabs: list_tabs, then read_tab. \
 What the user ran before on this database, with timings: query_history.\n\
 - You work in that tab, in front of the user. write_query replaces its SQL with what you pass (they watch it appear) and runs it there, \
 so the result grid shows it; you get the outcome back, rows included. Use it for the query the user asked for and for anything they should see.\n\
@@ -873,9 +899,9 @@ mod tests {
             tabs: vec![],
             runs: vec![],
         };
-        let file = user_text("hi", "Shop", false, &ctx("file", Some("/data/shop")));
-        assert!(file.contains(r#"connection="Shop" storage="file" path="/data/shop""#), "{file}");
-        let memory = user_text("hi", "Scratch", false, &ctx("memory", None));
+        let file = user_text("hi", "Shop", false, true, &ctx("file", Some("/data/shop")));
+        assert!(file.contains(r#"connection="Shop" storage="file" path="/data/shop" transaction="open""#), "{file}");
+        let memory = user_text("hi", "Scratch", false, false, &ctx("memory", None));
         assert!(memory.contains(r#"connection="Scratch" storage="memory" write_into"#), "{memory}");
     }
 

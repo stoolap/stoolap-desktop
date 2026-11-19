@@ -50,6 +50,7 @@ export function AppShell() {
   const activeId = useConnectionStore((s) => s.activeId);
   const connections = useConnectionStore((s) => s.connections);
   const activeConn = connections.find((c) => c.id === activeId);
+  const transactionOpen = useConnectionStore((s) => (activeId ? !!s.openTransactions[activeId] : false));
 
   const setConnections = useConnectionStore((s) => s.setConnections);
   const setActiveId = useConnectionStore((s) => s.setActiveId);
@@ -317,6 +318,14 @@ export function AppShell() {
                 </Tip>
               ) : (
                 <span className="text-muted-foreground">— {activeConn.path}</span>
+              )}
+              {transactionOpen && (
+                <Tip label={t("statusBar.transactionOpenHint")} side="top">
+                  <span className="ml-1 flex cursor-help items-center gap-1 rounded bg-amber-500/15 px-1.5 text-amber-600 dark:text-amber-400">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    {t("statusBar.transactionOpen")}
+                  </span>
+                </Tip>
               )}
             </>
           ) : (

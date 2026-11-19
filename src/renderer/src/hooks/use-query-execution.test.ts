@@ -8,6 +8,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 /** Each query waits until the test settles it, or its wait is stopped */
 const pending: ((r: unknown) => void)[] = [];
 vi.mock("@/lib/api-client", () => ({
+  transactionOpen: async () => false,
   executeQuery: (_conn: string, _sql: string, signal: AbortSignal) =>
     new Promise((resolve, reject) => {
       pending.push(resolve);
@@ -17,7 +18,7 @@ vi.mock("@/lib/api-client", () => ({
 
 /** Connected to "conn" (a server render would read the store's initial state) */
 vi.mock("@/stores/connection-store", () => {
-  const state = { activeId: "conn" };
+  const state = { activeId: "conn", setTransactionOpen: () => {} };
   return { useConnectionStore: Object.assign((select: (s: typeof state) => unknown) => select(state), { getState: () => state }) };
 });
 

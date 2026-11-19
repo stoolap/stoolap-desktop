@@ -6,7 +6,9 @@
   "statusBar": {
     "inMemory": "Bellek İçi",
     "noConnection": "Bağlantı yok",
-    "inMemoryHint": "Yalnızca bellekte tutulur: veritabanını ya da uygulamayı kapattığınızda değişiklikler kaybolur. Saklamak için yedekleyin."
+    "inMemoryHint": "Yalnızca bellekte tutulur: veritabanını ya da uygulamayı kapattığınızda değişiklikler kaybolur. Saklamak için yedekleyin.",
+    "transactionOpen": "Transaction açık",
+    "transactionOpenHint": "Oturumunuz bir transaction içinde: çalıştırdıklarınız commit edilmedi ve diğer oturumlar bunları görmüyor. Saklamak için COMMIT, geri almak için ROLLBACK çalıştırın."
   },
   "dataTab": {
     "unavailable": "\"{{table}}\" tablosu artık kullanılamıyor: {{error}}",

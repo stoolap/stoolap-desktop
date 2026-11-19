@@ -35,6 +35,12 @@ pub async fn db_execute_query(
     run_script(&state, &conn_id, &sql)
 }
 
+/// Whether the connection's session is inside a transaction the user began
+#[tauri::command]
+pub async fn db_transaction_open(state: State<'_, DbManager>, conn_id: String) -> Result<bool, String> {
+    Ok(state.transaction_state(&conn_id)?.load(Ordering::Relaxed))
+}
+
 /// One statement's result, as the renderer reads it
 #[derive(Serialize)]
 #[serde(untagged)]
@@ -58,7 +64,21 @@ pub struct ScriptStatement {
 #[serde(untagged)]
 pub enum RunOutput {
     Single(StatementResult),
-    Script { results: Vec<ScriptStatement>, time: f64 },
+    /// `error`: the statement that failed, after the ones that ran
+    Script {
+        results: Vec<ScriptStatement>,
+        time: f64,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
+        /// The statement that failed, and the ones after it that didn't run
+        #[serde(skip_serializing_if = "Option::is_none")]
+        failed: Option<String>,
+        #[serde(rename = "notRun", skip_serializing_if = "Vec::is_empty")]
+        not_run: Vec<String>,
+        /// What ran before the failure was rolled back with it
+        #[serde(rename = "rolledBack", skip_serializing_if = "std::ops::Not::not")]
+        rolled_back: bool,
+    },
 }
 
 /// Run what the editor holds: one statement, or several (DML wrapped in a
@@ -84,10 +104,15 @@ pub fn run_script(
     let db = state.get_db(conn_id)?;
     let in_transaction = state.transaction_state(conn_id)?;
 
+    // A transaction from an earlier run that this run joins
+    let was_open = in_transaction.load(Ordering::Relaxed);
+
     if statements.len() == 1 {
         let result = execute_single(&db, &statements[0], None);
         note_transaction(&in_transaction, &statements[0], result.is_ok());
-        return result.map(RunOutput::Single);
+        return result.map(RunOutput::Single).map_err(|e| {
+            if in_transaction.load(Ordering::Relaxed) { format!("{}{STILL_OPEN}", sentence(e)) } else { e }
+        });
     }
 
     let start = std::time::Instant::now();
@@ -116,36 +141,79 @@ pub fn run_script(
     }
 
     // Every statement's result, so the UI can show each one, not only the last
-    let result = (|| -> Result<RunOutput, String> {
-        let total = statements.len();
-        let mut results = Vec::with_capacity(total);
-        for (i, stmt) in statements.iter().enumerate() {
-            let r = execute_single(db, stmt, None);
-            if session.is_none() {
-                note_transaction(&in_transaction, stmt, r.is_ok());
-            }
-            let result = r.map_err(|e| format!("Statement {} of {total}: {e}", i + 1))?;
-            results.push(ScriptStatement { result, sql: stmt.clone() });
+    // Every statement's result, so the UI can show each one, not only the
+    // last; a failure keeps the ones that ran before it
+    let total = statements.len();
+    let mut results = Vec::with_capacity(total);
+    let mut failure = None;
+    let mut failed = None;
+    let mut not_run = Vec::new();
+    for (i, stmt) in statements.iter().enumerate() {
+        let r = execute_single(db, stmt, None);
+        if session.is_none() {
+            note_transaction(&in_transaction, stmt, r.is_ok());
         }
-        let time = (start.elapsed().as_secs_f64() * 100_000.0).round() / 100.0;
-        Ok(RunOutput::Script { results, time })
-    })();
-
-    match &result {
-        Ok(_) => {
-            if has_dml {
-                DbManager::execute_on(db, "COMMIT", None)?;
-            }
-        }
-        Err(_) => {
-            if has_dml {
-                let _ = DbManager::execute_on(db, "ROLLBACK", None);
+        match r {
+            Ok(result) => results.push(ScriptStatement { result, sql: stmt.clone() }),
+            Err(e) => {
+                // What didn't run is as much the outcome as what did
+                let unrun = match total - (i + 1) {
+                    0 => String::new(),
+                    1 => " The statement after it did not run.".to_string(),
+                    n => format!(" The {n} statements after it did not run."),
+                };
+                failure = Some(format!("Statement {} of {total}: {}{unrun}", i + 1, sentence(e)));
+                failed = Some(stmt.clone());
+                not_run = statements[i + 1..].to_vec();
+                break;
             }
         }
     }
+    let time = (start.elapsed().as_secs_f64() * 100_000.0).round() / 100.0;
 
-    result
+    let Some(mut error) = failure else {
+        if has_dml {
+            DbManager::execute_on(db, "COMMIT", None)?;
+        }
+        return Ok(RunOutput::Script { results, time, error: None, failed: None, not_run, rolled_back: false });
+    };
+    // Say what became of the transaction, and never leave one the user
+    // didn't open behind
+    let mut rolled_back = false;
+    if has_dml {
+        let _ = DbManager::execute_on(db, "ROLLBACK", None);
+        rolled_back = true;
+        error.push_str(SCRIPT_ROLLED_BACK);
+    } else if !was_open && in_transaction.load(Ordering::Relaxed) {
+        // The script began a transaction and stopped before its own COMMIT
+        // or ROLLBACK: left open, every later run would join it unawares
+        let _ = DbManager::execute_on(db, "ROLLBACK", None);
+        in_transaction.store(false, Ordering::Relaxed);
+        rolled_back = true;
+        error.push_str(BEGUN_ROLLED_BACK);
+    } else if in_transaction.load(Ordering::Relaxed) {
+        error.push_str(STILL_OPEN);
+    }
+    if results.is_empty() {
+        return Err(error);
+    }
+    Ok(RunOutput::Script { results, time, error: Some(error), failed, not_run, rolled_back })
 }
+
+/// An engine error as a sentence, so what is added after it reads apart
+fn sentence(mut e: String) -> String {
+    if !e.trim_end().ends_with(['.', '!', '?']) {
+        e.push('.');
+    }
+    e
+}
+
+/// Added to a failed script's error: what became of what it did
+pub const SCRIPT_ROLLED_BACK: &str = " Nothing this script did was kept: it ran in a transaction that was rolled back.";
+pub const BEGUN_ROLLED_BACK: &str = " The transaction the script began was rolled back.";
+
+/// Added to an error that leaves the user's own transaction open
+pub const STILL_OPEN: &str = " The transaction is still open: run COMMIT or ROLLBACK to end it.";
 
 /// Follow BEGIN, COMMIT and ROLLBACK run on the connection's own handle.
 /// They are read with the engine's own parser: one it can't parse never ran
@@ -234,8 +302,11 @@ mod tests {
         let db = DbManager::new();
         let id = db.open(":memory:", None).unwrap().id;
         run_script(&db, &id, "CREATE TABLE t (id INTEGER PRIMARY KEY)").unwrap();
-        let err = run_script(&db, &id, "INSERT INTO t VALUES (1); SELECT * FROM nope;").unwrap_err();
-        assert!(err.starts_with("Statement 2 of 2:"), "{err}");
+        let out = run_script(&db, &id, "INSERT INTO t VALUES (1); SELECT * FROM nope;").unwrap();
+        let err = out["error"].as_str().unwrap();
+        assert!(err.starts_with("Statement 2 of 2:") && err.ends_with("rolled back."), "{err}");
+        // The statement before the failure still shows its result
+        assert_eq!(out["results"][0]["changes"], 1);
         let rows = run_script(&db, &id, "SELECT COUNT(*) FROM t").unwrap();
         assert_eq!(rows["rows"], serde_json::json!([[0]]));
     }
@@ -262,7 +333,8 @@ mod tests {
         let db = DbManager::new();
         let id = db.open(":memory:", None).unwrap().id;
         run_script(&db, &id, "CREATE TABLE t (id INTEGER PRIMARY KEY)").unwrap();
-        run_script(&db, &id, "INSERT INTO t VALUES (1) RETURNING id; SELECT * FROM nope").unwrap_err();
+        let out = run_script(&db, &id, "INSERT INTO t VALUES (1) RETURNING id; SELECT * FROM nope").unwrap();
+        assert!(out["error"].is_string());
         let rows = run_script(&db, &id, "SELECT COUNT(*) FROM t").unwrap();
         assert_eq!(rows["rows"], serde_json::json!([[0]]));
     }
@@ -289,7 +361,8 @@ mod tests {
         run_script(&db, &id, "COMMIT").unwrap_err();
 
         // No transaction is open now, so a failing script rolls itself back
-        run_script(&db, &id, "INSERT INTO t VALUES (2); SELECT * FROM nope").unwrap_err();
+        let out = run_script(&db, &id, "INSERT INTO t VALUES (2); SELECT * FROM nope").unwrap();
+        assert!(out["error"].is_string());
         let rows = run_script(&db, &id, "SELECT id FROM t ORDER BY id").unwrap();
         assert_eq!(rows["rows"], serde_json::json!([[1]]));
     }
@@ -321,5 +394,36 @@ mod tests {
         run_script(&db, &id, "ROLLBACK").unwrap();
         let rows = run_script(&db, &id, "SELECT COUNT(*) FROM t").unwrap();
         assert_eq!(rows["rows"], serde_json::json!([[0]]));
+    }
+
+    #[test]
+    fn a_failed_script_never_leaves_its_own_transaction_open() {
+        let db = DbManager::new();
+        let id = db.open(":memory:", None).unwrap().id;
+        run_script(&db, &id, "CREATE TABLE p (id INTEGER PRIMARY KEY); CREATE TABLE c (id INTEGER PRIMARY KEY, p INTEGER REFERENCES p(id))").unwrap();
+        run_script(&db, &id, "INSERT INTO p VALUES (1)").unwrap();
+        let open = || db.transaction_state(&id).unwrap().load(Ordering::Relaxed);
+
+        // It began its transaction and failed before its own ROLLBACK
+        let out = run_script(&db, &id, "BEGIN; INSERT INTO p VALUES (2) RETURNING id; INSERT INTO c VALUES (1, 99); ROLLBACK").unwrap();
+        let err = out["error"].as_str().unwrap();
+        assert!(err.starts_with("Statement 3 of 4:") && err.ends_with("The statement after it did not run. The transaction the script began was rolled back."), "{err}");
+        assert_eq!(out["results"][1]["rows"], serde_json::json!([[2]]), "the statements before it still show");
+        assert_eq!(out["failed"], "INSERT INTO c VALUES (1, 99)");
+        assert_eq!(out["notRun"], serde_json::json!(["ROLLBACK"]));
+        assert_eq!(out["rolledBack"], true);
+        assert!(err.contains("does not exist. The statement after it"), "a sentence apart: {err}");
+        assert!(!open());
+        assert_eq!(run_script(&db, &id, "SELECT COUNT(*) FROM p").unwrap()["rows"], serde_json::json!([[1]]));
+
+        // A transaction the user opened earlier is theirs: it stays, and the error says so
+        run_script(&db, &id, "BEGIN").unwrap();
+        let out = run_script(&db, &id, "INSERT INTO p VALUES (3); INSERT INTO c VALUES (1, 99)").unwrap();
+        assert!(out["error"].as_str().unwrap().ends_with("run COMMIT or ROLLBACK to end it."));
+        assert!(open());
+        let single = run_script(&db, &id, "INSERT INTO c VALUES (1, 99)").unwrap_err();
+        assert!(single.ends_with("run COMMIT or ROLLBACK to end it."), "{single}");
+        run_script(&db, &id, "ROLLBACK").unwrap();
+        assert!(!open());
     }
 }

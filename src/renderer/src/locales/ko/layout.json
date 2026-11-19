@@ -6,7 +6,9 @@
   "statusBar": {
     "inMemory": "인메모리",
     "noConnection": "연결 없음",
-    "inMemoryHint": "메모리에만 있음: 데이터베이스나 앱을 닫으면 변경 내용이 사라집니다. 보관하려면 백업하세요."
+    "inMemoryHint": "메모리에만 있음: 데이터베이스나 앱을 닫으면 변경 내용이 사라집니다. 보관하려면 백업하세요.",
+    "transactionOpen": "트랜잭션 열림",
+    "transactionOpenHint": "세션이 트랜잭션 안에 있습니다. 실행한 내용은 커밋되지 않았으며 다른 세션에서는 보이지 않습니다. 유지하려면 COMMIT, 되돌리려면 ROLLBACK을 실행하세요."
   },
   "dataTab": {
     "unavailable": "테이블 \"{{table}}\"을(를) 더 이상 사용할 수 없습니다: {{error}}",

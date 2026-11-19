@@ -47,6 +47,7 @@ fn main() {
             commands::query::db_query,
             commands::query::db_execute,
             commands::query::db_execute_query,
+            commands::query::db_transaction_open,
             // Schema
             commands::schema::db_tables,
             commands::schema::db_views,

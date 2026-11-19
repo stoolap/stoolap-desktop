@@ -219,6 +219,11 @@ export async function deleteRow(
 }
 
 /** Statements running longer than `ms` are cancelled by the engine; 0 turns it off. */
+/** Whether the connection's session is inside a transaction the user began */
+export async function transactionOpen(connId: string): Promise<boolean> {
+  return invoke("db_transaction_open", { connId });
+}
+
 export async function setQueryTimeout(ms: number): Promise<void> {
   await invoke("db_set_query_timeout", { ms });
 }

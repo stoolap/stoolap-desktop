@@ -6,7 +6,9 @@
   "statusBar": {
     "inMemory": "W pamięci",
     "noConnection": "Brak połączenia",
-    "inMemoryHint": "Tylko w pamięci: zmiany przepadną po zamknięciu bazy lub aplikacji. Utwórz kopię zapasową, aby je zachować."
+    "inMemoryHint": "Tylko w pamięci: zmiany przepadną po zamknięciu bazy lub aplikacji. Utwórz kopię zapasową, aby je zachować.",
+    "transactionOpen": "Transakcja otwarta",
+    "transactionOpenHint": "Sesja jest w transakcji: to, co uruchomiono, nie jest zatwierdzone i inne sesje tego nie widzą. Uruchom COMMIT, aby zachować zmiany, lub ROLLBACK, aby je cofnąć."
   },
   "dataTab": {
     "unavailable": "Tabela \"{{table}}\" nie jest już dostępna: {{error}}",
