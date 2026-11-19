@@ -4,6 +4,14 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.8
+
+### Look and feel
+- A thin line now separates the title bar from the content, and the status bar's line matches the side panels'.
+
+### Under the hood
+- Updated to Tauri 2.12 and its plugins (the updater, notifications, dialogs, files and windows among them), and to the latest compatible versions of React, the editor and the other libraries the app is built on.
+
 ## v0.5.7
 
 ### Fixes
