@@ -387,7 +387,8 @@ fn value_to_json(val: Option<&Value>) -> serde_json::Value {
 /// JavaScript rounding), JSON as its own text (so `null` and strings in a
 /// JSON column stay JSON, apart from SQL NULL and TEXT).
 pub fn sql_literal(val: Option<&Value>) -> String {
-    let quote = |s: &str| format!("'{}'", s.replace('\'', "''"));
+    // The engine reads backslash escapes inside quotes, so \ is doubled too
+    let quote = |s: &str| format!("'{}'", s.replace('\\', "\\\\").replace('\'', "''"));
     match val {
         None | Some(Value::Null(_)) => "NULL".into(),
         Some(Value::Integer(i)) => i.to_string(),
@@ -488,8 +489,15 @@ mod tests {
             None,
         )
         .unwrap();
+        // Backslashes, bound as parameters so they are stored as typed
+        DbManager::execute_on(
+            &src,
+            "INSERT INTO t (id, s, j) VALUES (5, ?, ?)",
+            Some(vec![json!("C:\\ and a\\nb and it's"), json!(r#"{"text":"a\nb","path":"C:\\"}"#)]),
+        )
+        .unwrap();
         let (sql, count) = table_inserts(&src, "t", 0, 100).unwrap();
-        assert_eq!(count, 4);
+        assert_eq!(count, 5);
 
         let dst = Database::open_in_memory().unwrap();
         DbManager::execute_on(&dst, schema, None).unwrap();

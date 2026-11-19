@@ -44,7 +44,7 @@ import * as assistant from "@/lib/assistant";
 import { isOpenAi, type AssistantModel, type Backend, type Backends, type KeyProvider } from "@/lib/assistant";
 import { getEditorSelection } from "@/lib/editor-registry";
 import { foldUnchanged, lineDiff } from "@/lib/line-diff";
-import { runInTab, stopWrites } from "@/lib/assistant-edits";
+import { runInTab, startWrites, stopWrites } from "@/lib/assistant-edits";
 import { cn, errorMessage } from "@/lib/utils";
 import { useAssistantStore, type AssistantItem } from "@/stores/assistant-store";
 import { useConnectionStore } from "@/stores/connection-store";
@@ -233,6 +233,7 @@ export function AssistantPanel() {
       }
     }
     if (!targetTab) return;
+    startWrites(id);
     store.startRequest(id, trimmed);
     store.rememberPrompt(trimmed);
     setDraft("");

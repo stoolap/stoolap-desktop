@@ -22,19 +22,20 @@ export interface RunTabRequest {
  * timeout, history and the result grid work as for any run. Resolves with
  * what the tab shows, or undefined when no toolbar took the request.
  */
-export function runInTab(
-  tabId: string,
-  sql: string,
-  connId?: string,
-): Promise<ApiResult | ScriptResult | undefined> {
+export function runInTab(tabId: string, sql: string): Promise<ApiResult | ScriptResult | undefined> {
   useEditorStore.getState().setActiveTab(tabId);
+  // Let the tab's toolbar mount before it hears the request
+  return nextFrame().then(() => dispatchRun(tabId, sql));
+}
+
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+/** Hand `sql` to the (mounted) tab's toolbar, which starts it at once. */
+function dispatchRun(tabId: string, sql: string, connId?: string): Promise<ApiResult | ScriptResult | undefined> {
   return new Promise((resolve) => {
-    // Let the tab's toolbar mount before it hears the request
-    requestAnimationFrame(() => {
-      const detail: RunTabRequest = { tabId, sql, connId, done: resolve };
-      window.dispatchEvent(new CustomEvent("stoolap:run-tab", { detail }));
-      if (!detail.handled) resolve(undefined);
-    });
+    const detail: RunTabRequest = { tabId, sql, connId, done: resolve };
+    window.dispatchEvent(new CustomEvent("stoolap:run-tab", { detail }));
+    if (!detail.handled) resolve(undefined);
   });
 }
 
@@ -44,12 +45,17 @@ const SEE_RESULT_MS = 1500;
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Bumped by Stop: a write still waiting to run sees it and doesn't run */
-const stops = new Map<string, number>();
+/** Conversations the user stopped: their writes never run, until the next request */
+const stopped = new Set<string>();
+
+/** A new request starts: its writes may run. */
+export function startWrites(conversationId: string): void {
+  stopped.delete(conversationId);
+}
 
 /** The user stopped the conversation: writes it has not run yet never run. */
 export function stopWrites(conversationId: string): void {
-  stops.set(conversationId, (stops.get(conversationId) ?? 0) + 1);
+  stopped.add(conversationId);
 }
 
 /**
@@ -60,11 +66,10 @@ export function stopWrites(conversationId: string): void {
 function blockedReason(
   conversationId: string,
   w: { connId: string; sql: string; allowWrites: boolean },
-  stopsAtStart: number,
 ): string | null {
   const assistantState = useAssistantStore.getState();
   const conversation = assistantState.conversations[conversationId];
-  if (!conversation || (stops.get(conversationId) ?? 0) !== stopsAtStart) return "the user stopped the request";
+  if (!conversation || stopped.has(conversationId)) return "the user stopped the request";
   if (useConnectionStore.getState().activeId !== w.connId) {
     return "the user switched to another database; it is in the tab, not run";
   }
@@ -123,7 +128,6 @@ export async function applyWrite(
   conversationId: string,
   w: { requestId: string; connId: string; tabId: string; sql: string; explanation: string; allowWrites: boolean },
 ): Promise<void> {
-  const stopsAtStart = stops.get(conversationId) ?? 0;
   const id = resolveTab(w.tabId);
   const editor = useEditorStore.getState();
   const before = beforeWrite.get(w.tabId) ?? editor.tabs.find((t) => t.id === id)?.sql ?? "";
@@ -150,12 +154,15 @@ export async function applyWrite(
       // Paced so the user can follow: read the SQL, then see its result,
       // before the assistant moves on to its next step
       await pause(READ_SQL_MS);
-      const reason = blockedReason(conversationId, w, stopsAtStart);
+      useEditorStore.getState().setActiveTab(id);
+      await nextFrame();
+      // Checked with nothing async between it and the run starting
+      const reason = blockedReason(conversationId, w);
       if (reason) {
         outcome = { ran: false, reason };
         useAssistantStore.getState().setNotRun(conversationId, itemId);
       } else {
-        outcome = outcomeOf(await runInTab(id, w.sql, w.connId));
+        outcome = outcomeOf(await dispatchRun(id, w.sql, w.connId));
         await pause(SEE_RESULT_MS);
       }
     }

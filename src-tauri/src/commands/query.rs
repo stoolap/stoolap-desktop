@@ -57,9 +57,9 @@ pub fn run_script(
     let in_transaction = state.transaction_state(conn_id)?;
 
     if statements.len() == 1 {
-        let result = execute_single(&db, &statements[0], None)?;
-        note_transaction(&in_transaction, &statements[0]);
-        return Ok(result);
+        let result = execute_single(&db, &statements[0], None);
+        note_transaction(&in_transaction, &statements[0], result.is_ok());
+        return result;
     }
 
     let start = std::time::Instant::now();
@@ -92,11 +92,11 @@ pub fn run_script(
         let total = statements.len();
         let mut results = Vec::with_capacity(total);
         for (i, stmt) in statements.iter().enumerate() {
-            let mut r = execute_single(db, stmt, None)
-                .map_err(|e| format!("Statement {} of {total}: {e}", i + 1))?;
+            let r = execute_single(db, stmt, None);
             if session.is_none() {
-                note_transaction(&in_transaction, stmt);
+                note_transaction(&in_transaction, stmt, r.is_ok());
             }
+            let mut r = r.map_err(|e| format!("Statement {} of {total}: {e}", i + 1))?;
             r["sql"] = serde_json::Value::String(stmt.clone());
             results.push(r);
         }
@@ -121,14 +121,16 @@ pub fn run_script(
 }
 
 /// Follow BEGIN, COMMIT and ROLLBACK run on the connection's own handle.
-fn note_transaction(in_transaction: &AtomicBool, stmt: &str) {
+/// A COMMIT or ROLLBACK ends the transaction even when it fails (a COMMIT
+/// that hits a write conflict leaves none open).
+fn note_transaction(in_transaction: &AtomicBool, stmt: &str, succeeded: bool) {
     let upper = stmt.trim_start().to_uppercase();
-    let mut words = upper.split_whitespace();
-    match (words.next(), words.next()) {
-        (Some("BEGIN"), _) => in_transaction.store(true, Ordering::Relaxed),
-        (Some("COMMIT"), _) => in_transaction.store(false, Ordering::Relaxed),
-        // ROLLBACK TO SAVEPOINT keeps the transaction open
-        (Some("ROLLBACK"), next) if next != Some("TO") => in_transaction.store(false, Ordering::Relaxed),
+    let words: Vec<&str> = upper.split_whitespace().collect();
+    match words.first() {
+        Some(&"BEGIN") if succeeded => in_transaction.store(true, Ordering::Relaxed),
+        Some(&"COMMIT") => in_transaction.store(false, Ordering::Relaxed),
+        // ROLLBACK [TRANSACTION] TO [SAVEPOINT] keeps the transaction open
+        Some(&"ROLLBACK") if !words.contains(&"TO") => in_transaction.store(false, Ordering::Relaxed),
         _ => {}
     }
 }
@@ -246,5 +248,37 @@ mod tests {
         run_script(&db, &id, "CREATE TABLE t (id INTEGER PRIMARY KEY)").unwrap();
         let out = run_script(&db, &id, "WITH v AS (SELECT 7 AS id) INSERT INTO t SELECT id FROM v RETURNING id").unwrap();
         assert_eq!(out["rows"], serde_json::json!([[7]]));
+    }
+
+    #[test]
+    fn a_failed_commit_ends_the_transaction() {
+        let db = DbManager::new();
+        let id = db.open(":memory:", None).unwrap().id;
+        run_script(&db, &id, "CREATE TABLE t (id INTEGER PRIMARY KEY)").unwrap();
+        run_script(&db, &id, "BEGIN").unwrap();
+        run_script(&db, &id, "INSERT INTO t VALUES (1)").unwrap();
+        // Another session takes the same key first, so the COMMIT conflicts
+        let other = db.session(&db.get_db(&id).unwrap()).unwrap();
+        DbManager::execute_on(&other, "INSERT INTO t VALUES (1)", None).unwrap();
+        run_script(&db, &id, "COMMIT").unwrap_err();
+
+        // No transaction is open now, so a failing script rolls itself back
+        run_script(&db, &id, "INSERT INTO t VALUES (2); SELECT * FROM nope").unwrap_err();
+        let rows = run_script(&db, &id, "SELECT id FROM t ORDER BY id").unwrap();
+        assert_eq!(rows["rows"], serde_json::json!([[1]]));
+    }
+
+    #[test]
+    fn rolling_back_to_a_savepoint_keeps_the_transaction() {
+        let db = DbManager::new();
+        let id = db.open(":memory:", None).unwrap().id;
+        run_script(&db, &id, "CREATE TABLE t (id INTEGER PRIMARY KEY)").unwrap();
+        for stmt in ["BEGIN", "SAVEPOINT s1", "ROLLBACK TRANSACTION TO SAVEPOINT s1"] {
+            run_script(&db, &id, stmt).unwrap();
+        }
+        run_script(&db, &id, "INSERT INTO t VALUES (1); INSERT INTO t VALUES (2)").unwrap();
+        run_script(&db, &id, "ROLLBACK").unwrap();
+        let rows = run_script(&db, &id, "SELECT COUNT(*) FROM t").unwrap();
+        assert_eq!(rows["rows"], serde_json::json!([[0]]));
     }
 }

@@ -39,7 +39,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const { applyWrite, stopWrites } = await import("./assistant-edits");
+const { applyWrite, startWrites, stopWrites } = await import("./assistant-edits");
 const { useAssistantStore } = await import("@/stores/assistant-store");
 const { useConnectionStore } = await import("@/stores/connection-store");
 const { useEditorStore } = await import("@/stores/editor-store");
@@ -49,6 +49,7 @@ function setup(allow: boolean) {
   useConnectionStore.setState({ activeId: "conn-a" });
   const chat = useAssistantStore.getState().newChat("/db/a");
   useAssistantStore.getState().setWriteAccess("/db/a", allow);
+  startWrites(chat);
   return { chat, tabId };
 }
 
@@ -81,6 +82,39 @@ describe("applyWrite", () => {
     expect(writeResult).toHaveBeenCalledWith("r1", { ran: false, reason: "the user stopped the request" });
     const item = useAssistantStore.getState().conversations[chat].items.at(-1);
     expect(item).toMatchObject({ kind: "proposal", autoRan: false });
+  });
+
+  it("doesn't run a write whose event arrives after Stop", async () => {
+    const { chat, tabId } = setup(true);
+    stopWrites(chat);
+    const done = applyWrite(chat, write(tabId, "DELETE FROM t"));
+    await vi.runAllTimersAsync();
+    await done;
+    expect(ran).toEqual([]);
+  });
+
+  it("doesn't run a write stopped in the frame before it would start", async () => {
+    const { chat, tabId } = setup(true);
+    vi.stubGlobal("requestAnimationFrame", (cb: () => void) =>
+      setTimeout(() => {
+        stopWrites(chat);
+        cb();
+      }, 0),
+    );
+    const done = applyWrite(chat, write(tabId, "DELETE FROM t"));
+    await vi.runAllTimersAsync();
+    await done;
+    expect(ran).toEqual([]);
+  });
+
+  it("runs again once the next request starts", async () => {
+    const { chat, tabId } = setup(true);
+    stopWrites(chat);
+    startWrites(chat);
+    const done = applyWrite(chat, write(tabId, "SELECT 1"));
+    await vi.runAllTimersAsync();
+    await done;
+    expect(ran).toHaveLength(1);
   });
 
   it("doesn't run on another database the user switched to", async () => {
