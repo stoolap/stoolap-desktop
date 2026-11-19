@@ -107,16 +107,19 @@ export function useQueryExecution() {
       setTabLastExecutedSql(tabId, sql.trim());
       addToHistory(sql.trim());
 
-      const started = Date.now();
+      const started = performance.now();
       try {
         const result = await api.executeQuery(activeId, sql, controller.signal);
         if (controller.signal.aborted) return stopped(tabId, controller);
+        // Show what the user waited for, from the request to the parsed rows:
+        // the engine's own time leaves out sending a large result over
+        if ("time" in result) result.time = Math.round((performance.now() - started) * 100) / 100;
         if ("results" in result) {
-          useEditorStore.getState().setTabResults(tabId, result.results);
+          useEditorStore.getState().setTabResults(tabId, result.results, result.time);
         } else {
           useEditorStore.getState().setTabResult(tabId, result);
         }
-        notifyIfLong(tabId, result, Date.now() - started);
+        notifyIfLong(tabId, result, performance.now() - started);
 
         return result;
       } catch (e) {

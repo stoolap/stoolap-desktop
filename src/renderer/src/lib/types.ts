@@ -93,6 +93,8 @@ export interface EditorTab {
   /** Every statement's result when a script ran; `result` is the one shown */
   results?: StatementResult[];
   resultIndex?: number;
+  /** How long the user waited for the script (ms), request to parsed rows */
+  resultsTime?: number;
   /** Not saved across launches (the example database's query tab) */
   transient?: boolean;
 }

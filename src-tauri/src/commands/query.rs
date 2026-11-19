@@ -1,5 +1,6 @@
-use crate::db::{DbManager, ExecResult, QueryResult};
+use crate::db::{DbManager, ExecResult, QueryResult, ResultRows};
 use crate::sql_utils::{classify_statement, modifies_data, split_statements, strip_comments, StatementType};
+use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use stoolap::api::Database;
 use stoolap::parser::ast::Statement;
@@ -30,8 +31,34 @@ pub async fn db_execute_query(
     state: State<'_, DbManager>,
     conn_id: String,
     sql: String,
-) -> Result<serde_json::Value, String> {
+) -> Result<RunOutput, String> {
     run_script(&state, &conn_id, &sql)
+}
+
+/// One statement's result, as the renderer reads it
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum StatementResult {
+    Query { columns: Vec<String>, rows: ResultRows, time: f64 },
+    Ddl { ddl: String, time: f64 },
+    Exec { changes: i64, time: f64 },
+}
+
+/// A script's statement: its result and its SQL
+#[derive(Serialize)]
+pub struct ScriptStatement {
+    #[serde(flatten)]
+    result: StatementResult,
+    sql: String,
+}
+
+/// What running the editor's SQL returns: one statement's result, or each
+/// statement's for a script
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum RunOutput {
+    Single(StatementResult),
+    Script { results: Vec<ScriptStatement>, time: f64 },
 }
 
 /// Run what the editor holds: one statement, or several (DML wrapped in a
@@ -40,7 +67,7 @@ pub fn run_script(
     state: &DbManager,
     conn_id: &str,
     sql: &str,
-) -> Result<serde_json::Value, String> {
+) -> Result<RunOutput, String> {
     let cleaned = strip_comments(sql);
     if cleaned.is_empty() {
         return Err("Empty query".to_string());
@@ -60,7 +87,7 @@ pub fn run_script(
     if statements.len() == 1 {
         let result = execute_single(&db, &statements[0], None);
         note_transaction(&in_transaction, &statements[0], result.is_ok());
-        return result;
+        return result.map(RunOutput::Single);
     }
 
     let start = std::time::Instant::now();
@@ -89,7 +116,7 @@ pub fn run_script(
     }
 
     // Every statement's result, so the UI can show each one, not only the last
-    let result = (|| -> Result<serde_json::Value, String> {
+    let result = (|| -> Result<RunOutput, String> {
         let total = statements.len();
         let mut results = Vec::with_capacity(total);
         for (i, stmt) in statements.iter().enumerate() {
@@ -97,12 +124,11 @@ pub fn run_script(
             if session.is_none() {
                 note_transaction(&in_transaction, stmt, r.is_ok());
             }
-            let mut r = r.map_err(|e| format!("Statement {} of {total}: {e}", i + 1))?;
-            r["sql"] = serde_json::Value::String(stmt.clone());
-            results.push(r);
+            let result = r.map_err(|e| format!("Statement {} of {total}: {e}", i + 1))?;
+            results.push(ScriptStatement { result, sql: stmt.clone() });
         }
         let time = (start.elapsed().as_secs_f64() * 100_000.0).round() / 100.0;
-        Ok(serde_json::json!({ "results": results, "time": time }))
+        Ok(RunOutput::Script { results, time })
     })();
 
     match &result {
@@ -144,20 +170,16 @@ fn execute_single(
     db: &Database,
     stmt: &str,
     start_override: Option<std::time::Instant>,
-) -> Result<serde_json::Value, String> {
+) -> Result<StatementResult, String> {
     let start = start_override.unwrap_or_else(std::time::Instant::now);
     let stmt_type = classify_statement(stmt);
 
     match stmt_type {
         StatementType::Query => {
-            let result = DbManager::query_on(db, stmt, None)?;
+            let result = DbManager::query_rows_on(db, stmt, None)?;
             let time = start.elapsed().as_secs_f64() * 1000.0;
             let time = (time * 100.0).round() / 100.0;
-            Ok(serde_json::json!({
-                "columns": result.columns,
-                "rows": result.rows,
-                "time": time,
-            }))
+            Ok(StatementResult::Query { columns: result.columns, rows: result.rows, time })
         }
         StatementType::Ddl => {
             DbManager::execute_on(db, stmt, None)?;
@@ -165,19 +187,13 @@ fn execute_single(
             let time = (time * 100.0).round() / 100.0;
             let words: Vec<&str> = stmt.split_whitespace().take(2).collect();
             let ddl_type = words.join(" ").to_uppercase();
-            Ok(serde_json::json!({
-                "ddl": ddl_type,
-                "time": time,
-            }))
+            Ok(StatementResult::Ddl { ddl: ddl_type, time })
         }
         StatementType::Dml => {
             let result = DbManager::execute_on(db, stmt, None)?;
             let time = start.elapsed().as_secs_f64() * 1000.0;
             let time = (time * 100.0).round() / 100.0;
-            Ok(serde_json::json!({
-                "changes": result.changes,
-                "time": time,
-            }))
+            Ok(StatementResult::Exec { changes: result.changes, time })
         }
     }
 }
@@ -185,6 +201,11 @@ fn execute_single(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// run_script's output as the renderer receives it
+    fn run_script(db: &DbManager, id: &str, sql: &str) -> Result<serde_json::Value, String> {
+        super::run_script(db, id, sql).map(|out| serde_json::to_value(out).unwrap())
+    }
 
     #[test]
     fn a_script_returns_every_statements_result() {

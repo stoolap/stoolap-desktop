@@ -20,7 +20,7 @@ interface EditorState {
   updateTabTitle: (id: string, title: string) => void;
   setTabResult: (id: string, result: ApiResult | null) => void;
   /** A script's results; shows the first that returned rows */
-  setTabResults: (id: string, results: StatementResult[]) => void;
+  setTabResults: (id: string, results: StatementResult[], time?: number) => void;
   selectTabResult: (id: string, index: number) => void;
   setTabRunning: (id: string, running: boolean) => void;
   setTabLastExecutedSql: (id: string, sql: string) => void;
@@ -143,19 +143,19 @@ export const useEditorStore = create<EditorState>()(
         set((s) => ({
           tabs: s.tabs.map((t) =>
             t.id === id
-              ? { ...t, result, results: undefined, resultIndex: undefined, isRunning: false }
+              ? { ...t, result, results: undefined, resultIndex: undefined, resultsTime: undefined, isRunning: false }
               : t,
           ),
         })),
 
-      setTabResults: (id, results) =>
+      setTabResults: (id, results, time) =>
         set((s) => {
           const firstRows = results.findIndex((r) => "columns" in r);
           const index = firstRows >= 0 ? firstRows : results.length - 1;
           return {
             tabs: s.tabs.map((t) =>
               t.id === id
-                ? { ...t, results, resultIndex: index, result: results[index] ?? null, isRunning: false }
+                ? { ...t, results, resultIndex: index, result: results[index] ?? null, resultsTime: time, isRunning: false }
                 : t,
             ),
           };

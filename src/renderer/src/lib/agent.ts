@@ -130,16 +130,18 @@ export function send(args: {
 }
 
 /** What running a write_query in the tab gave; the Rust side decides what the model sees. */
-export type StatementOutcome =
+/** One statement's result, with how long it took (ms) */
+export type StatementOutcome = (
   | { columns: string[]; rows: unknown[][]; rowCount: number }
   | { changes: number }
-  | { ddl: string };
+  | { ddl: string }
+) & { time: number };
 
 export type WriteOutcome =
   | { ran: false; reason?: string }
   | { ran: true; error: string }
   | ({ ran: true } & StatementOutcome)
-  | { ran: true; statements: StatementOutcome[] };
+  | { ran: true; statements: StatementOutcome[]; time: number };
 
 export function writeResult(requestId: string, outcome: WriteOutcome): Promise<void> {
   return invoke("agent_write_result", { requestId, outcome });
