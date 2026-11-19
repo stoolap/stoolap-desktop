@@ -30,6 +30,7 @@ sha2 = "0.10"
 zip = { version = "4", default-features = false, features = ["deflate-flate2"] }
 flate2 = "1"
 tar = "0.4"
+sys-locale = "0.3"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.26"

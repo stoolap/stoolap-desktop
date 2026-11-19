@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Download, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { Trans, useTranslation } from "react-i18next";
 import { MessageText } from "@/components/agent/message-text";
 import * as native from "@/lib/native";
 import { errorMessage } from "@/lib/utils";
@@ -27,6 +28,7 @@ interface UpdateDialogProps {
 }
 
 export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
+  const { t } = useTranslation("dialogs");
   const [status, setStatus] = useState<Status>({ kind: "checking" });
 
   const runCheck = useCallback(async () => {
@@ -61,7 +63,7 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
           setStatus({ kind: "ready" });
         }
       });
-      toast.success(`Stoolap Desktop ${info.version} installed — restarting…`);
+      toast.success(t("update.installed", { version: info.version }));
       await native.relaunchApp();
     } catch (e) {
       setStatus({ kind: "error", message: errorMessage(e) });
@@ -75,7 +77,7 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5" />
-            Software Update
+            {t("update.title")}
           </DialogTitle>
         </DialogHeader>
 
@@ -83,7 +85,7 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
           {status.kind === "checking" && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Checking for updates…
+              {t("update.checking")}
             </div>
           )}
 
@@ -91,7 +93,7 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
               <span>
-                You&apos;re on the latest version ({status.currentVersion}).
+                {t("update.upToDate", { version: status.currentVersion })}
               </span>
             </div>
           )}
@@ -99,8 +101,12 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
           {status.kind === "available" && (
             <div className="space-y-2">
               <p>
-                <span className="font-medium">{status.info.version}</span>{" "}
-                is available (you have {status.info.currentVersion}).
+                <Trans
+                  t={t}
+                  i18nKey="update.available"
+                  values={{ version: status.info.version, current: status.info.currentVersion }}
+                  components={{ b: <span className="font-medium" /> }}
+                />
               </p>
               {status.info.body && (
                 <div className="max-h-64 overflow-auto rounded bg-muted/30 p-3">
@@ -114,7 +120,7 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Downloading… {status.percent}%
+                {t("update.downloading", { percent: status.percent })}
               </div>
               <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                 <div
@@ -128,7 +134,7 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
           {status.kind === "ready" && (
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              Restarting…
+              {t("update.restarting")}
             </div>
           )}
 
@@ -141,11 +147,11 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
           {status.kind === "available" && (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Later
+                {t("update.later")}
               </Button>
               <Button onClick={handleInstall} className="gap-2">
                 <Download className="h-4 w-4" />
-                Install & Restart
+                {t("update.install")}
               </Button>
             </>
           )}
@@ -154,9 +160,9 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
             <>
               <Button variant="ghost" onClick={runCheck} className="gap-2">
                 <RefreshCw className="h-4 w-4" />
-                Check Again
+                {t("update.checkAgain")}
               </Button>
-              <Button onClick={() => onOpenChange(false)}>Close</Button>
+              <Button onClick={() => onOpenChange(false)}>{t("actions.close")}</Button>
             </>
           )}
         </DialogFooter>

@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,7 @@ export function CreateViewDialog({
   onOpenChange,
   onCreated,
 }: CreateViewDialogProps) {
+  const { t } = useTranslation("dialogs");
   const activeId = useConnectionStore((s) => s.activeId);
   const [viewName, setViewName] = useState("");
   const [selectSql, setSelectSql] = useState("SELECT ");
@@ -70,12 +72,12 @@ export function CreateViewDialog({
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create View</DialogTitle>
+          <DialogTitle>{t("createView.title")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label>View Name</Label>
+            <Label>{t("createView.name")}</Label>
             <Input
               placeholder="my_view"
               value={viewName}
@@ -84,7 +86,7 @@ export function CreateViewDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>SELECT Statement</Label>
+            <Label>{t("createView.select")}</Label>
             <textarea
               className="w-full min-h-[120px] rounded-md border bg-background px-3 py-2 text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-ring"
               placeholder="SELECT col1, col2 FROM table WHERE ..."
@@ -96,7 +98,7 @@ export function CreateViewDialog({
           {viewName && hasSelectBody && (
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">
-                Generated SQL
+                {t("actions.generatedSql")}
               </Label>
               <pre className="text-xs p-2 rounded bg-muted font-mono whitespace-pre-wrap">
                 {generateSQL()}
@@ -109,13 +111,13 @@ export function CreateViewDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={resetAndClose}>
-            Cancel
+            {t("actions.cancel")}
           </Button>
           <Button
             onClick={handleCreate}
             disabled={loading || !viewName.trim() || !hasSelectBody}
           >
-            {loading ? "Creating..." : "Create View"}
+            {loading ? t("actions.creating") : t("createView.title")}
           </Button>
         </DialogFooter>
       </DialogContent>

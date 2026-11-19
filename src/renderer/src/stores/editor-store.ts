@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { v4 as uuidv4 } from "uuid";
 import type { ApiResult, EditorTab, StatementResult } from "@/lib/types";
+import i18n from "@/lib/i18n";
 
 interface EditorState {
   tabs: EditorTab[];
@@ -40,21 +41,21 @@ export function dropSavedExampleTabs(state: SavedTabs): SavedTabs {
   const kept = state.tabs.filter(
     (t) => !(t.title === "Examples" && t.sql.startsWith(EXAMPLES_SQL_START)),
   );
-  const tabs = kept.length > 0 ? kept : [{ ...makeTab("Query 1"), result: null, isRunning: false }];
+  const tabs = kept.length > 0 ? kept : [{ ...makeTab(i18n.t("editor:tabs.numberedTitle", { n: 1 })), result: null, isRunning: false }];
   const activeTabId = tabs.some((t) => t.id === state.activeTabId) ? state.activeTabId : tabs[0].id;
   return { ...state, tabs, activeTabId };
 }
 
 const makeTab = (title?: string, sql?: string): EditorTab => ({
   id: uuidv4(),
-  title: title ?? "Query",
+  title: title ?? i18n.t("editor:tabs.defaultTitle"),
   sql: sql ?? "",
   result: null,
   isRunning: false,
   mode: "query",
 });
 
-const initialTab = makeTab("Query 1");
+const initialTab = makeTab(i18n.t("editor:tabs.numberedTitle", { n: 1 }));
 
 export const useEditorStore = create<EditorState>()(
   persist(
@@ -68,7 +69,7 @@ export const useEditorStore = create<EditorState>()(
         let tabId = "";
         set((s) => {
           const counter = s._tabCounter + 1;
-          const tab = { ...makeTab(title ?? `Query ${counter}`, sql), transient: options?.transient };
+          const tab = { ...makeTab(title ?? i18n.t("editor:tabs.numberedTitle", { n: counter }), sql), transient: options?.transient };
           tabId = tab.id;
           return {
             _tabCounter: counter,
@@ -114,7 +115,7 @@ export const useEditorStore = create<EditorState>()(
           const idx = s.tabs.findIndex((t) => t.id === id);
           const tabs = s.tabs.filter((t) => t.id !== id);
           if (tabs.length === 0) {
-            const newTab = makeTab("Query 1");
+            const newTab = makeTab(i18n.t("editor:tabs.numberedTitle", { n: 1 }));
             return { tabs: [newTab], activeTabId: newTab.id, _tabCounter: 1 };
           }
           let nextActive = s.activeTabId;
@@ -208,7 +209,7 @@ export const useEditorStore = create<EditorState>()(
         // Ensure at least one tab is persisted
         if (persistedTabs.length === 0) {
           persistedTabs = [
-            { ...makeTab("Query 1"), result: null, isRunning: false },
+            { ...makeTab(i18n.t("editor:tabs.numberedTitle", { n: 1 })), result: null, isRunning: false },
           ];
         }
         // Ensure activeTabId points to a persisted tab
@@ -225,3 +226,4 @@ export const useEditorStore = create<EditorState>()(
     },
   ),
 );
+

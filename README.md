@@ -116,6 +116,10 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 - Accent color pulled from the OS (macOS `NSColor.controlAccentColor`)
 - Keyboard navigation throughout; full shortcut sheet via `Cmd/Ctrl + ?`
 
+### Languages
+- English, Türkçe, Deutsch, Français, Español, Português (Brasil), Italiano, Nederlands, Polski, Русский, Українська, 日本語, 한국어, 简体中文, 繁體中文 and Bahasa Indonesia, menus included
+- Follows the system language; **Settings… (`Cmd/Ctrl + ,`)** picks another one, which then stays
+
 ### Auto-Update
 - Bundled `tauri-plugin-updater` checks a signed `latest.json` feed on GitHub Releases
 - User sees a dialog with the version, release notes, progress bar, and "Install & Restart"
@@ -306,6 +310,10 @@ npx tsc --noEmit
 ```
 
 Both should pass cleanly.
+
+### Translations
+
+The app's text lives in [`src/renderer/src/locales`](src/renderer/src/locales): one folder per language, with the same JSON files as `en/`. `native.json` holds the menu labels, which the Rust side reads too. To fix a translation, edit the value in that language's file; to add a language, copy `en/`, translate it, and add the language to `LANGUAGES` in `src/renderer/src/lib/i18n.ts` and `NATIVE` in `src-tauri/src/i18n.rs`. `npm test` checks that every language has every key and keeps each `{{variable}}`. Corrections from native speakers are very welcome.
 
 ## License
 

@@ -1,3 +1,5 @@
+import i18n from "./i18n";
+
 const BATCH_SIZE = 50;
 
 /**
@@ -24,7 +26,7 @@ export async function restoreStatements(
 
   try {
     for (let i = 0; i < statements.length; i++) {
-      if (opts.aborted()) throw new Error("Restore cancelled by user");
+      if (opts.aborted()) throw new Error(i18n.t("common:errors.restoreCancelled"));
       opts.onProgress(i + 1);
 
       const head = statements[i].trimStart().toUpperCase();

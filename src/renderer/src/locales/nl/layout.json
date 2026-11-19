@@ -1,0 +1,35 @@
+{
+  "appShell": {
+    "hideSidebar": "Zijbalk verbergen",
+    "showSidebar": "Zijbalk tonen"
+  },
+  "statusBar": {
+    "inMemory": "In-memory",
+    "noConnection": "Geen verbinding"
+  },
+  "dataTab": {
+    "unavailable": "Tabel \"{{table}}\" is niet meer beschikbaar: {{error}}",
+    "loading": "Tabelschema laden..."
+  },
+  "agentToggle": {
+    "title": "Agent",
+    "hide": "Agent verbergen",
+    "show": "Agent tonen"
+  },
+  "welcome": {
+    "intro": "Open een database of sleep de map ervan naar dit venster.",
+    "openDatabase": "Database openen…",
+    "newMemory": "Nieuwe in-memory database",
+    "loadExample": "Voorbeelddatabase laden",
+    "recent": "Recent",
+    "opening": "Openen…",
+    "openFailed": "Kan {{name}} niet openen"
+  },
+  "toolbar": {
+    "examplesTab": "Voorbeelden",
+    "loadExampleFailed": "Kan voorbeeld niet laden",
+    "openFailed": "Kan {{name}} niet openen",
+    "createFailed": "Kan database niet maken",
+    "dropHint": "Sleep een databasemap of een .sql-bestand hierheen om het te openen"
+  }
+}

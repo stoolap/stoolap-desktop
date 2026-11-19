@@ -1,0 +1,35 @@
+{
+  "appShell": {
+    "hideSidebar": "隱藏側邊欄",
+    "showSidebar": "顯示側邊欄"
+  },
+  "statusBar": {
+    "inMemory": "記憶體",
+    "noConnection": "未連線"
+  },
+  "dataTab": {
+    "unavailable": "資料表「{{table}}」已無法使用：{{error}}",
+    "loading": "正在載入資料表結構..."
+  },
+  "agentToggle": {
+    "title": "代理程式",
+    "hide": "隱藏代理程式",
+    "show": "顯示代理程式"
+  },
+  "welcome": {
+    "intro": "打開資料庫，或將其資料夾拖放到此視窗。",
+    "openDatabase": "打開資料庫…",
+    "newMemory": "新增記憶體資料庫",
+    "loadExample": "載入範例資料庫",
+    "recent": "最近使用",
+    "opening": "正在打開…",
+    "openFailed": "無法打開 {{name}}"
+  },
+  "toolbar": {
+    "examplesTab": "範例",
+    "loadExampleFailed": "無法載入範例",
+    "openFailed": "無法打開 {{name}}",
+    "createFailed": "無法建立資料庫",
+    "dropHint": "拖放資料庫資料夾或 .sql 檔案以打開"
+  }
+}

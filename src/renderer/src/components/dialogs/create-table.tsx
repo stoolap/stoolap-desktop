@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -85,6 +86,7 @@ function FkConfig({
   tables: string[];
   onUpdate: (updates: Partial<ColumnDef>) => void;
 }) {
+  const { t } = useTranslation("dialogs");
   const { data: refColumns } = useTableColumns(col.refTable || null);
 
   return (
@@ -95,12 +97,12 @@ function FkConfig({
         onValueChange={(v) => onUpdate({ refTable: v, refColumn: "" })}
       >
         <SelectTrigger className="h-7 text-xs w-[140px]">
-          <SelectValue placeholder="Ref table" />
+          <SelectValue placeholder={t("table.refTable")} />
         </SelectTrigger>
         <SelectContent>
-          {tables.map((t) => (
-            <SelectItem key={t} value={t}>
-              {t}
+          {tables.map((name) => (
+            <SelectItem key={name} value={name}>
+              {name}
             </SelectItem>
           ))}
         </SelectContent>
@@ -111,7 +113,7 @@ function FkConfig({
         disabled={!col.refTable}
       >
         <SelectTrigger className="h-7 text-xs w-[120px]">
-          <SelectValue placeholder="Ref column" />
+          <SelectValue placeholder={t("table.refColumn")} />
         </SelectTrigger>
         <SelectContent>
           {refColumns?.map((c) => (
@@ -160,6 +162,7 @@ export function CreateTableDialog({
   onOpenChange,
   onCreated,
 }: CreateTableDialogProps) {
+  const { t } = useTranslation("dialogs");
   const activeId = useConnectionStore((s) => s.activeId);
   const { data: existingTables } = useTables();
   const [tableName, setTableName] = useState("");
@@ -256,12 +259,12 @@ export function CreateTableDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Table</DialogTitle>
+          <DialogTitle>{t("createTable.title")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label>Table Name</Label>
+            <Label>{t("createTable.name")}</Label>
             <Input
               placeholder="my_table"
               value={tableName}
@@ -272,49 +275,49 @@ export function CreateTableDialog({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Columns</Label>
+              <Label>{t("table.columns")}</Label>
               <Button variant="outline" size="sm" onClick={addColumn}>
                 <Plus className="h-3.5 w-3.5 mr-1" />
-                Add Column
+                {t("table.addColumn")}
               </Button>
             </div>
 
             {/* Column header */}
             <div className="grid grid-cols-[1fr_120px_60px_44px_44px_44px_44px_44px_120px_36px] gap-x-2 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              <span>Name</span>
-              <span>Type</span>
-              <span>Dims</span>
+              <span>{t("table.colName")}</span>
+              <span>{t("table.colType")}</span>
+              <span>{t("table.colDims")}</span>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="text-center cursor-help">PK</span>
                 </TooltipTrigger>
-                <TooltipContent>Primary Key</TooltipContent>
+                <TooltipContent>{t("table.primaryKey")}</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="text-center cursor-help">NN</span>
                 </TooltipTrigger>
-                <TooltipContent>Not Null</TooltipContent>
+                <TooltipContent>{t("table.notNull")}</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="text-center cursor-help">UQ</span>
                 </TooltipTrigger>
-                <TooltipContent>Unique</TooltipContent>
+                <TooltipContent>{t("table.unique")}</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="text-center cursor-help">AI</span>
                 </TooltipTrigger>
-                <TooltipContent>Auto Increment</TooltipContent>
+                <TooltipContent>{t("table.autoIncrement")}</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="text-center cursor-help">FK</span>
                 </TooltipTrigger>
-                <TooltipContent>Foreign Key</TooltipContent>
+                <TooltipContent>{t("table.foreignKey")}</TooltipContent>
               </Tooltip>
-              <span>Default</span>
+              <span>{t("table.colDefault")}</span>
               <span />
             </div>
 
@@ -347,15 +350,15 @@ export function CreateTableDialog({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {DATA_TYPES.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t}
+                        {DATA_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <Input
-                      placeholder={col.type === "VECTOR" ? "e.g. 384" : ""}
+                      placeholder={col.type === "VECTOR" ? t("table.dimsPlaceholder") : ""}
                       value={col.dimensions}
                       onChange={(e) =>
                         updateColumn(i, {
@@ -414,7 +417,7 @@ export function CreateTableDialog({
                       />
                     </div>
                     <Input
-                      placeholder="default value"
+                      placeholder={t("table.defaultPlaceholder")}
                       value={col.defaultValue}
                       onChange={(e) =>
                         updateColumn(i, { defaultValue: e.target.value })
@@ -434,7 +437,7 @@ export function CreateTableDialog({
                   {col.type === "VECTOR" && (
                     <div className="flex items-center gap-1.5 px-2 py-1.5 border-t border-purple-500/20 bg-purple-500/5">
                       <span className="text-xs text-muted-foreground mr-1">
-                        Presets:
+                        {t("table.presets")}
                       </span>
                       {VECTOR_DIM_PRESETS.map((d) => (
                         <Badge
@@ -465,7 +468,7 @@ export function CreateTableDialog({
           {tableName && columns.some((c) => c.name) && (
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">
-                Generated SQL
+                {t("actions.generatedSql")}
               </Label>
               <pre className="text-xs p-3 rounded bg-muted font-mono whitespace-pre-wrap border">
                 {generateSQL()}
@@ -478,7 +481,7 @@ export function CreateTableDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
-            Cancel
+            {t("actions.cancel")}
           </Button>
           <Button
             onClick={handleCreate}
@@ -486,7 +489,7 @@ export function CreateTableDialog({
               loading || !tableName.trim() || !columns.some((c) => c.name)
             }
           >
-            {loading ? "Creating..." : "Create Table"}
+            {loading ? t("actions.creating") : t("createTable.title")}
           </Button>
         </DialogFooter>
       </DialogContent>

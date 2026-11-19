@@ -7,6 +7,7 @@
 mod agent;
 mod commands;
 mod db;
+mod i18n;
 mod sql_utils;
 
 use db::DbManager;
@@ -67,6 +68,8 @@ fn main() {
             commands::system::get_version,
             commands::system::get_stoolap_version,
             set_recent_databases,
+            i18n::get_language,
+            i18n::set_language,
             // Agent
             agent::agent_models,
             agent::agent_backends,
@@ -84,8 +87,9 @@ fn main() {
             agent::agent_write_result,
         ])
         .setup(|app| {
-            // Build application menu
-            build_menu(app)?;
+            app.manage(RecentMenu(std::sync::Mutex::new(None)));
+            build_menu(app.handle())?;
+            app.on_menu_event(on_menu_event);
             if let Some(window) = app.get_webview_window("main") {
                 match_background_to_theme(&window, window.theme().ok());
             }
@@ -118,165 +122,153 @@ fn match_background_to_theme(window: &tauri::WebviewWindow, theme: Option<tauri:
     let _ = window.set_background_color(Some(color));
 }
 
-fn build_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+/// The menu bar, in the app's language. Built again when the language changes.
+fn build_menu(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     use tauri::menu::*;
 
-    let app_handle = app.handle();
+    let lang = i18n::current(app_handle);
+    let t = |key: &str| i18n::text(lang, key);
 
-    let open_db = MenuItemBuilder::with_id("open-db", "Open Database...")
+    let open_db = MenuItemBuilder::with_id("open-db", t("openDatabase"))
         .accelerator("CmdOrCtrl+O")
         .build(app_handle)?;
-    let new_memory = MenuItemBuilder::with_id("new-memory", "New In-Memory Database")
+    let new_memory = MenuItemBuilder::with_id("new-memory", t("newMemory"))
         .accelerator("CmdOrCtrl+N")
         .build(app_handle)?;
-    let load_example =
-        MenuItemBuilder::with_id("load-example", "Load Example Database").build(app_handle)?;
-    let backup = MenuItemBuilder::with_id("backup", "Backup Database...")
+    let load_example = MenuItemBuilder::with_id("load-example", t("loadExample")).build(app_handle)?;
+    let backup = MenuItemBuilder::with_id("backup", t("backup"))
         .accelerator("CmdOrCtrl+Shift+S")
         .build(app_handle)?;
-    let restore =
-        MenuItemBuilder::with_id("restore", "Restore from Backup...").build(app_handle)?;
-    let toggle_sidebar = MenuItemBuilder::with_id("toggle-sidebar", "Toggle Sidebar")
+    let restore = MenuItemBuilder::with_id("restore", t("restore")).build(app_handle)?;
+    let toggle_sidebar = MenuItemBuilder::with_id("toggle-sidebar", t("toggleSidebar"))
         .accelerator("CmdOrCtrl+B")
         .build(app_handle)?;
-    let toggle_agent = MenuItemBuilder::with_id("toggle-agent", "Toggle Agent")
+    let toggle_agent = MenuItemBuilder::with_id("toggle-agent", t("toggleAgent"))
         .accelerator("CmdOrCtrl+L")
         .build(app_handle)?;
+    let settings = MenuItemBuilder::with_id("settings", t("settings"))
+        .accelerator("CmdOrCtrl+,")
+        .build(app_handle)?;
+    let about = MenuItemBuilder::with_id("about", t("about")).build(app_handle)?;
+    let check_updates = MenuItemBuilder::with_id("check-updates", t("checkUpdates")).build(app_handle)?;
 
-    // Filled by the renderer through set_recent_databases
-    let open_recent = SubmenuBuilder::new(app_handle, "Open Recent").build()?;
-    fill_recent_menu(app_handle, &open_recent, &[])?;
-    app.manage(RecentMenu(open_recent.clone()));
+    // Filled by the renderer through set_recent_databases; a rebuilt menu
+    // gets the entries the last one had
+    let open_recent = SubmenuBuilder::new(app_handle, t("openRecent")).build()?;
+    {
+        let state = app_handle.state::<RecentMenu>();
+        let mut recent = state.0.lock().map_err(|e| e.to_string())?;
+        let entries = recent.take().map(|(_, e)| e).unwrap_or_default();
+        fill_recent_menu(app_handle, &open_recent, &entries)?;
+        *recent = Some((open_recent.clone(), entries));
+    }
 
-    let file_menu = SubmenuBuilder::new(app_handle, "File")
+    let file_menu = SubmenuBuilder::new(app_handle, t("file"))
         .item(&open_db)
         .item(&open_recent)
         .item(&new_memory)
         .item(&load_example)
         .separator()
         .item(&backup)
-        .item(&restore)
+        .item(&restore);
+    // macOS has Settings in the app menu
+    #[cfg(not(target_os = "macos"))]
+    let file_menu = file_menu.separator().item(&settings);
+    let file_menu = file_menu.separator().close_window_with_text(t("closeWindow")).build()?;
+
+    let edit_menu = SubmenuBuilder::new(app_handle, t("edit"))
+        .undo_with_text(t("undo"))
+        .redo_with_text(t("redo"))
         .separator()
-        .close_window()
+        .cut_with_text(t("cut"))
+        .copy_with_text(t("copy"))
+        .paste_with_text(t("paste"))
+        .select_all_with_text(t("selectAll"))
         .build()?;
 
-    let edit_menu = SubmenuBuilder::new(app_handle, "Edit")
-        .undo()
-        .redo()
-        .separator()
-        .cut()
-        .copy()
-        .paste()
-        .select_all()
-        .build()?;
-
-    let view_menu = SubmenuBuilder::new(app_handle, "View")
+    let view_menu = SubmenuBuilder::new(app_handle, t("view"))
         .item(&toggle_sidebar)
         .item(&toggle_agent)
         .build()?;
 
-    let window_menu = SubmenuBuilder::new(app_handle, "Window")
-        .minimize()
+    let window_menu = SubmenuBuilder::new(app_handle, t("window"))
+        .minimize_with_text(t("minimize"))
         .build()?;
 
     #[cfg(target_os = "macos")]
-    {
-        let about = MenuItemBuilder::with_id("about", "About Stoolap Desktop").build(app_handle)?;
-        let check_updates =
-            MenuItemBuilder::with_id("check-updates", "Check for Updates…").build(app_handle)?;
-
+    let menu = {
         let app_menu = SubmenuBuilder::new(app_handle, "Stoolap Desktop")
             .item(&about)
             .item(&check_updates)
             .separator()
-            .services()
+            .item(&settings)
             .separator()
-            .hide()
-            .hide_others()
-            .show_all()
+            .services_with_text(t("services"))
             .separator()
-            .quit()
+            .hide_with_text(t("hide"))
+            .hide_others_with_text(t("hideOthers"))
+            .show_all_with_text(t("showAll"))
+            .separator()
+            .quit_with_text(t("quit"))
             .build()?;
-
-        let menu = MenuBuilder::new(app_handle)
+        MenuBuilder::new(app_handle)
             .item(&app_menu)
             .item(&file_menu)
             .item(&edit_menu)
             .item(&view_menu)
             .item(&window_menu)
-            .build()?;
-        app.set_menu(menu)?;
-    }
+            .build()?
+    };
 
     #[cfg(not(target_os = "macos"))]
-    {
+    let menu = {
         // macOS has these in the app menu
-        let about = MenuItemBuilder::with_id("about", "About Stoolap Desktop").build(app_handle)?;
-        let check_updates =
-            MenuItemBuilder::with_id("check-updates", "Check for Updates…").build(app_handle)?;
-        let help_menu = SubmenuBuilder::new(app_handle, "Help")
+        let help_menu = SubmenuBuilder::new(app_handle, t("help"))
             .item(&check_updates)
             .separator()
             .item(&about)
             .build()?;
-
-        let menu = MenuBuilder::new(app_handle)
+        MenuBuilder::new(app_handle)
             .item(&file_menu)
             .item(&edit_menu)
             .item(&view_menu)
             .item(&window_menu)
             .item(&help_menu)
-            .build()?;
-        app.set_menu(menu)?;
-    }
+            .build()?
+    };
 
-    // Handle menu events
-    app.on_menu_event(move |app_handle, event| {
-        if let Some(window) = app_handle.get_webview_window("main") {
-            match event.id().as_ref() {
-                "open-db" => {
-                    let _ = window.emit("menu:open-database", ());
-                }
-                "new-memory" => {
-                    let _ = window.emit("menu:new-memory-db", ());
-                }
-                "load-example" => {
-                    let _ = window.emit("menu:load-example", ());
-                }
-                "backup" => {
-                    let _ = window.emit("menu:backup", ());
-                }
-                "restore" => {
-                    let _ = window.emit("menu:restore", ());
-                }
-                "toggle-sidebar" => {
-                    let _ = window.emit("menu:toggle-sidebar", ());
-                }
-                "toggle-agent" => {
-                    let _ = window.emit("menu:toggle-agent", ());
-                }
-                "about" => {
-                    let _ = window.emit("menu:about", ());
-                }
-                "check-updates" => {
-                    let _ = window.emit("menu:check-updates", ());
-                }
-                id => {
-                    if let Some(path) = id.strip_prefix(RECENT_PREFIX) {
-                        let _ = window.emit("app:open-path", path);
-                    }
-                }
-            }
-        }
-    });
-
+    app_handle.set_menu(menu)?;
     Ok(())
+}
+
+fn on_menu_event(app_handle: &tauri::AppHandle, event: tauri::menu::MenuEvent) {
+    let Some(window) = app_handle.get_webview_window("main") else { return };
+    let id = event.id().as_ref();
+    if let Some(path) = id.strip_prefix(RECENT_PREFIX) {
+        let _ = window.emit("app:open-path", path);
+        return;
+    }
+    let name = match id {
+        "open-db" => "menu:open-database",
+        "new-memory" => "menu:new-memory-db",
+        "load-example" => "menu:load-example",
+        "backup" => "menu:backup",
+        "restore" => "menu:restore",
+        "toggle-sidebar" => "menu:toggle-sidebar",
+        "toggle-agent" => "menu:toggle-agent",
+        "settings" => "menu:settings",
+        "about" => "menu:about",
+        "check-updates" => "menu:check-updates",
+        _ => return,
+    };
+    let _ = window.emit(name, ());
 }
 
 const RECENT_PREFIX: &str = "recent:";
 
-/// The File → Open Recent submenu, kept so the renderer can refill it.
-struct RecentMenu(tauri::menu::Submenu<tauri::Wry>);
+/// The File → Open Recent submenu and its entries, kept so the renderer can
+/// refill it and a rebuilt menu keeps them.
+struct RecentMenu(std::sync::Mutex<Option<(tauri::menu::Submenu<tauri::Wry>, Vec<RecentDatabase>)>>);
 
 #[derive(serde::Deserialize)]
 struct RecentDatabase {
@@ -295,7 +287,7 @@ fn fill_recent_menu(
         menu.remove(&item)?;
     }
     if entries.is_empty() {
-        let none = MenuItemBuilder::new("No Recent Databases")
+        let none = MenuItemBuilder::new(i18n::text(i18n::current(app), "noRecent"))
             .enabled(false)
             .build(app)?;
         return menu.append(&none);
@@ -322,5 +314,12 @@ fn set_recent_databases(
     menu: tauri::State<'_, RecentMenu>,
     entries: Vec<RecentDatabase>,
 ) -> Result<(), String> {
-    fill_recent_menu(&app, &menu.0, &entries).map_err(|e| e.to_string())
+    let mut recent = menu.0.lock().map_err(|e| e.to_string())?;
+    if let Some((submenu, _)) = recent.as_ref() {
+        fill_recent_menu(&app, submenu, &entries).map_err(|e| e.to_string())?;
+    }
+    if let Some((_, kept)) = recent.as_mut() {
+        *kept = entries;
+    }
+    Ok(())
 }

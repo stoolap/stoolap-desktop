@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
+import i18n from "./i18n";
 export { quoteId } from "./sql-utils";
 
 export function cn(...inputs: ClassValue[]) {
@@ -11,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
 export function errorMessage(e: unknown): string {
   if (e instanceof Error) return e.message;
   if (typeof e === "string") return e;
-  return "Unknown error";
+  return i18n.t("common:errors.unknown");
 }
 
 export function isMac(): boolean {
@@ -34,14 +35,14 @@ export async function saveFile(content: string, filename: string, _mime: string)
   const ext = filename.split(".").pop() || "*";
   const path = await save({
     defaultPath: filename,
-    filters: [{ name: ext.toUpperCase() + " Files", extensions: [ext] }],
+    filters: [{ name: i18n.t("common:fileTypes.ext", { ext: ext.toUpperCase() }), extensions: [ext] }],
   });
   if (!path) return;
   try {
     await writeTextFile(path, content);
-    toast.success(`Saved ${basename(path)}`, { description: path });
+    toast.success(i18n.t("common:save.saved", { name: basename(path) }), { description: path });
   } catch (e) {
-    toast.error(`Could not save ${basename(path)}`, { description: errorMessage(e) });
+    toast.error(i18n.t("common:save.failed", { name: basename(path) }), { description: errorMessage(e) });
   }
 }
 

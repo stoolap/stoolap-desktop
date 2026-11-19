@@ -1,0 +1,35 @@
+{
+  "appShell": {
+    "hideSidebar": "Kenar çubuğunu gizle",
+    "showSidebar": "Kenar çubuğunu göster"
+  },
+  "statusBar": {
+    "inMemory": "Bellek İçi",
+    "noConnection": "Bağlantı yok"
+  },
+  "dataTab": {
+    "unavailable": "\"{{table}}\" tablosu artık kullanılamıyor: {{error}}",
+    "loading": "Tablo şeması yükleniyor..."
+  },
+  "agentToggle": {
+    "title": "Agent",
+    "hide": "Agent'ı gizle",
+    "show": "Agent'ı göster"
+  },
+  "welcome": {
+    "intro": "Bir veritabanı açın veya klasörünü bu pencereye bırakın.",
+    "openDatabase": "Veritabanı Aç…",
+    "newMemory": "Yeni Bellek İçi Veritabanı",
+    "loadExample": "Örnek Veritabanını Yükle",
+    "recent": "Son Kullanılanlar",
+    "opening": "Açılıyor…",
+    "openFailed": "Açılamadı: {{name}}"
+  },
+  "toolbar": {
+    "examplesTab": "Örnekler",
+    "loadExampleFailed": "Örnek yüklenemedi",
+    "openFailed": "Açılamadı: {{name}}",
+    "createFailed": "Veritabanı oluşturulamadı",
+    "dropHint": "Açmak için bir veritabanı klasörü veya .sql dosyası bırakın"
+  }
+}

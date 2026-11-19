@@ -1,5 +1,6 @@
 
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   useTables,
   useViews,
@@ -33,6 +34,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, errorMessage, quoteId } from "@/lib/utils";
+import { locale } from "@/lib/i18n";
 import * as native from "@/lib/native";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -96,6 +98,7 @@ function IndexItem({
   colType?: string;
   onDrop: () => void;
 }) {
+  const { t } = useTranslation("schema");
   const [expanded, setExpanded] = useState(false);
   const addTab = useEditorStore((s) => s.addTab);
   const isHnsw = idx.indexType.toUpperCase() === "HNSW";
@@ -104,7 +107,7 @@ function IndexItem({
     if (isHnsw) {
       const vec = colType ? exampleVector(colType) : "[0.1]";
       addTab(
-        `k-NN: ${idx.columnName}`,
+        t("tableTree.tabKnn", { column: idx.columnName }),
         `-- Replace the query vector with your own\nSELECT *, VEC_DISTANCE_COSINE(${quoteId(idx.columnName)}, '${vec}') AS distance\nFROM ${quoteId(tableName)}\nORDER BY distance\nLIMIT 10`,
       );
     } else {
@@ -121,10 +124,10 @@ function IndexItem({
     const selected = await native.showContextMenu([
       {
         id: "query",
-        label: isHnsw ? "k-NN Similarity Search" : "Query Using Index",
+        label: isHnsw ? t("tableTree.knnSearch") : t("tableTree.queryUsingIndex"),
       },
       { id: "sep", label: "", type: "separator" },
-      { id: "drop", label: "Drop Index" },
+      { id: "drop", label: t("tableTree.dropIndex") },
     ]);
     if (selected === "query") handleQueryUsingIndex();
     if (selected === "drop") onDrop();
@@ -165,19 +168,19 @@ function IndexItem({
       {expanded && (
         <div className="pl-14 pr-2 py-0.5 space-y-0.5">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="opacity-50 w-14">Column:</span>
+            <span className="opacity-50 w-14">{t("tableTree.column")}</span>
             <span className="font-data">{idx.columnName}</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="opacity-50 w-14">Type:</span>
+            <span className="opacity-50 w-14">{t("tableTree.type")}</span>
             <span className={cn("font-data", isHnsw && "text-purple-400")}>
               {idx.indexType}
             </span>
           </div>
           {!isHnsw && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="opacity-50 w-14">Unique:</span>
-              <span className="font-data">{idx.isUnique ? "Yes" : "No"}</span>
+              <span className="opacity-50 w-14">{t("tableTree.unique")}</span>
+              <span className="font-data">{idx.isUnique ? t("tableTree.yes") : t("tableTree.no")}</span>
             </div>
           )}
         </div>
@@ -187,6 +190,7 @@ function IndexItem({
 }
 
 function ForeignKeyItem({ fk }: { fk: ForeignKeyInfo }) {
+  const { t } = useTranslation("schema");
   const [expanded, setExpanded] = useState(false);
   return (
     <div className="overflow-hidden">
@@ -209,11 +213,11 @@ function ForeignKeyItem({ fk }: { fk: ForeignKeyInfo }) {
       {expanded && (
         <div className="pl-14 pr-2 py-0.5 space-y-0.5">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="opacity-50 w-20">On Delete:</span>
+            <span className="opacity-50 w-20">{t("tableTree.onDelete")}</span>
             <span className="font-data">{fk.onDelete}</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="opacity-50 w-20">On Update:</span>
+            <span className="opacity-50 w-20">{t("tableTree.onUpdate")}</span>
             <span className="font-data">{fk.onUpdate}</span>
           </div>
         </div>
@@ -231,6 +235,7 @@ function TableNode({
   type: "table" | "view";
   onRefresh: () => void;
 }) {
+  const { t } = useTranslation("schema");
   const [expanded, setExpanded] = useState(false);
   const [alterOpen, setAlterOpen] = useState(false);
   const [indexOpen, setIndexOpen] = useState(false);
@@ -268,9 +273,9 @@ function TableNode({
     if (!activeId) return;
     try {
       const ddl = await api.fetchDDL(activeId, name, type);
-      addTab(`DDL: ${name}`, ddl);
+      addTab(t("tableTree.tabDdl", { name }), ddl);
     } catch (e) {
-      toast.error("Failed to fetch DDL", {
+      toast.error(t("tableTree.ddlFailed"), {
         description: errorMessage(e),
       });
     }
@@ -283,9 +288,9 @@ function TableNode({
       queryClient.invalidateQueries({ queryKey: ["tableRows"] });
       queryClient.invalidateQueries({ queryKey: ["tableRowCount"] });
       queryClient.invalidateQueries({ queryKey: ["rowcount"] });
-      toast.success(`Table "${name}" truncated`);
+      toast.success(t("tableTree.truncated", { name }));
     } catch (e) {
-      toast.error("Failed to truncate table", {
+      toast.error(t("tableTree.truncateFailed"), {
         description: errorMessage(e),
       });
     }
@@ -300,9 +305,9 @@ function TableNode({
           : `DROP VIEW ${quoteId(name)}`;
       await api.runSql(activeId, sql);
       onRefresh();
-      toast.success(`${type === "table" ? "Table" : "View"} "${name}" dropped`);
+      toast.success(t(type === "table" ? "tableTree.tableDropped" : "tableTree.viewDropped", { name }));
     } catch (e) {
-      toast.error(`Failed to drop ${type}`, {
+      toast.error(t(type === "table" ? "tableTree.dropTableFailed" : "tableTree.dropViewFailed"), {
         description: errorMessage(e),
       });
     }
@@ -316,9 +321,9 @@ function TableNode({
         `DROP INDEX ${quoteId(indexName)} ON ${quoteId(name)}`,
       );
       queryClient.invalidateQueries({ queryKey: ["indexes"] });
-      toast.success(`Index "${indexName}" dropped`);
+      toast.success(t("tableTree.indexDropped", { name: indexName }));
     } catch (e) {
-      toast.error("Failed to drop index", {
+      toast.error(t("tableTree.dropIndexFailed"), {
         description: errorMessage(e),
       });
     }
@@ -326,7 +331,7 @@ function TableNode({
 
   const handleInsertRow = () => {
     addTab(
-      `Insert: ${name}`,
+      t("tableTree.tabInsert", { name }),
       columns
         ? `INSERT INTO ${quoteId(name)} (${columns.map((c) => quoteId(c.field)).join(", ")})\nVALUES (${columns.map((c, i) => `$${i + 1} /* ${c.type} */`).join(", ")})`
         : `INSERT INTO ${quoteId(name)} VALUES ()`,
@@ -349,28 +354,28 @@ function TableNode({
     }> = [];
 
     if (type === "table") {
-      items.push({ id: "viewData", label: "View Data" });
+      items.push({ id: "viewData", label: t("tableTree.viewData") });
     }
     items.push({ id: "select", label: `SELECT * FROM ${name}` });
-    items.push({ id: "ddl", label: "Show DDL" });
+    items.push({ id: "ddl", label: t("tableTree.showDdl") });
 
     if (type === "table") {
       items.push({ id: "sep1", label: "", type: "separator" });
       if (hasVectorCols) {
-        items.push({ id: "vecSearch", label: "Vector Similarity Search" });
+        items.push({ id: "vecSearch", label: t("tableTree.vectorSearch") });
       }
-      items.push({ id: "insert", label: "Insert Row" });
-      items.push({ id: "createIndex", label: "Create Index" });
-      items.push({ id: "editTable", label: "Edit Table" });
+      items.push({ id: "insert", label: t("tableTree.insertRow") });
+      items.push({ id: "createIndex", label: t("tableTree.createIndex") });
+      items.push({ id: "editTable", label: t("tableTree.editTable") });
     }
 
     items.push({ id: "sep2", label: "", type: "separator" });
     if (type === "table") {
-      items.push({ id: "truncate", label: "Truncate Table" });
+      items.push({ id: "truncate", label: t("tableTree.truncateTable") });
     }
     items.push({
       id: "drop",
-      label: `Drop ${type === "table" ? "Table" : "View"}`,
+      label: t(type === "table" ? "tableTree.dropTable" : "tableTree.dropView"),
     });
 
     const selected = await native.showContextMenu(items);
@@ -399,22 +404,22 @@ function TableNode({
         break;
       case "truncate": {
         const confirmed = await native.showConfirmDialog({
-          title: "Truncate Table",
-          message: `Are you sure you want to delete all rows from "${name}"?`,
-          detail: "This cannot be undone.",
-          confirmLabel: "Truncate",
+          title: t("tableTree.truncateTable"),
+          message: t("tableTree.confirmTruncate", { name }),
+          detail: t("tableTree.cannotUndo"),
+          confirmLabel: t("tableTree.truncate"),
           destructive: true,
         });
         if (confirmed) doTruncateTable();
         break;
       }
       case "drop": {
-        const label = type === "table" ? "Table" : "View";
+        const label = t(type === "table" ? "tableTree.dropTable" : "tableTree.dropView");
         const confirmed = await native.showConfirmDialog({
-          title: `Drop ${label}`,
-          message: `Are you sure you want to drop ${type} "${name}"?`,
-          detail: "This cannot be undone.",
-          confirmLabel: `Drop ${label}`,
+          title: label,
+          message: t(type === "table" ? "tableTree.confirmDropTable" : "tableTree.confirmDropView", { name }),
+          detail: t("tableTree.cannotUndo"),
+          confirmLabel: label,
           destructive: true,
         });
         if (confirmed) doDropTable();
@@ -425,9 +430,9 @@ function TableNode({
 
   const handleDropIndex = async (indexName: string) => {
     const confirmed = await native.showConfirmDialog({
-      title: "Drop Index",
-      message: `Are you sure you want to drop index "${indexName}"?`,
-      confirmLabel: "Drop Index",
+      title: t("tableTree.dropIndex"),
+      message: t("tableTree.confirmDropIndex", { name: indexName }),
+      confirmLabel: t("tableTree.dropIndex"),
       destructive: true,
     });
     if (confirmed) doDropIndex(indexName);
@@ -458,7 +463,7 @@ function TableNode({
         </span>
         {type === "table" && rowCount !== undefined && (
           <span className="ml-auto text-xs text-muted-foreground/40 tabular-nums shrink-0 pr-0.5">
-            {rowCount.toLocaleString()}
+            {rowCount.toLocaleString(locale())}
           </span>
         )}
       </div>
@@ -475,7 +480,7 @@ function TableNode({
           {foreignKeys && foreignKeys.length > 0 && (
             <>
               <div className="pl-5 pr-2 pt-1.5 pb-0.5 text-xs text-muted-foreground/40 uppercase tracking-widest font-semibold">
-                Foreign Keys
+                {t("tableTree.foreignKeys")}
               </div>
               {foreignKeys.map((fk) => (
                 <ForeignKeyItem key={fk.columnName} fk={fk} />
@@ -485,7 +490,7 @@ function TableNode({
           {indexes && indexes.length > 0 && (
             <>
               <div className="pl-5 pr-2 pt-1.5 pb-0.5 text-xs text-muted-foreground/40 uppercase tracking-widest font-semibold">
-                Indexes
+                {t("tableTree.indexes")}
               </div>
               {indexes.map((idx) => {
                 const col = columns?.find((c) => c.field === idx.columnName);
@@ -535,6 +540,7 @@ function TableNode({
 }
 
 export function TableTree() {
+  const { t } = useTranslation("schema");
   const activeId = useConnectionStore((s) => s.activeId);
   const {
     data: tables,
@@ -580,8 +586,8 @@ export function TableTree() {
   if (!activeId) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm p-4 text-center">
-        <p>No connection</p>
-        <p className="text-xs mt-1">Open a database to browse its schema</p>
+        <p>{t("tableTree.noConnection")}</p>
+        <p className="text-xs mt-1">{t("tableTree.noConnectionHint")}</p>
       </div>
     );
   }
@@ -590,7 +596,7 @@ export function TableTree() {
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-border/30">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/50">
-          Schema
+          {t("tableTree.schema")}
         </span>
         <div className="flex gap-0">
           <Button
@@ -598,8 +604,8 @@ export function TableTree() {
             size="icon"
             className="h-6 w-6"
             onClick={() => setCreateTableOpen(true)}
-            title="Create Table"
-            aria-label="Create Table"
+            title={t("tableTree.createTable")}
+            aria-label={t("tableTree.createTable")}
           >
             <Plus className="h-2.5 w-2.5" />
           </Button>
@@ -608,8 +614,8 @@ export function TableTree() {
             size="icon"
             className="h-6 w-6"
             onClick={() => setCreateViewOpen(true)}
-            title="Create View"
-            aria-label="Create View"
+            title={t("tableTree.createView")}
+            aria-label={t("tableTree.createView")}
           >
             <Eye className="h-2.5 w-2.5" />
           </Button>
@@ -618,8 +624,8 @@ export function TableTree() {
             size="icon"
             className="h-6 w-6"
             onClick={refresh}
-            title="Refresh"
-            aria-label="Refresh schema"
+            title={t("tableTree.refresh")}
+            aria-label={t("tableTree.refreshSchema")}
           >
             <RefreshCw
               className={cn("h-2.5 w-2.5", isRefreshing && "animate-spin")}
@@ -632,25 +638,26 @@ export function TableTree() {
         <div className="relative">
           <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/40" />
           <Input
-            placeholder="Filter tables..."
+            placeholder={t("tableTree.filterPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-6 pl-6 text-xs border-0 bg-muted/30 shadow-none focus-visible:ring-1"
-            aria-label="Filter tables and views"
+            aria-label={t("tableTree.filterLabel")}
           />
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-auto-hide">
         {tablesLoading || viewsLoading ? (
-          <div className="p-4 text-sm text-muted-foreground">Loading...</div>
+          <div className="p-4 text-sm text-muted-foreground">{t("tableTree.loading")}</div>
         ) : (
           <div className="py-0.5">
             {filteredTables.length > 0 && (
               <>
                 <div className="px-2 py-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground/40">
-                  Tables ({filteredTables.length}
-                  {search && tables ? `/${tables.length}` : ""})
+                  {t("tableTree.tables", {
+                    shown: search && tables ? `${filteredTables.length}/${tables.length}` : filteredTables.length,
+                  })}
                 </div>
                 {filteredTables.map((t) => (
                   <TableNode
@@ -665,8 +672,9 @@ export function TableTree() {
             {filteredViews.length > 0 && (
               <>
                 <div className="px-3 py-1.5 mt-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground/50">
-                  Views ({filteredViews.length}
-                  {search && views ? `/${views.length}` : ""})
+                  {t("tableTree.views", {
+                    shown: search && views ? `${filteredViews.length}/${views.length}` : filteredViews.length,
+                  })}
                 </div>
                 {filteredViews.map((v) => (
                   <TableNode key={v} name={v} type="view" onRefresh={refresh} />
@@ -675,7 +683,7 @@ export function TableTree() {
             )}
             {filteredTables.length === 0 && filteredViews.length === 0 && (
               <div className="p-4 text-sm text-muted-foreground text-center">
-                {search ? "No matches" : "No tables yet"}
+                {search ? t("tableTree.noMatches") : t("tableTree.noTables")}
               </div>
             )}
           </div>

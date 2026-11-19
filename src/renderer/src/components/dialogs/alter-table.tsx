@@ -1,5 +1,6 @@
 
 import { useState, useMemo, useEffect } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -88,6 +89,7 @@ export function AlterTableDialog({
   columns: originalColumns,
   onAltered,
 }: AlterTableDialogProps) {
+  const { t } = useTranslation("dialogs");
   const activeId = useConnectionStore((s) => s.activeId);
   const [tableName, setTableName] = useState(table);
   const [cols, setCols] = useState<ColumnState[]>(() =>
@@ -314,14 +316,19 @@ export function AlterTableDialog({
       <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Edit Table: <span className="font-data font-normal">{table}</span>
+            <Trans
+              t={t}
+              i18nKey="alterTable.title"
+              values={{ table }}
+              components={{ b: <span className="font-data font-normal" /> }}
+            />
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
           {/* Table name */}
           <div className="flex items-center gap-3">
-            <Label className="shrink-0">Table Name</Label>
+            <Label className="shrink-0">{t("createTable.name")}</Label>
             <Input
               value={tableName}
               onChange={(e) => setTableName(e.target.value)}
@@ -332,23 +339,23 @@ export function AlterTableDialog({
                 variant="outline"
                 className="text-blue-500 border-blue-500/50"
               >
-                Renamed
+                {t("alterTable.renamed")}
               </Badge>
             )}
           </div>
 
           {/* Existing columns */}
           <div className="space-y-2">
-            <Label>Columns</Label>
+            <Label>{t("table.columns")}</Label>
 
             {/* Header */}
             <div className="grid grid-cols-[1fr_130px_60px_50px_50px_80px] gap-x-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              <span>Name</span>
-              <span>Type</span>
-              <span>Dims</span>
+              <span>{t("table.colName")}</span>
+              <span>{t("table.colType")}</span>
+              <span>{t("table.colDims")}</span>
               <span className="text-center">PK</span>
               <span className="text-center">NULL</span>
-              <span className="text-right">Actions</span>
+              <span className="text-right">{t("alterTable.actions")}</span>
             </div>
 
             {/* Rows */}
@@ -395,11 +402,11 @@ export function AlterTableDialog({
                               variant="outline"
                               className="text-xs px-1 py-0 text-blue-500 border-blue-500/50 shrink-0"
                             >
-                              was: {col.originalName}
+                              {t("alterTable.was", { name: col.originalName })}
                             </Badge>
                           </TooltipTrigger>
                           <TooltipContent>
-                            Renamed from {col.originalName}
+                            {t("alterTable.renamedFrom", { name: col.originalName })}
                           </TooltipContent>
                         </Tooltip>
                       )}
@@ -420,9 +427,9 @@ export function AlterTableDialog({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {DATA_TYPES.map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {t}
+                          {DATA_TYPES.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -436,7 +443,7 @@ export function AlterTableDialog({
                       </span>
                     ) : (
                       <Input
-                        placeholder={col.type === "VECTOR" ? "dims" : ""}
+                        placeholder={col.type === "VECTOR" ? t("alterTable.dims") : ""}
                         value={col.dimensions}
                         onChange={(e) =>
                           changeDimensions(i, e.target.value.replace(/\D/g, ""))
@@ -487,7 +494,7 @@ export function AlterTableDialog({
                               <Undo2 className="h-3.5 w-3.5" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Undo changes</TooltipContent>
+                          <TooltipContent>{t("alterTable.undo")}</TooltipContent>
                         </Tooltip>
                       )}
                       {isAdded ? (
@@ -502,7 +509,7 @@ export function AlterTableDialog({
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Remove</TooltipContent>
+                          <TooltipContent>{t("alterTable.remove")}</TooltipContent>
                         </Tooltip>
                       ) : !isPK ? (
                         <Tooltip>
@@ -526,7 +533,7 @@ export function AlterTableDialog({
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            {isDropped ? "Undo drop" : "Drop column"}
+                            {isDropped ? t("alterTable.undoDrop") : t("alterTable.drop")}
                           </TooltipContent>
                         </Tooltip>
                       ) : null}
@@ -540,7 +547,7 @@ export function AlterTableDialog({
           {/* Add new column */}
           <div className="space-y-2">
             <Label className="text-sm text-muted-foreground">
-              Add New Column
+              {t("alterTable.addNew")}
             </Label>
             <div className="flex items-center gap-2">
               <Input
@@ -563,9 +570,9 @@ export function AlterTableDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {DATA_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
+                  {DATA_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -573,7 +580,7 @@ export function AlterTableDialog({
               {newColType === "VECTOR" && (
                 <>
                   <Input
-                    placeholder="dims"
+                    placeholder={t("alterTable.dims")}
                     value={newColDimensions}
                     onChange={(e) =>
                       setNewColDimensions(e.target.value.replace(/\D/g, ""))
@@ -595,18 +602,18 @@ export function AlterTableDialog({
                 </>
               )}
               <Input
-                placeholder="default"
+                placeholder={t("alterTable.default")}
                 value={newColDefault}
                 onChange={(e) => setNewColDefault(e.target.value)}
                 className="w-[100px] h-9 font-data"
-                title="Required for a NOT NULL column when the table has rows"
+                title={t("alterTable.defaultHint")}
               />
               <label className="flex items-center gap-1.5 text-sm whitespace-nowrap">
                 <Checkbox
                   checked={newColNullable}
                   onCheckedChange={(v) => setNewColNullable(!!v)}
                 />
-                Nullable
+                {t("alterTable.nullable")}
               </label>
               <Button
                 variant="outline"
@@ -616,7 +623,7 @@ export function AlterTableDialog({
                 className="shrink-0"
               >
                 <Plus className="h-3.5 w-3.5 mr-1" />
-                Add
+                {t("alterTable.add")}
               </Button>
             </div>
           </div>
@@ -625,8 +632,7 @@ export function AlterTableDialog({
           {hasChanges && (
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">
-                {statements.length} change{statements.length !== 1 ? "s" : ""}{" "}
-                to apply
+                {t("alterTable.pending", { count: statements.length })}
               </Label>
               <pre className="text-xs p-3 rounded bg-muted font-mono whitespace-pre-wrap border">
                 {statements.join(";\n")};
@@ -639,12 +645,12 @@ export function AlterTableDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("actions.cancel")}
           </Button>
           <Button onClick={handleApply} disabled={loading || !hasChanges}>
             {loading
-              ? "Applying..."
-              : `Apply ${statements.length} Change${statements.length !== 1 ? "s" : ""}`}
+              ? t("alterTable.applying")
+              : t("alterTable.apply", { count: statements.length })}
           </Button>
         </DialogFooter>
       </DialogContent>

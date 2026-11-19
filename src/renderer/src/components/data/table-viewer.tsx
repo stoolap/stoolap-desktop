@@ -1,6 +1,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTableForeignKeys } from "@/hooks/use-schema";
@@ -35,6 +36,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, errorMessage, saveFile, escapeCSV } from "@/lib/utils";
+import { locale } from "@/lib/i18n";
 import * as api from "@/lib/api-client";
 import * as native from "@/lib/native";
 import type { FilterCondition } from "@/lib/api-client";
@@ -129,6 +131,7 @@ export function TableViewer({
   columns,
   initialFilter,
 }: TableViewerProps) {
+  const { t } = useTranslation("data");
   const activeId = useConnectionStore((s) => s.activeId);
   const addDataTab = useEditorStore((s) => s.addDataTab);
   const { data: foreignKeys } = useTableForeignKeys(table);
@@ -262,14 +265,14 @@ export function TableViewer({
           [colName]: value === "" ? null : value,
         });
         refetch();
-        toast.success("Row updated");
+        toast.success(t("tableViewer.rowUpdated"));
       } catch (e) {
-        toast.error("Update failed", {
+        toast.error(t("tableViewer.updateFailed"), {
           description: errorMessage(e),
         });
       }
     },
-    [activeId, data, pkColumn, table, columns, refetch],
+    [activeId, data, pkColumn, table, columns, refetch, t],
   );
 
   const handleDeleteRow = useCallback(
@@ -280,9 +283,9 @@ export function TableViewer({
       const pkValue = data.rows[rowIndex]?.[pkIdx];
 
       const confirmed = await native.showConfirmDialog({
-        title: "Delete Row",
-        message: `Delete row with ${pkColumn.field} = ${pkValue}?`,
-        confirmLabel: "Delete",
+        title: t("tableViewer.deleteRow"),
+        message: t("tableViewer.confirmDeleteRow", { column: pkColumn.field, value: pkValue }),
+        confirmLabel: t("tableViewer.delete"),
         destructive: true,
       });
       if (!confirmed) return;
@@ -291,16 +294,16 @@ export function TableViewer({
       try {
         await api.deleteRow(activeId, table, pkColumn.field, pkValue);
         refetch();
-        toast.success("Row deleted");
+        toast.success(t("tableViewer.rowDeleted"));
       } catch (e) {
-        toast.error("Delete failed", {
+        toast.error(t("tableViewer.deleteFailed"), {
           description: errorMessage(e),
         });
       } finally {
         setDeletingRow(false);
       }
     },
-    [activeId, data, pkColumn, table, refetch, deletingRow],
+    [activeId, data, pkColumn, table, refetch, deletingRow, t],
   );
 
   const handleInsert = useCallback(
@@ -311,9 +314,9 @@ export function TableViewer({
       refetch();
       queryClient.invalidateQueries({ queryKey: ["tableRows", activeId] });
       queryClient.invalidateQueries({ queryKey: ["tableRowCount", activeId] });
-      toast.success("Row inserted");
+      toast.success(t("tableViewer.rowInserted"));
     },
-    [activeId, table, refetch, queryClient],
+    [activeId, table, refetch, queryClient, t],
   );
 
   const handleServerSort = useCallback(
@@ -453,10 +456,10 @@ export function TableViewer({
 
     if (totalRows > 10_000) {
       const ok = await native.showConfirmDialog({
-        title: "Export All Rows",
-        message: `This will export ${totalRows.toLocaleString()} rows.`,
-        detail: "Large exports may take a while.",
-        confirmLabel: "Export",
+        title: t("tableViewer.exportAllRows"),
+        message: t("tableViewer.exportAllMessage", { count: totalRows, rows: totalRows.toLocaleString(locale()) }),
+        detail: t("tableViewer.exportAllDetail"),
+        confirmLabel: t("tableViewer.exportConfirm"),
       });
       if (!ok) return;
     }
@@ -464,12 +467,12 @@ export function TableViewer({
     const ts = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
     const path = await save({
       defaultPath: `${table}_${ts}.csv`,
-      filters: [{ name: "CSV Files", extensions: ["csv"] }],
+      filters: [{ name: t("tableViewer.csvFiles"), extensions: ["csv"] }],
     });
     if (!path) return;
 
     try {
-      toast.info("Exporting...");
+      toast.info(t("tableViewer.exporting"));
       const filters = appliedFilters.length > 0 ? appliedFilters : undefined;
       let totalExported = 0;
       let isFirst = true;
@@ -492,11 +495,11 @@ export function TableViewer({
         isFirst = false;
         if (chunk.rows.length < PAGE_SIZE) break;
       }
-      const msg = `Exported ${totalExported.toLocaleString()} rows`;
-      native.notify("Export Complete", msg);
+      const msg = t("tableViewer.exported", { count: totalExported, rows: totalExported.toLocaleString(locale()) });
+      native.notify(t("tableViewer.exportComplete"), msg);
       toast.success(msg);
     } catch (e) {
-      toast.error("Export failed", {
+      toast.error(t("tableViewer.exportFailed"), {
         description: errorMessage(e),
       });
     }
@@ -510,7 +513,7 @@ export function TableViewer({
       directory: false,
       filters: [
         { name: "CSV / JSON", extensions: ["csv", "json", "jsonl"] },
-        { name: "All Files", extensions: ["*"] },
+        { name: t("tableViewer.allFiles"), extensions: ["*"] },
       ],
     });
     if (typeof selected !== "string") return;
@@ -525,11 +528,11 @@ export function TableViewer({
       queryClient.invalidateQueries({ queryKey: ["tableRows", activeId] });
       queryClient.invalidateQueries({ queryKey: ["tableRowCount", activeId] });
       queryClient.invalidateQueries({ queryKey: ["rowcount", activeId] });
-      const msg = `Imported ${result.rows} row${result.rows !== 1 ? "s" : ""} in ${result.time}ms`;
-      native.notify("Import Complete", msg);
+      const msg = t("tableViewer.imported", { count: result.rows, time: result.time });
+      native.notify(t("tableViewer.importComplete"), msg);
       toast.success(msg);
     } catch (e) {
-      toast.error("Import failed", {
+      toast.error(t("tableViewer.importFailed"), {
         description: errorMessage(e),
       });
     } finally {
@@ -566,7 +569,7 @@ export function TableViewer({
           )}
         >
           <Filter className="h-3.5 w-3.5" />
-          Filter
+          {t("tableViewer.filter")}
           {appliedFilters.length > 0 && (
             <span className="ml-0.5 text-xs bg-primary/20 text-primary rounded-full px-1.5">
               {appliedFilters.length}
@@ -588,10 +591,10 @@ export function TableViewer({
           )}
         >
           <Clock className="h-3.5 w-3.5" />
-          Time Travel
+          {t("tableViewer.timeTravel")}
           {appliedAsOf && (
             <span className="ml-0.5 text-xs bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full px-1.5">
-              ON
+              {t("tableViewer.on")}
             </span>
           )}
         </Button>
@@ -603,7 +606,7 @@ export function TableViewer({
           className="gap-1"
         >
           <Plus className="h-3.5 w-3.5" />
-          Insert
+          {t("tableViewer.insert")}
         </Button>
         <Button
           variant="ghost"
@@ -617,25 +620,25 @@ export function TableViewer({
           ) : (
             <FileInput className="h-3.5 w-3.5" />
           )}
-          {importing ? "Importing..." : "Import"}
+          {importing ? t("tableViewer.importing") : t("tableViewer.import")}
         </Button>
         {data && data.rows.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1">
                 <FileOutput className="h-3.5 w-3.5" />
-                Export
+                {t("tableViewer.export")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={handleExportCSV}>
-                Export Page as CSV
+                {t("tableViewer.exportPageCsv")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportJSON}>
-                Export Page as JSON
+                {t("tableViewer.exportPageJson")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportAllCSV}>
-                Export All as CSV
+                {t("tableViewer.exportAllCsv")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -645,7 +648,7 @@ export function TableViewer({
           size="icon"
           className="h-7 w-7"
           onClick={() => refetch()}
-          aria-label="Refresh data"
+          aria-label={t("tableViewer.refreshData")}
         >
           <RefreshCw className="h-3.5 w-3.5" />
         </Button>
@@ -707,7 +710,7 @@ export function TableViewer({
                   <SelectContent>
                     {ops.map((op) => (
                       <SelectItem key={op.value} value={op.value}>
-                        {op.label}
+                        {isVec ? t(`tableViewer.vectorOperators.${op.value}`) : op.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -741,7 +744,7 @@ export function TableViewer({
                       type="number"
                       step="0.01"
                       min="0"
-                      placeholder="max dist"
+                      placeholder={t("tableViewer.maxDistPlaceholder")}
                       value={
                         f.value.includes("|")
                           ? f.value.substring(f.value.lastIndexOf("|") + 1)
@@ -767,10 +770,10 @@ export function TableViewer({
                   <Input
                     placeholder={
                       f.operator === "like"
-                        ? "%pattern%"
+                        ? t("tableViewer.likePlaceholder")
                         : f.operator === "in"
-                          ? "val1|val2|val3"
-                          : "value"
+                          ? t("tableViewer.inPlaceholder")
+                          : t("tableViewer.valuePlaceholder")
                     }
                     value={f.value}
                     onChange={(e) =>
@@ -791,7 +794,7 @@ export function TableViewer({
                   size="icon"
                   className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
                   onClick={() => removeFilter(f.id)}
-                  aria-label="Remove filter"
+                  aria-label={t("tableViewer.removeFilter")}
                 >
                   <X className="h-3.5 w-3.5" />
                 </Button>
@@ -807,7 +810,7 @@ export function TableViewer({
               className="gap-1 h-7 text-xs"
             >
               <Plus className="h-3 w-3" />
-              Add Condition
+              {t("tableViewer.addCondition")}
             </Button>
             <div className="flex-1" />
             {(filterRows.length > 0 || appliedFilters.length > 0) && (
@@ -818,7 +821,7 @@ export function TableViewer({
                 className="gap-1 h-7 text-xs text-muted-foreground"
               >
                 <Trash2 className="h-3 w-3" />
-                Clear All
+                {t("tableViewer.clearAll")}
               </Button>
             )}
             <Button
@@ -831,7 +834,7 @@ export function TableViewer({
               )}
             >
               <Filter className="h-3 w-3" />
-              Apply
+              {t("tableViewer.apply")}
             </Button>
           </div>
         </div>
@@ -867,7 +870,7 @@ export function TableViewer({
                 setOffset(0);
               }}
             >
-              Apply
+              {t("tableViewer.apply")}
             </Button>
             {appliedAsOf && (
               <Button
@@ -881,12 +884,12 @@ export function TableViewer({
                 }}
               >
                 <X className="h-3 w-3" />
-                Clear
+                {t("tableViewer.clear")}
               </Button>
             )}
             <div className="flex-1" />
             <span className="text-xs text-muted-foreground">
-              View table data at a specific point in time
+              {t("tableViewer.timeTravelHint")}
             </span>
           </div>
         </div>
@@ -895,11 +898,10 @@ export function TableViewer({
       {/* Grid */}
       <div className="flex-1 overflow-hidden">
         {isLoading ? (
-          <div className="p-3 text-xs text-muted-foreground">Loading...</div>
+          <div className="p-3 text-xs text-muted-foreground">{t("tableViewer.loading")}</div>
         ) : fetchError ? (
           <div className="p-3 text-xs text-destructive">
-            Failed to load data:{" "}
-            {errorMessage(fetchError)}
+            {t("tableViewer.loadFailed", { error: errorMessage(fetchError) })}
           </div>
         ) : data ? (
           <DataGrid
@@ -929,14 +931,14 @@ export function TableViewer({
           className="h-6 w-6"
           disabled={offset === 0}
           onClick={() => setOffset(Math.max(0, offset - limit))}
-          aria-label="Previous page"
+          aria-label={t("tableViewer.previousPage")}
         >
           <ChevronLeft className="h-3.5 w-3.5" />
         </Button>
         <span className="text-muted-foreground tabular-nums">
           {data && data.rows.length > 0
-            ? `Rows ${offset + 1}-${offset + data.rows.length} of ${totalRows}`
-            : "No rows"}
+            ? t("tableViewer.rowRange", { from: offset + 1, to: offset + data.rows.length, total: totalRows })
+            : t("tableViewer.noRows")}
         </span>
         <Button
           variant="ghost"
@@ -944,7 +946,7 @@ export function TableViewer({
           className="h-6 w-6"
           disabled={!data || offset + limit >= totalRows}
           onClick={() => setOffset(offset + limit)}
-          aria-label="Next page"
+          aria-label={t("tableViewer.nextPage")}
         >
           <ChevronRight className="h-3.5 w-3.5" />
         </Button>
@@ -962,21 +964,20 @@ export function TableViewer({
           <SelectContent>
             {[25, 50, 100, 250, 500].map((n) => (
               <SelectItem key={n} value={String(n)}>
-                {n} rows
+                {t("tableViewer.pageSize", { count: n })}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         {appliedFilters.length > 0 && (
           <span className="ml-2 text-primary text-xs">
-            {appliedFilters.length} filter
-            {appliedFilters.length !== 1 ? "s" : ""} active
+            {t("tableViewer.filtersActive", { count: appliedFilters.length })}
           </span>
         )}
         {appliedAsOf && (
           <span className="ml-2 text-amber-500 text-xs flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            AS OF {new Date(appliedAsOf).toLocaleString()}
+            AS OF {new Date(appliedAsOf).toLocaleString(locale())}
           </span>
         )}
       </div>

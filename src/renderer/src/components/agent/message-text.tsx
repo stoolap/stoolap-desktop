@@ -1,5 +1,6 @@
 import { Children, isValidElement, type ReactNode } from "react";
 import Markdown, { type Components } from "react-markdown";
+import { useTranslation } from "react-i18next";
 import remarkGfm from "remark-gfm";
 import { classHighlighter, highlightCode } from "@lezer/highlight";
 import { sql } from "@codemirror/lang-sql";
@@ -34,6 +35,7 @@ function highlightSql(code: string): ReactNode[] {
 }
 
 function CodeBlock({ lang, code }: { lang: string; code: string }) {
+  const { t } = useTranslation("agent");
   return (
     <div className="group relative">
       <pre className="font-data overflow-x-auto rounded-md bg-muted px-2.5 py-2 text-xs">
@@ -43,11 +45,11 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
         size="icon"
         variant="ghost"
         className="absolute right-1 top-1 h-6 w-6 bg-muted opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-        aria-label="Copy code"
+        aria-label={t("code.copy")}
         onClick={() =>
           navigator.clipboard.writeText(code).then(
-            () => toast.success("Copied"),
-            () => toast.error("Could not copy"),
+            () => toast.success(t("code.copied")),
+            () => toast.error(t("code.copyFailed")),
           )
         }
       >

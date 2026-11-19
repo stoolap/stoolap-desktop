@@ -9,6 +9,7 @@ import {
   confirm,
 } from "@tauri-apps/plugin-dialog";
 import { getVersion as tauriGetVersion } from "@tauri-apps/api/app";
+import i18n from "./i18n";
 
 // --- Dialogs ---
 
@@ -16,7 +17,7 @@ export async function showOpenDialog(): Promise<string | null> {
   const selected = await open({
     multiple: false,
     directory: true,
-    title: "Open Stoolap Database",
+    title: i18n.t("common:native.openDatabase"),
   });
   return typeof selected === "string" ? selected : null;
 }
@@ -27,8 +28,8 @@ export async function showSaveDialog(
   const result = await save({
     defaultPath: defaultName,
     filters: [
-      { name: "SQL Files", extensions: ["sql"] },
-      { name: "All Files", extensions: ["*"] },
+      { name: i18n.t("common:fileTypes.sql"), extensions: ["sql"] },
+      { name: i18n.t("common:fileTypes.all"), extensions: ["*"] },
     ],
   });
   return result ?? null;
@@ -47,8 +48,8 @@ export async function showConfirmDialog(options: {
       : options.message,
     {
       title: options.title,
-      okLabel: options.confirmLabel || "OK",
-      cancelLabel: "Cancel",
+      okLabel: options.confirmLabel || i18n.t("common:native.ok"),
+      cancelLabel: i18n.t("common:native.cancel"),
       kind: options.destructive ? "warning" : "info",
     },
   );
@@ -207,6 +208,10 @@ export function onMenuToggleSidebar(callback: () => void): () => void {
 
 export function onMenuToggleAgent(callback: () => void): () => void {
   return onEvent("menu:toggle-agent", callback);
+}
+
+export function onMenuSettings(callback: () => void): () => void {
+  return onEvent("menu:settings", callback);
 }
 
 export function onMenuAbout(callback: () => void): () => void {

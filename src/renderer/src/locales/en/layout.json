@@ -1,0 +1,35 @@
+{
+  "appShell": {
+    "hideSidebar": "Hide sidebar",
+    "showSidebar": "Show sidebar"
+  },
+  "statusBar": {
+    "inMemory": "In-Memory",
+    "noConnection": "No connection"
+  },
+  "dataTab": {
+    "unavailable": "Table \"{{table}}\" is no longer available: {{error}}",
+    "loading": "Loading table schema..."
+  },
+  "agentToggle": {
+    "title": "Agent",
+    "hide": "Hide agent",
+    "show": "Show agent"
+  },
+  "welcome": {
+    "intro": "Open a database, or drop its folder onto this window.",
+    "openDatabase": "Open Database…",
+    "newMemory": "New In-Memory Database",
+    "loadExample": "Load Example Database",
+    "recent": "Recent",
+    "opening": "Opening…",
+    "openFailed": "Could not open {{name}}"
+  },
+  "toolbar": {
+    "examplesTab": "Examples",
+    "loadExampleFailed": "Failed to load example",
+    "openFailed": "Could not open {{name}}",
+    "createFailed": "Failed to create database",
+    "dropHint": "Drop a database folder or a .sql file to open it"
+  }
+}

@@ -11,6 +11,7 @@ import {
   type ColumnResizeMode,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useTranslation } from "react-i18next";
 import {
   ArrowUp,
   ArrowDown,
@@ -51,6 +52,7 @@ interface DataGridProps {
 }
 
 function VectorHeatmap({ values }: { values: number[] }) {
+  const { t } = useTranslation("editor");
   let min = Infinity,
     max = -Infinity;
   for (const v of values) {
@@ -62,9 +64,9 @@ function VectorHeatmap({ values }: { values: number[] }) {
   return (
     <div className="space-y-0.5">
       <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-        <span>{values.length} dimensions</span>
+        <span>{t("grid.dimensions", { count: values.length })}</span>
         <span>
-          Range: [{min.toFixed(3)}, {max.toFixed(3)}]
+          {t("grid.range", { min: min.toFixed(3), max: max.toFixed(3) })}
         </span>
       </div>
       {values.map((val, i) => {
@@ -108,6 +110,7 @@ export function DataGrid({
   serverSort,
   onServerSort,
 }: DataGridProps) {
+  const { t } = useTranslation("editor");
   const mod = useModKey();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -304,11 +307,11 @@ export function DataGrid({
   const handleCopyCellValue = useCallback((value: string) => {
     try {
       navigator.clipboard.writeText(value);
-      toast.success("Cell value copied");
+      toast.success(t("grid.cellCopied"));
     } catch {
-      toast.error("Failed to copy to clipboard");
+      toast.error(t("grid.copyFailed"));
     }
-  }, []);
+  }, [t]);
 
   // Stable column defs with resizing
   const columnDefs = useMemo<ColumnDef<unknown[]>[]>(
@@ -333,7 +336,7 @@ export function DataGrid({
                 className="flex items-center gap-1 truncate font-data text-blue-500 hover:text-blue-600 hover:underline cursor-pointer"
                 data-row={tableRow.index}
                 data-col={i}
-                title={`Go to ${fk.referencedTable}.${fk.referencedColumn} = ${display}`}
+                title={t("grid.goTo", { table: fk.referencedTable, column: fk.referencedColumn, value: display })}
                 onClick={() =>
                   onNavigateToFK(fk.referencedTable, fk.referencedColumn, value)
                 }
@@ -368,7 +371,7 @@ export function DataGrid({
                 className="flex items-center gap-1.5 font-data tabular-nums text-right"
                 data-row={tableRow.index}
                 data-col={i}
-                title={`Distance: ${value.toFixed(6)}`}
+                title={t("grid.distance", { value: value.toFixed(6) })}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   handleCopyCellValue(String(value));
@@ -426,11 +429,11 @@ export function DataGrid({
                     id: string;
                     label: string;
                     type?: "separator" | "normal";
-                  }> = [{ id: "copy", label: "Copy Value" }];
+                  }> = [{ id: "copy", label: t("grid.copyValue") }];
                   if (onFindSimilar && value !== null) {
                     menuItems.push({
                       id: "findSimilar",
-                      label: "Find Similar",
+                      label: t("grid.findSimilar"),
                     });
                   }
                   menuItems.push({
@@ -438,7 +441,7 @@ export function DataGrid({
                     label: "",
                     type: "separator",
                   });
-                  menuItems.push({ id: "expand", label: "Expand" });
+                  menuItems.push({ id: "expand", label: t("grid.expand") });
 
                   const selected =
                     await native.showContextMenu(menuItems);
@@ -523,6 +526,7 @@ export function DataGrid({
       onNavigateToFK,
       vectorColSet,
       distanceRanges,
+      t,
     ],
   );
 
@@ -576,16 +580,16 @@ export function DataGrid({
       .join("\n");
     try {
       navigator.clipboard.writeText(`${header}\n${body}`);
-      toast.success(`Copied ${visibleRows.length} rows`);
+      toast.success(t("grid.rowsCopied", { count: visibleRows.length }));
     } catch {
-      toast.error("Failed to copy to clipboard");
+      toast.error(t("grid.copyFailed"));
     }
-  }, [columns, tableRows]);
+  }, [columns, tableRows, t]);
 
   if (columns.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
-        No columns to display
+        {t("grid.noColumns")}
       </div>
     );
   }
@@ -605,7 +609,7 @@ export function DataGrid({
           <input
             ref={searchInputRef}
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
-            placeholder="Search in results..."
+            placeholder={t("grid.searchPlaceholder")}
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
             onKeyDown={(e) => {
@@ -626,7 +630,7 @@ export function DataGrid({
               setSearchOpen(false);
               setGlobalFilter("");
             }}
-            aria-label="Close search"
+            aria-label={t("grid.closeSearch")}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -782,8 +786,8 @@ export function DataGrid({
                           <button
                             className="opacity-0 group-hover/row:opacity-100 text-destructive/60 hover:text-destructive transition-opacity"
                             onClick={() => onDeleteRow(row.index)}
-                            title="Delete row"
-                            aria-label="Delete row"
+                            title={t("grid.deleteRow")}
+                            aria-label={t("grid.deleteRow")}
                           >
                             <Trash2 className="h-3.5 w-3.5 mx-auto" />
                           </button>
@@ -846,8 +850,8 @@ export function DataGrid({
       <div className="flex items-center gap-3 px-3 py-1 border-t panel-toolbar text-xs text-muted-foreground shrink-0">
         <span className="tabular-nums">
           {globalFilter
-            ? `${tableRows.length} of ${rows.length} row${rows.length !== 1 ? "s" : ""}`
-            : `${rows.length} row${rows.length !== 1 ? "s" : ""}`}
+            ? t("grid.filteredRows", { shown: tableRows.length, count: rows.length })
+            : t("grid.rows", { count: rows.length })}
         </span>
         <div className="flex-1" />
         <button
@@ -856,18 +860,18 @@ export function DataGrid({
             setSearchOpen(true);
             requestAnimationFrame(() => searchInputRef.current?.focus());
           }}
-          title={`Search (${mod}+F)`}
+          title={t("grid.searchTitle", { mod })}
         >
           <Search className="h-3 w-3" />
-          Search
+          {t("grid.search")}
         </button>
         <button
           className="flex items-center gap-1 hover:text-foreground transition-colors"
           onClick={handleCopy}
-          title={`Copy${globalFilter ? " visible" : ""} rows as TSV (${mod}+C)`}
+          title={t(globalFilter ? "grid.copyVisibleRowsTitle" : "grid.copyRowsTitle", { mod })}
         >
           <Copy className="h-3 w-3" />
-          Copy
+          {t("grid.copy")}
         </button>
       </div>
 
@@ -881,7 +885,7 @@ export function DataGrid({
               className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
               role="dialog"
               aria-modal="true"
-              aria-label={`Expanded cell: ${columns[expandedCell.col]}`}
+              aria-label={t("grid.expandedCell", { column: columns[expandedCell.col] })}
               onClick={() => setExpandedCell(null)}
               onKeyDown={(e) => {
                 if (e.key === "Escape") setExpandedCell(null);
@@ -921,7 +925,7 @@ export function DataGrid({
                         }}
                       >
                         <Waypoints className="h-3 w-3" />
-                        Find Similar
+                        {t("grid.findSimilar")}
                       </button>
                     )}
                     <button
@@ -929,7 +933,7 @@ export function DataGrid({
                       onClick={() => handleCopyCellValue(expandedCell.value)}
                     >
                       <Copy className="h-3 w-3" />
-                      Copy
+                      {t("grid.copy")}
                     </button>
                   </div>
                 </div>
@@ -945,7 +949,7 @@ export function DataGrid({
                       )}
                       onClick={() => setHeatmapView(true)}
                     >
-                      Heatmap
+                      {t("grid.heatmap")}
                     </button>
                     <button
                       className={cn(
@@ -956,7 +960,7 @@ export function DataGrid({
                       )}
                       onClick={() => setHeatmapView(false)}
                     >
-                      Text
+                      {t("grid.text")}
                     </button>
                   </div>
                 )}

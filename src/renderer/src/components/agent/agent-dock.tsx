@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import * as agent from "@/lib/agent";
 import * as native from "@/lib/native";
 import { applyDraft, applyWrite } from "@/lib/agent-edits";
@@ -13,6 +14,7 @@ const MAX_WIDTH = 720;
  * request keeps streaming into its conversation.
  */
 export function AgentDock() {
+  const { t } = useTranslation("agent");
   const open = useAgentStore((s) => s.open);
   const width = useAgentStore((s) => s.width);
   const [resizing, setResizing] = useState(false);
@@ -54,7 +56,7 @@ export function AgentDock() {
       <div
         role="separator"
         aria-orientation="vertical"
-        aria-label="Resize agent"
+        aria-label={t("dock.resize")}
         className="w-px shrink-0 cursor-col-resize bg-border/40 hover:w-0.5 hover:bg-primary/30 active:bg-primary/50"
         onMouseDown={() => setResizing(true)}
       />

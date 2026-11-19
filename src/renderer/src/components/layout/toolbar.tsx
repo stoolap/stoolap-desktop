@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { errorMessage, basename } from "@/lib/utils";
 import { useConnection } from "@/hooks/use-connection";
 import { useEditorStore } from "@/stores/editor-store";
@@ -10,6 +11,7 @@ import { ShortcutsHelpDialog } from "@/components/dialogs/shortcuts-help";
 import { BackupDialog } from "@/components/dialogs/backup-dialog";
 import { RestoreDialog } from "@/components/dialogs/restore-dialog";
 import { AboutDialog } from "@/components/dialogs/about-dialog";
+import { SettingsDialog } from "@/components/dialogs/settings-dialog";
 import { UpdateDialog } from "@/components/dialogs/update-dialog";
 import { toast } from "sonner";
 import * as api from "@/lib/api-client";
@@ -138,11 +140,13 @@ CREATE INDEX idx_kb_author ON knowledge_base(author);`;
  * It manages dialogs and event listeners.
  */
 export function Toolbar() {
+  const { t } = useTranslation("layout");
   const [connectOpen, setConnectOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
   const { connections, activeId, setActiveId, connect } = useConnection();
   const addTab = useEditorStore((s) => s.addTab);
@@ -174,6 +178,7 @@ export function Toolbar() {
       native.onMenuLoadExample(() => loadExampleRef.current()),
       native.onMenuBackup(() => setBackupOpen(true)),
       native.onMenuRestore(() => setRestoreOpen(true)),
+      native.onMenuSettings(() => setSettingsOpen(true)),
       native.onMenuAbout(() => setAboutOpen(true)),
       native.onMenuCheckUpdates(() => setUpdateOpen(true)),
     ];
@@ -278,15 +283,15 @@ LIMIT 5;`;
       // One Examples tab, not saved across launches (the example database
       // itself is closed at every start)
       const editor = useEditorStore.getState();
-      const existing = editor.tabs.find((t) => t.transient && t.title === "Examples");
+      const existing = editor.tabs.find((tab) => tab.transient && tab.title === t("toolbar.examplesTab"));
       if (existing) {
         editor.updateTabSql(existing.id, sampleQuery);
         setActiveTab(existing.id);
       } else {
-        setActiveTab(addTab("Examples", sampleQuery, { transient: true }));
+        setActiveTab(addTab(t("toolbar.examplesTab"), sampleQuery, { transient: true }));
       }
     } catch (e) {
-      toast.error("Failed to load example", {
+      toast.error(t("toolbar.loadExampleFailed"), {
         description: errorMessage(e),
       });
     }
@@ -309,7 +314,7 @@ LIMIT 5;`;
         }
         await connect(path, basename(path));
       } catch (e) {
-        toast.error(`Could not open ${basename(path)}`, {
+        toast.error(t("toolbar.openFailed", { name: basename(path) }), {
           description: errorMessage(e),
         });
       }
@@ -320,7 +325,7 @@ LIMIT 5;`;
     try {
       await connect(":memory:");
     } catch (e) {
-      toast.error("Failed to create database", { description: errorMessage(e) });
+      toast.error(t("toolbar.createFailed"), { description: errorMessage(e) });
     }
   };
 
@@ -339,7 +344,7 @@ LIMIT 5;`;
         <div className="pointer-events-none fixed inset-2 z-50 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-primary/10 backdrop-blur-[1px]">
           <div className="flex items-center gap-2 rounded-lg bg-background/90 px-4 py-2 text-sm shadow-lg">
             <FolderOpen className="h-4 w-4 text-primary" />
-            Drop a database folder or a .sql file to open it
+            {t("toolbar.dropHint")}
           </div>
         </div>
       )}
@@ -347,6 +352,7 @@ LIMIT 5;`;
       <ShortcutsHelpDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <BackupDialog open={backupOpen} onOpenChange={setBackupOpen} />
       <RestoreDialog open={restoreOpen} onOpenChange={setRestoreOpen} />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
       <UpdateDialog open={updateOpen} onOpenChange={setUpdateOpen} />
     </>

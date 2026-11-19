@@ -1,0 +1,35 @@
+{
+  "appShell": {
+    "hideSidebar": "사이드바 가리기",
+    "showSidebar": "사이드바 보기"
+  },
+  "statusBar": {
+    "inMemory": "인메모리",
+    "noConnection": "연결 없음"
+  },
+  "dataTab": {
+    "unavailable": "테이블 \"{{table}}\"을(를) 더 이상 사용할 수 없습니다: {{error}}",
+    "loading": "테이블 스키마를 불러오는 중..."
+  },
+  "agentToggle": {
+    "title": "에이전트",
+    "hide": "에이전트 가리기",
+    "show": "에이전트 보기"
+  },
+  "welcome": {
+    "intro": "데이터베이스를 열거나 해당 폴더를 이 윈도우에 놓으십시오.",
+    "openDatabase": "데이터베이스 열기…",
+    "newMemory": "새 인메모리 데이터베이스",
+    "loadExample": "예제 데이터베이스 불러오기",
+    "recent": "최근 항목",
+    "opening": "여는 중…",
+    "openFailed": "{{name}}을(를) 열 수 없습니다"
+  },
+  "toolbar": {
+    "examplesTab": "예제",
+    "loadExampleFailed": "예제를 불러오지 못했습니다",
+    "openFailed": "{{name}}을(를) 열 수 없습니다",
+    "createFailed": "데이터베이스를 생성하지 못했습니다",
+    "dropHint": "데이터베이스 폴더나 .sql 파일을 놓아서 엽니다"
+  }
+}

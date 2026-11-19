@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
+import { initI18n } from "@/lib/i18n";
 import "./globals.css";
 
 // Platform detection for platform-specific CSS (vibrancy, etc.)
@@ -61,8 +61,15 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", app
 // Listen for system accent color changes
 onAccentColorChanged(applyAccentColor);
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
+// The app loads once the translations have, so its stores and first frame
+// are already in the user's language
+initI18n()
+  .catch(() => {})
+  .then(() => import("./App"))
+  .then(({ default: App }) =>
+    ReactDOM.createRoot(document.getElementById("root")!).render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>,
+    ),
+  );

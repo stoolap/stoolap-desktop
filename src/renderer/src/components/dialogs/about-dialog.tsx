@@ -1,6 +1,7 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { Check, Copy, FileText, Github, Globe } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -61,6 +62,7 @@ export function AboutDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useTranslation("dialogs");
   const [version, setVersion] = useState("");
   const [engine, setEngine] = useState("");
   const [copied, setCopied] = useState(false);
@@ -77,7 +79,7 @@ export function AboutDialog({
   const copyVersions = () =>
     navigator.clipboard.writeText(`Stoolap Desktop ${version}\n${engine}`).then(
       () => setCopied(true),
-      () => toast.error("Could not copy"),
+      () => toast.error(t("about.copyFailed")),
     );
 
   return (
@@ -95,13 +97,13 @@ export function AboutDialog({
           />
           <DialogTitle className="mt-3 text-base">Stoolap Desktop</DialogTitle>
           <DialogDescription className="mt-0.5 text-xs">
-            Native database management for Stoolap
+            {t("about.tagline")}
           </DialogDescription>
         </div>
 
         <div className="mx-5 rounded-md border bg-muted/30 py-1 text-xs">
-          <Row label="Version">{version}</Row>
-          <Row label="Engine">
+          <Row label={t("about.version")}>{version}</Row>
+          <Row label={t("about.engine")}>
             {engine && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -111,23 +113,23 @@ export function AboutDialog({
               </Tooltip>
             )}
           </Row>
-          <Row label="Built with" mono={false}>Tauri 2</Row>
+          <Row label={t("about.builtWith")} mono={false}>Tauri 2</Row>
           <button
             type="button"
             onClick={copyVersions}
             className="mt-1 flex w-full items-center justify-center gap-1 border-t px-3 pt-2 pb-1 text-muted-foreground transition-colors hover:text-foreground"
           >
             {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-            {copied ? "Copied" : "Copy versions"}
+            {copied ? t("about.copied") : t("about.copyVersions")}
           </button>
         </div>
 
         <div className="mx-5 mt-3 flex gap-1">
-          <LinkButton icon={<Globe className="h-3.5 w-3.5" />} label="Website" url="https://stoolap.io" />
+          <LinkButton icon={<Globe className="h-3.5 w-3.5" />} label={t("about.website")} url="https://stoolap.io" />
           <LinkButton icon={<Github className="h-3.5 w-3.5" />} label="GitHub" url={REPO} />
           <LinkButton
             icon={<FileText className="h-3.5 w-3.5" />}
-            label="Changelog"
+            label={t("about.changelog")}
             url={version ? `${REPO}/releases/tag/v${version}` : `${REPO}/releases`}
           />
         </div>

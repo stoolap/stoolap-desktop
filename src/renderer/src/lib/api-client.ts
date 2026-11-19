@@ -11,6 +11,7 @@ import type {
   ForeignKeyInfo,
   FilterCondition,
 } from "./types";
+import i18n from "./i18n";
 
 // Connections
 export async function openConnection(
@@ -52,12 +53,12 @@ export async function executeQuery(
     }));
 
   if (!signal) return invokePromise;
-  if (signal.aborted) return { error: "Query cancelled" };
+  if (signal.aborted) return { error: i18n.t("common:errors.queryCancelled") };
 
   const abortPromise = new Promise<ErrorResult>((resolve) => {
     signal.addEventListener(
       "abort",
-      () => resolve({ error: "Query cancelled" }),
+      () => resolve({ error: i18n.t("common:errors.queryCancelled") }),
       { once: true },
     );
   });
