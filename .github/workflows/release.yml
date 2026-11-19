@@ -87,6 +87,8 @@ jobs:
             echo 'body<<RELEASE_NOTE_EOF'
             echo "$notes"
             echo 'RELEASE_NOTE_EOF'
+            # The bundles are named with the version, without the tag's "v"
+            echo "version=${GITHUB_REF_NAME#v}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Build, sign, and publish
@@ -120,12 +122,12 @@ jobs:
 
             | Platform | File | Notes |
             |----------|------|-------|
-            | **macOS — Apple Silicon** (M1/M2/M3/M4) | `Stoolap.Desktop_${{ github.ref_name }}_aarch64.dmg` | Recommended for all Apple Silicon Macs |
-            | **macOS — Intel** | `Stoolap.Desktop_${{ github.ref_name }}_x64.dmg` | For Intel-based Macs (pre-2020) |
-            | **Windows 10 / 11** | `Stoolap.Desktop_${{ github.ref_name }}_x64-setup.exe` | Recommended. Or `_x64_en-US.msi` for admin deployment |
-            | **Linux — Debian / Ubuntu** | `Stoolap.Desktop_${{ github.ref_name }}_amd64.deb` | `sudo dpkg -i <file>` |
-            | **Linux — Fedora / RHEL** | `Stoolap.Desktop-${{ github.ref_name }}-1.x86_64.rpm` | `sudo rpm -i <file>` |
-            | **Linux — any distro** | `Stoolap.Desktop_${{ github.ref_name }}_amd64.AppImage` | Portable; `chmod +x` then run |
+            | **macOS — Apple Silicon** (M1/M2/M3/M4) | `Stoolap.Desktop_${{ steps.notes.outputs.version }}_aarch64.dmg` | Recommended for all Apple Silicon Macs |
+            | **macOS — Intel** | `Stoolap.Desktop_${{ steps.notes.outputs.version }}_x64.dmg` | For Intel-based Macs (pre-2020) |
+            | **Windows 10 / 11** | `Stoolap.Desktop_${{ steps.notes.outputs.version }}_x64-setup.exe` | Recommended. Or `_x64_en-US.msi` for admin deployment |
+            | **Linux — Debian / Ubuntu** | `Stoolap.Desktop_${{ steps.notes.outputs.version }}_amd64.deb` | `sudo dpkg -i <file>` |
+            | **Linux — Fedora / RHEL** | `Stoolap.Desktop-${{ steps.notes.outputs.version }}-1.x86_64.rpm` | `sudo rpm -i <file>` |
+            | **Linux — any distro** | `Stoolap.Desktop_${{ steps.notes.outputs.version }}_amd64.AppImage` | Portable; `chmod +x` then run |
 
             ### Not sure which Mac you have?
             Click the Apple menu → **About This Mac**. *Apple M1/M2/M3/M4* → use `aarch64`. *Intel* → use `x64`.
