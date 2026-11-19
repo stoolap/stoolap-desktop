@@ -45,7 +45,7 @@ export function QueryTimeoutSelect() {
         </SelectGroup>
         <SelectSeparator />
         <p className="px-2 py-1.5 text-[11px] leading-snug text-muted-foreground">
-          Applies to every query, including the assistant&apos;s. A stopped query reports a timeout error.
+          Applies to every query, including the agent&apos;s. A stopped query reports a timeout error.
         </p>
       </SelectContent>
     </Select>

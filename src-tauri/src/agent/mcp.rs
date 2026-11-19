@@ -1,8 +1,8 @@
 //! A local MCP server (streamable HTTP, JSON responses) that gives Claude
-//! Code the assistant's tools. It listens on 127.0.0.1 only, and each
+//! Code the agent's tools. It listens on 127.0.0.1 only, and each
 //! conversation gets its own unguessable path, which is the only way in.
 
-use super::{tools, AssistantState};
+use super::{tools, AgentState};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager};
 
@@ -11,9 +11,9 @@ use tauri::{AppHandle, Manager};
 pub struct McpSession {
     pub conversation_id: String,
     pub conn_id: String,
-    /// The user lets the assistant run SQL that can change data
+    /// The user lets the agent run SQL that can change data
     pub allow_writes: bool,
-    /// The tab the assistant writes into
+    /// The tab the agent writes into
     pub tab_id: String,
     pub tab_title: String,
 }
@@ -22,7 +22,7 @@ pub const SERVER_NAME: &str = "stoolap";
 
 /// Start the server once; returns its port.
 pub fn ensure_started(app: &AppHandle) -> Result<u16, String> {
-    let state = app.state::<AssistantState>();
+    let state = app.state::<AgentState>();
     let mut port = state.mcp_port.lock().map_err(|e| e.to_string())?;
     if let Some(p) = *port {
         return Ok(p);
@@ -60,7 +60,7 @@ fn respond(request: tiny_http::Request, status: u16, body: Option<Value>) {
 fn handle(app: &AppHandle, mut request: tiny_http::Request) {
     let token = request.url().strip_prefix("/mcp/").unwrap_or("").to_string();
     let session = app
-        .state::<AssistantState>()
+        .state::<AgentState>()
         .mcp_sessions
         .lock()
         .ok()
@@ -80,7 +80,7 @@ fn handle(app: &AppHandle, mut request: tiny_http::Request) {
         return respond(request, 400, None);
     };
     eprintln!(
-        "[assistant] {}: mcp {} {}",
+        "[agent] {}: mcp {} {}",
         session.conversation_id,
         message["method"].as_str().unwrap_or("?"),
         message["params"]["name"].as_str().unwrap_or("")

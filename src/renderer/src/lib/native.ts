@@ -205,8 +205,8 @@ export function onMenuToggleSidebar(callback: () => void): () => void {
   return onEvent("menu:toggle-sidebar", callback);
 }
 
-export function onMenuToggleAssistant(callback: () => void): () => void {
-  return onEvent("menu:toggle-assistant", callback);
+export function onMenuToggleAgent(callback: () => void): () => void {
+  return onEvent("menu:toggle-agent", callback);
 }
 
 export function onMenuAbout(callback: () => void): () => void {

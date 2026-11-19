@@ -1,4 +1,4 @@
-/** Requests to offer in the assistant, from what is open right now. */
+/** Requests to offer in the agent, from what is open right now. */
 export function contextPrompts(tab: { sql: string; lastError?: string; hasSelection: boolean } | null, tables: string[]): string[] {
   const out: string[] = [];
   // SQL with only comments in it is not a query to ask about

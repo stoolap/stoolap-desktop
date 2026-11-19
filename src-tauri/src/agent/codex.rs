@@ -177,7 +177,7 @@ impl Server {
     async fn answer_other(&mut self, message: &Value, conversation_id: &str) -> Result<(), String> {
         let method = message["method"].as_str().unwrap_or("");
         let id = &message["id"];
-        eprintln!("[assistant] {conversation_id}: codex asked for {method}: declined");
+        eprintln!("[agent] {conversation_id}: codex asked for {method}: declined");
         match method {
             "item/commandExecution/requestApproval" | "item/fileChange/requestApproval" => {
                 self.respond(id, json!({"decision": "decline"})).await
@@ -254,7 +254,7 @@ pub async fn run(
         *session = None;
     }
     if session.is_none() {
-        eprintln!("[assistant] {conversation_id}: starting {} (model {})", args.codex.display(), args.model);
+        eprintln!("[agent] {conversation_id}: starting {} (model {})", args.codex.display(), args.model);
         let mut server = Server::start(args.codex, args.data_dir, args.workdir).await?;
         let started = server
             .request(
@@ -363,7 +363,7 @@ async fn run_turn(
                 // Anything but talking and our tools is worth a note in the log
                 let kind = params["item"]["type"].as_str().unwrap_or("");
                 if !matches!(kind, "agentMessage" | "reasoning" | "dynamicToolCall" | "userMessage") {
-                    eprintln!("[assistant] {conversation_id}: codex item {kind}");
+                    eprintln!("[agent] {conversation_id}: codex item {kind}");
                 }
             }
             "error" => {
@@ -397,7 +397,7 @@ async fn run_turn(
 /// Sign in with ChatGPT: Codex gives a URL to approve in the browser and
 /// listens for the approval on a local port. Resolves once approved.
 pub async fn login(codex: &Path, data_dir: &Path) -> Result<(), String> {
-    let mut server = Server::start(codex, data_dir, &data_dir.join("assistant")).await?;
+    let mut server = Server::start(codex, data_dir, &data_dir.join("agent")).await?;
     let started = server.request("account/login/start", json!({"type": "chatgpt"})).await?;
     let url = started["authUrl"].as_str().ok_or("Codex gave no sign-in address")?;
     open_in_browser(url)?;
@@ -420,13 +420,13 @@ pub async fn login(codex: &Path, data_dir: &Path) -> Result<(), String> {
 }
 
 pub async fn logout(codex: &Path, data_dir: &Path) -> Result<(), String> {
-    let mut server = Server::start(codex, data_dir, &data_dir.join("assistant")).await?;
+    let mut server = Server::start(codex, data_dir, &data_dir.join("agent")).await?;
     server.request("account/logout", Value::Null).await.map(|_| ())
 }
 
 /// The models the signed-in account can use: (id, display name)
 pub async fn models(codex: &Path, data_dir: &Path) -> Result<Vec<(String, String)>, String> {
-    let mut server = Server::start(codex, data_dir, &data_dir.join("assistant")).await?;
+    let mut server = Server::start(codex, data_dir, &data_dir.join("agent")).await?;
     let list = server.request("model/list", json!({})).await?;
     Ok(parse_models(&list))
 }

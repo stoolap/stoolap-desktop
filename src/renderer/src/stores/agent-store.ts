@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AssistantEvent, Backend } from "@/lib/assistant";
+import type { AgentEvent, Backend } from "@/lib/agent";
 
-export type AssistantItem =
+export type AgentItem =
   | { id: number; kind: "user"; text: string }
   | { id: number; kind: "text"; text: string }
   | { id: number; kind: "thinking"; text: string }
@@ -24,7 +24,7 @@ export type AssistantItem =
   | { id: number; kind: "note"; text: string };
 
 export interface Conversation {
-  items: AssistantItem[];
+  items: AgentItem[];
   running: boolean;
   /** The conversation's own editor tab, in "new tab" mode */
   tabId?: string;
@@ -41,9 +41,9 @@ const EMPTY: Conversation = { items: [], running: false, dbKey: "", title: "", u
 const MAX_CONVERSATIONS = 50;
 const MAX_PROMPTS = 100;
 
-export type NewProposal = Omit<Extract<AssistantItem, { kind: "proposal" }>, "id">;
+export type NewProposal = Omit<Extract<AgentItem, { kind: "proposal" }>, "id">;
 
-interface AssistantState {
+interface AgentState {
   open: boolean;
   width: number;
   /** Claude model */
@@ -52,9 +52,9 @@ interface AssistantState {
   openaiModel: string;
   /** Chosen backend; null picks Claude Code when it is installed */
   backend: Backend | null;
-  /** Databases (path, or id for in-memory) where the assistant may run SQL that changes data */
+  /** Databases (path, or id for in-memory) where the agent may run SQL that changes data */
   writeAccess: Record<string, boolean>;
-  /** Write into a tab of the assistant's own, or the tab the user is on */
+  /** Write into a tab of the agent's own, or the tab the user is on */
   target: "new" | "current";
   conversations: Record<string, Conversation>;
   /** Database -> the conversation the panel shows for it */
@@ -82,7 +82,7 @@ interface AssistantState {
   rememberPrompt: (text: string) => void;
   startRequest: (id: string, text: string) => void;
   failRequest: (id: string, message: string) => void;
-  handleEvent: (id: string, event: AssistantEvent) => void;
+  handleEvent: (id: string, event: AgentEvent) => void;
   /** Returns the new item's id */
   addProposal: (id: string, proposal: NewProposal) => number;
   setApplied: (id: string, itemId: number, applied: boolean) => void;
@@ -94,10 +94,10 @@ interface AssistantState {
 let nextId = Date.now();
 
 function update(
-  s: AssistantState,
+  s: AgentState,
   id: string,
   fn: (c: Conversation) => Conversation,
-): Partial<AssistantState> {
+): Partial<AgentState> {
   const c = s.conversations[id];
   // A deleted conversation stays deleted, even if its request still reports
   if (!c) return {};
@@ -105,7 +105,7 @@ function update(
 }
 
 /** Append streamed text to the last item of the same kind, or start one. */
-function appendStreamed(items: AssistantItem[], kind: "text" | "thinking", delta: string) {
+function appendStreamed(items: AgentItem[], kind: "text" | "thinking", delta: string) {
   const last = items[items.length - 1];
   if (last && last.kind === kind) {
     return [...items.slice(0, -1), { ...last, text: last.text + delta }];
@@ -135,7 +135,7 @@ function keptConversations(all: Record<string, Conversation>): Record<string, Co
   );
 }
 
-export const useAssistantStore = create<AssistantState>()(
+export const useAgentStore = create<AgentState>()(
   persist(
     (set, get) => ({
       open: false,
@@ -227,7 +227,7 @@ export const useAssistantStore = create<AssistantState>()(
                 };
               case "draft":
               case "write":
-                // Handled in the editor by AssistantDock (lib/assistant-edits.ts)
+                // Handled in the editor by AgentDock (lib/agent-edits.ts)
                 return c;
               case "done":
                 return { ...c, running: false, updatedAt: Date.now() };
@@ -276,13 +276,14 @@ export const useAssistantStore = create<AssistantState>()(
         ),
     }),
     {
+      // Named when it was "the assistant"; renaming it would lose saved chats
       name: "stoolap-assistant",
       // Conversations used to be per connection and not kept: start fresh
       version: 1,
       migrate: (persisted) => {
         const p = (persisted ?? {}) as Record<string, unknown>;
         delete p.conversations;
-        return p as unknown as AssistantState;
+        return p as unknown as AgentState;
       },
       partialize: (s) => ({
         conversations: keptConversations(s.conversations),

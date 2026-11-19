@@ -1,4 +1,4 @@
-//! The assistant's tools. The reading ones run here; `write_query` is
+//! The agent's tools. The reading ones run here; `write_query` is
 //! carried out by the renderer in the user's editor tab (see mod.rs), and
 //! [format_run] turns what that run returned into the model's tool result.
 
@@ -389,9 +389,9 @@ mod tests {
     #[test]
     fn describes_runs_for_the_model() {
         let rows = json!({"ran": true, "columns": ["name"], "rows": [["Alice"], ["Bob"]], "rowCount": 2});
-        let out = format_run(&rows, "Assistant");
+        let out = format_run(&rows, "Agent");
         assert!(out.content.contains("Alice") && out.content.contains("2 rows"));
-        assert_eq!(out.summary, "Ran it in Assistant (2 rows)");
+        assert_eq!(out.summary, "Ran it in Agent (2 rows)");
 
         let script = json!({"ran": true, "statements": [{"changes": 3}, {"ddl": "CREATE INDEX"}, {"columns": ["n"], "rows": [[3]], "rowCount": 1}]});
         let out = format_run(&script, "Q");

@@ -4,7 +4,7 @@
 // #[allow] attribute doesn't cross macro-expansion boundaries.
 #![allow(unexpected_cfgs)]
 
-mod assistant;
+mod agent;
 mod commands;
 mod db;
 mod sql_utils;
@@ -34,7 +34,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(DbManager::new())
-        .manage(assistant::AssistantState::default())
+        .manage(agent::AgentState::default())
         .invoke_handler(tauri::generate_handler![
             // Connection
             commands::connection::db_open,
@@ -67,21 +67,21 @@ fn main() {
             commands::system::get_version,
             commands::system::get_stoolap_version,
             set_recent_databases,
-            // Assistant
-            assistant::assistant_models,
-            assistant::assistant_backends,
-            assistant::assistant_console_install,
-            assistant::assistant_console_login,
-            assistant::assistant_console_logout,
-            assistant::assistant_codex_login,
-            assistant::assistant_codex_logout,
-            assistant::assistant_open_link,
-            assistant::assistant_set_key,
-            assistant::assistant_delete_key,
-            assistant::assistant_send,
-            assistant::assistant_cancel,
-            assistant::assistant_reset,
-            assistant::assistant_write_result,
+            // Agent
+            agent::agent_models,
+            agent::agent_backends,
+            agent::agent_console_install,
+            agent::agent_console_login,
+            agent::agent_console_logout,
+            agent::agent_codex_login,
+            agent::agent_codex_logout,
+            agent::agent_open_link,
+            agent::agent_set_key,
+            agent::agent_delete_key,
+            agent::agent_send,
+            agent::agent_cancel,
+            agent::agent_reset,
+            agent::agent_write_result,
         ])
         .setup(|app| {
             // Build application menu
@@ -139,7 +139,7 @@ fn build_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let toggle_sidebar = MenuItemBuilder::with_id("toggle-sidebar", "Toggle Sidebar")
         .accelerator("CmdOrCtrl+B")
         .build(app_handle)?;
-    let toggle_assistant = MenuItemBuilder::with_id("toggle-assistant", "Toggle Assistant")
+    let toggle_agent = MenuItemBuilder::with_id("toggle-agent", "Toggle Agent")
         .accelerator("CmdOrCtrl+L")
         .build(app_handle)?;
 
@@ -172,7 +172,7 @@ fn build_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     let view_menu = SubmenuBuilder::new(app_handle, "View")
         .item(&toggle_sidebar)
-        .item(&toggle_assistant)
+        .item(&toggle_agent)
         .build()?;
 
     let window_menu = SubmenuBuilder::new(app_handle, "Window")
@@ -252,8 +252,8 @@ fn build_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                 "toggle-sidebar" => {
                     let _ = window.emit("menu:toggle-sidebar", ());
                 }
-                "toggle-assistant" => {
-                    let _ = window.emit("menu:toggle-assistant", ());
+                "toggle-agent" => {
+                    let _ = window.emit("menu:toggle-agent", ());
                 }
                 "about" => {
                     let _ = window.emit("menu:about", ());

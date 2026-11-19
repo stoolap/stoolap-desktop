@@ -1,4 +1,4 @@
-//! Runs the assistant through the user's local Claude Code (`claude -p`),
+//! Runs the agent through the user's local Claude Code (`claude -p`),
 //! signed in with their own account. Its built-in tools are turned off; the
 //! only tools it gets are ours, over the local MCP server.
 
@@ -138,7 +138,7 @@ pub async fn run(
         cmd.args(["--resume", id]);
     }
     eprintln!(
-        "[assistant] {conversation_id}: running {} (model {}, resume {:?})",
+        "[agent] {conversation_id}: running {} (model {}, resume {:?})",
         args.claude.display(),
         args.model,
         args.resume
@@ -186,7 +186,7 @@ pub async fn run(
         let Ok(msg) = serde_json::from_str::<Value>(&line) else { continue };
         let kind = msg["type"].as_str().unwrap_or("");
         if kind != "stream_event" {
-            eprintln!("[assistant] {conversation_id}: claude {kind} {}", msg["subtype"].as_str().unwrap_or(""));
+            eprintln!("[agent] {conversation_id}: claude {kind} {}", msg["subtype"].as_str().unwrap_or(""));
         }
         match kind {
             "system" if msg["subtype"] == "init" => {
@@ -245,7 +245,7 @@ pub async fn run(
     let status = child.wait().await.map_err(|e| e.to_string())?;
     let stderr = stderr_task.await.unwrap_or_default();
     if !stderr.trim().is_empty() {
-        eprintln!("[assistant] {conversation_id}: claude stderr: {}", stderr.trim());
+        eprintln!("[agent] {conversation_id}: claude stderr: {}", stderr.trim());
     }
     match outcome {
         Some(Ok(())) => Ok(session_id),

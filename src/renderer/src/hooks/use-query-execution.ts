@@ -3,22 +3,18 @@ import { errorMessage } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { queryTimeoutLabel, useSettingsStore } from "@/stores/settings-store";
-import { useQueryClient } from "@tanstack/react-query";
-import { splitStatements } from "@/lib/sql-utils";
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
+import { isSingleReadOnly } from "@/lib/sql-utils";
 import * as api from "@/lib/api-client";
 import * as native from "@/lib/native";
 import type { ApiResult, ScriptResult } from "@/lib/types";
 
-function isDDL(sql: string): boolean {
-  const upper = sql.trimStart().toUpperCase();
-  return (
-    upper.startsWith("CREATE") ||
-    upper.startsWith("DROP") ||
-    upper.startsWith("ALTER") ||
-    upper.startsWith("TRUNCATE")
-  );
+/** Reload the sidebar and open data tabs of the connection. */
+function refreshSchema(queryClient: QueryClient, connId: string) {
+  for (const key of ["tables", "views", "columns", "indexes", "fks", "rowcount", "ddl", "tableRows", "tableRowCount"]) {
+    queryClient.invalidateQueries({ queryKey: [key, connId] });
+  }
 }
-
 
 const NOTIFY_AFTER_MS = 10_000;
 
@@ -121,19 +117,6 @@ export function useQueryExecution() {
         }
         notifyIfLong(tabId, result, Date.now() - started);
 
-        // Refresh schema sidebar after DDL statements (scoped to active connection)
-        const statements = splitStatements(sql);
-        if (statements.some(isDDL)) {
-          queryClient.invalidateQueries({ queryKey: ["tables", activeId] });
-          queryClient.invalidateQueries({ queryKey: ["views", activeId] });
-          queryClient.invalidateQueries({ queryKey: ["columns", activeId] });
-          queryClient.invalidateQueries({ queryKey: ["indexes", activeId] });
-          queryClient.invalidateQueries({ queryKey: ["fks", activeId] });
-          queryClient.invalidateQueries({ queryKey: ["rowcount", activeId] });
-          queryClient.invalidateQueries({ queryKey: ["ddl", activeId] });
-          queryClient.invalidateQueries({ queryKey: ["tableRows", activeId] });
-          queryClient.invalidateQueries({ queryKey: ["tableRowCount", activeId] });
-        }
         return result;
       } catch (e) {
         if (controller.signal.aborted) return stopped(tabId, controller);
@@ -142,6 +125,9 @@ export function useQueryExecution() {
         return failed;
       } finally {
         endRun(tabId, controller);
+        // Anything but a plain read may have changed tables, views, indexes
+        // or rows, even when it failed partway through a script
+        if (!controller.signal.aborted && !isSingleReadOnly(sql)) refreshSchema(queryClient, activeId);
       }
     },
     [activeId, queryClient],

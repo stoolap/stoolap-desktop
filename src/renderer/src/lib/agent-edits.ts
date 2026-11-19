@@ -1,8 +1,8 @@
-import * as assistant from "@/lib/assistant";
-import type { StatementOutcome, WriteOutcome } from "@/lib/assistant";
+import * as agent from "@/lib/agent";
+import type { StatementOutcome, WriteOutcome } from "@/lib/agent";
 import { isSingleReadOnly } from "@/lib/sql-utils";
 import type { ApiResult, DdlResult, ExecResult, QueryResult, ScriptResult } from "@/lib/types";
-import { useAssistantStore } from "@/stores/assistant-store";
+import { useAgentStore } from "@/stores/agent-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useEditorStore } from "@/stores/editor-store";
 
@@ -39,7 +39,7 @@ function dispatchRun(tabId: string, sql: string, connId?: string): Promise<ApiRe
   });
 }
 
-/** How long the SQL shows before it runs, and the result before the assistant goes on */
+/** How long the SQL shows before it runs, and the result before the agent goes on */
 const READ_SQL_MS = 700;
 const SEE_RESULT_MS = 1500;
 
@@ -74,14 +74,14 @@ function blockedReason(
   w: { connId: string; sql: string; allowWrites: boolean },
   request: number,
 ): string | null {
-  const assistantState = useAssistantStore.getState();
-  const conversation = assistantState.conversations[conversationId];
+  const agentState = useAgentStore.getState();
+  const conversation = agentState.conversations[conversationId];
   const current = requestOf(conversationId);
   if (!conversation || current.stopped || current.n !== request) return "the user stopped the request";
   if (useConnectionStore.getState().activeId !== w.connId) {
     return "the user switched to another database; it is in the tab, not run";
   }
-  if (!isSingleReadOnly(w.sql) && !(w.allowWrites && assistantState.writeAccess[conversation.dbKey])) {
+  if (!isSingleReadOnly(w.sql) && !(w.allowWrites && agentState.writeAccess[conversation.dbKey])) {
     return "the user turned off Run writes; it waits in the tab for the user to run it";
   }
   return null;
@@ -89,7 +89,7 @@ function blockedReason(
 
 /** Requested tab -> the tab actually written to (a new one if it was closed) */
 const tabFor = new Map<string, string>();
-/** Requested tab -> its SQL before the assistant started writing, for Undo */
+/** Requested tab -> its SQL before the agent started writing, for Undo */
 const beforeWrite = new Map<string, string>();
 
 function resolveTab(tabId: string): string {
@@ -97,7 +97,7 @@ function resolveTab(tabId: string): string {
   const exists = (id: string) => editor.tabs.some((t) => t.id === id && t.mode === "query");
   const known = tabFor.get(tabId);
   if (known && exists(known)) return known;
-  const id = exists(tabId) ? tabId : editor.addTab("Assistant", "");
+  const id = exists(tabId) ? tabId : editor.addTab("Agent", "");
   tabFor.set(tabId, id);
   return id;
 }
@@ -129,7 +129,7 @@ function outcomeOf(result: ApiResult | ScriptResult | undefined): WriteOutcome {
 /**
  * write_query's complete SQL: write it into the tab, run it there when it
  * only reads (or the user allows writes), record it in the panel (with Undo),
- * and report the outcome to the assistant. Otherwise it waits for the user's
+ * and report the outcome to the agent. Otherwise it waits for the user's
  * Run.
  */
 export async function applyWrite(
@@ -147,7 +147,7 @@ export async function applyWrite(
 
   // Reads always run; anything else only with the user's permission
   const runs = isSingleReadOnly(w.sql) || w.allowWrites;
-  const itemId = useAssistantStore.getState().addProposal(conversationId, {
+  const itemId = useAgentStore.getState().addProposal(conversationId, {
     kind: "proposal",
     tabId: id,
     before,
@@ -161,7 +161,7 @@ export async function applyWrite(
   try {
     if (runs) {
       // Paced so the user can follow: read the SQL, then see its result,
-      // before the assistant moves on to its next step
+      // before the agent moves on to its next step
       await pause(READ_SQL_MS);
       useEditorStore.getState().setActiveTab(id);
       await nextFrame();
@@ -169,14 +169,14 @@ export async function applyWrite(
       const reason = blockedReason(conversationId, w, request);
       if (reason) {
         outcome = { ran: false, reason };
-        useAssistantStore.getState().setNotRun(conversationId, itemId);
+        useAgentStore.getState().setNotRun(conversationId, itemId);
       } else {
         outcome = outcomeOf(await dispatchRun(id, w.sql, w.connId));
         await pause(SEE_RESULT_MS);
       }
     }
   } finally {
-    // The assistant waits for this
-    assistant.writeResult(w.requestId, outcome).catch(() => {});
+    // The agent waits for this
+    agent.writeResult(w.requestId, outcome).catch(() => {});
   }
 }

@@ -78,7 +78,7 @@ export function splitStatements(sql: string): string[] {
 
 /**
  * True when `sql` is exactly one statement that only reads (SELECT, WITH ...
- * SELECT, SHOW, DESCRIBE, EXPLAIN without ANALYZE). The assistant's
+ * SELECT, SHOW, DESCRIBE, EXPLAIN without ANALYZE). The agent's
  * proposals run on their own only when this holds.
  */
 export function isSingleReadOnly(sql: string): boolean {

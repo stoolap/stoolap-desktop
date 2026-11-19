@@ -40,18 +40,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import * as assistant from "@/lib/assistant";
-import { isOpenAi, type AssistantModel, type Backend, type Backends, type KeyProvider } from "@/lib/assistant";
+import * as agent from "@/lib/agent";
+import { isOpenAi, type AgentModel, type Backend, type Backends, type KeyProvider } from "@/lib/agent";
 import { getEditorSelection } from "@/lib/editor-registry";
 import { foldUnchanged, lineDiff } from "@/lib/line-diff";
-import { runInTab, startWrites, stopWrites } from "@/lib/assistant-edits";
+import { runInTab, startWrites, stopWrites } from "@/lib/agent-edits";
 import { cn, errorMessage } from "@/lib/utils";
-import { useAssistantStore, type AssistantItem } from "@/stores/assistant-store";
+import { useAgentStore, type AgentItem } from "@/stores/agent-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { useModKey } from "@/hooks/use-mod-key";
 import { useEditorSchema } from "@/hooks/use-schema";
-import { contextPrompts } from "@/lib/assistant-prompts";
+import { contextPrompts } from "@/lib/agent-prompts";
 import { MessageText } from "./message-text";
 import { Composer, type ComposerHandle } from "./composer";
 
@@ -66,42 +66,42 @@ function ago(ms: number): string {
 }
 
 /** What was said so far, for a conversation the backend no longer holds */
-function transcript(items: AssistantItem[]): string {
+function transcript(items: AgentItem[]): string {
   const lines: string[] = [];
   for (const it of items) {
     if (it.kind === "user") lines.push(`User: ${it.text}`);
-    else if (it.kind === "text") lines.push(`Assistant: ${it.text}`);
-    else if (it.kind === "proposal") lines.push(`Assistant wrote into the tab:\n${it.sql}`);
+    else if (it.kind === "text") lines.push(`Agent: ${it.text}`);
+    else if (it.kind === "proposal") lines.push(`Agent wrote into the tab:\n${it.sql}`);
   }
   // The latest part is what matters; keep it to a reasonable size
   const text = lines.map((l) => (l.length > 2000 ? `${l.slice(0, 2000)}…` : l)).join("\n\n");
   return text.length > 12000 ? `…${text.slice(-12000)}` : text;
 }
 
-export function AssistantPanel() {
+export function AgentPanel() {
   const mod = useModKey();
-  const [models, setModels] = useState<AssistantModel[]>([]);
+  const [models, setModels] = useState<AgentModel[]>([]);
   const [info, setInfo] = useState<Backends | null>(null);
   const [editingKey, setEditingKey] = useState<KeyProvider | null>(null);
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<ComposerHandle>(null);
 
-  const setOpen = useAssistantStore((s) => s.setOpen);
-  const claudeModel = useAssistantStore((s) => s.model);
-  const setClaudeModel = useAssistantStore((s) => s.setModel);
-  const openaiModel = useAssistantStore((s) => s.openaiModel);
-  const setOpenaiModel = useAssistantStore((s) => s.setOpenaiModel);
-  const writeAccess = useAssistantStore((s) => s.writeAccess);
-  const setWriteAccess = useAssistantStore((s) => s.setWriteAccess);
-  const target = useAssistantStore((s) => s.target);
-  const setTarget = useAssistantStore((s) => s.setTarget);
-  const conversations = useAssistantStore((s) => s.conversations);
-  const activeChat = useAssistantStore((s) => s.activeChat);
-  const promptHistory = useAssistantStore((s) => s.promptHistory);
+  const setOpen = useAgentStore((s) => s.setOpen);
+  const claudeModel = useAgentStore((s) => s.model);
+  const setClaudeModel = useAgentStore((s) => s.setModel);
+  const openaiModel = useAgentStore((s) => s.openaiModel);
+  const setOpenaiModel = useAgentStore((s) => s.setOpenaiModel);
+  const writeAccess = useAgentStore((s) => s.writeAccess);
+  const setWriteAccess = useAgentStore((s) => s.setWriteAccess);
+  const target = useAgentStore((s) => s.target);
+  const setTarget = useAgentStore((s) => s.setTarget);
+  const conversations = useAgentStore((s) => s.conversations);
+  const activeChat = useAgentStore((s) => s.activeChat);
+  const promptHistory = useAgentStore((s) => s.promptHistory);
   const schema = useEditorSchema();
-  const chosenBackend = useAssistantStore((s) => s.backend);
-  const setBackend = useAssistantStore((s) => s.setBackend);
+  const chosenBackend = useAgentStore((s) => s.backend);
+  const setBackend = useAgentStore((s) => s.setBackend);
   // Unless the user picked one: Claude Code, else a browser sign-in, else
   // ChatGPT through Codex, else a key
   const backend: Backend =
@@ -164,7 +164,7 @@ export function AssistantPanel() {
   );
 
   const refreshBackends = () =>
-    assistant
+    agent
       .backends()
       .then(setInfo)
       .catch(() =>
@@ -181,7 +181,7 @@ export function AssistantPanel() {
     if (!ready) return;
     let stale = false;
     setModels([]);
-    assistant
+    agent
       .listModels(backend)
       .then((m) => !stale && setModels(m))
       .catch((e) => {
@@ -205,7 +205,7 @@ export function AssistantPanel() {
     if (!trimmed || !conn || !activeId || !accessKey || running || !model) return;
     const looking = activeTab?.mode === "query" ? activeTab : null;
     if (target === "current" && !looking) {
-      toast.error("Open a query tab for the assistant to work in, or let it use a new tab.");
+      toast.error("Open a query tab for the agent to work in, or let it use a new tab.");
       return;
     }
     const lastError =
@@ -213,11 +213,11 @@ export function AssistantPanel() {
         ? looking.result.error
         : undefined;
 
-    const store = useAssistantStore.getState();
+    const store = useAgentStore.getState();
     const id = chatId && store.conversations[chatId] ? chatId : store.newChat(accessKey);
     const earlier = transcript(store.conversations[id]?.items ?? []);
 
-    // Where the assistant writes: the tab the user is on, or the
+    // Where the agent writes: the tab the user is on, or the
     // conversation's own tab (made on first use), which comes to the front
     const editor = useEditorStore.getState();
     let targetTab = looking;
@@ -227,7 +227,7 @@ export function AssistantPanel() {
         targetTab = own;
         editor.setActiveTab(own.id);
       } else {
-        const tabId = editor.addTab("Assistant", "");
+        const tabId = editor.addTab("Agent", "");
         store.setConversationTab(id, tabId);
         targetTab = useEditorStore.getState().tabs.find((t) => t.id === tabId) ?? null;
       }
@@ -238,7 +238,7 @@ export function AssistantPanel() {
     store.rememberPrompt(trimmed);
     setDraft("");
     try {
-      await assistant.send({
+      await agent.send({
         conversationId: id,
         connId: activeId,
         connectionName: conn.name,
@@ -261,39 +261,39 @@ export function AssistantPanel() {
     }
   };
 
-  // Requests made elsewhere in the app (useAssistantStore().ask)
-  const pendingAsk = useAssistantStore((s) => s.pendingAsk);
+  // Requests made elsewhere in the app (useAgentStore().ask)
+  const pendingAsk = useAgentStore((s) => s.pendingAsk);
   const askRef = useRef(ask);
   askRef.current = ask;
   useEffect(() => {
     if (pendingAsk === null) return;
-    const text = useAssistantStore.getState().takePendingAsk();
+    const text = useAgentStore.getState().takePendingAsk();
     if (text) askRef.current(text);
   }, [pendingAsk]);
 
   /** Leave the shown conversation: the backend lets go of it unless it is still working */
   const leave = () => {
-    if (chatId && !running) assistant.reset(chatId).catch(() => {});
+    if (chatId && !running) agent.reset(chatId).catch(() => {});
   };
   const newChat = () => {
     if (!accessKey) return;
     if (items.length > 0) {
       leave();
-      useAssistantStore.getState().newChat(accessKey);
+      useAgentStore.getState().newChat(accessKey);
     }
     inputRef.current?.focus();
   };
   const openChat = (id: string) => {
     if (!accessKey || id === chatId) return;
     leave();
-    useAssistantStore.getState().openChat(accessKey, id);
+    useAgentStore.getState().openChat(accessKey, id);
   };
   const deleteChat = () => {
     if (!chatId) return;
     stopWrites(chatId);
-    assistant.cancel(chatId).catch(() => {});
-    assistant.reset(chatId).catch(() => {});
-    useAssistantStore.getState().deleteChat(chatId);
+    agent.cancel(chatId).catch(() => {});
+    agent.reset(chatId).catch(() => {});
+    useAgentStore.getState().deleteChat(chatId);
   };
 
   const signOut = async (logout: () => Promise<void>) => {
@@ -307,7 +307,7 @@ export function AssistantPanel() {
 
   const removeKey = async (provider: KeyProvider) => {
     try {
-      await assistant.deleteKey(provider);
+      await agent.deleteKey(provider);
       await refreshBackends();
     } catch (e) {
       toast.error("Could not remove the key", { description: errorMessage(e) });
@@ -319,7 +319,7 @@ export function AssistantPanel() {
       {/* Header */}
       <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border/40 pl-3 pr-1">
         <Sparkles className="h-3.5 w-3.5 text-primary" />
-        <span className="text-xs font-medium">Assistant</span>
+        <span className="text-xs font-medium">Agent</span>
         <div className="flex-1" />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -369,7 +369,7 @@ export function AssistantPanel() {
         </DropdownMenu>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Assistant settings">
+            <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Agent settings">
               <MoreHorizontal className="h-3.5 w-3.5" />
             </Button>
           </DropdownMenuTrigger>
@@ -411,16 +411,16 @@ export function AssistantPanel() {
               <DropdownMenuItem onSelect={() => removeKey("openai")}>Remove OpenAI API key</DropdownMenuItem>
             )}
             {info?.console?.signedIn && (
-              <DropdownMenuItem onSelect={() => signOut(assistant.consoleLogout)}>
+              <DropdownMenuItem onSelect={() => signOut(agent.consoleLogout)}>
                 Sign out of Anthropic account
               </DropdownMenuItem>
             )}
             {info?.codex?.signedIn && (
-              <DropdownMenuItem onSelect={() => signOut(assistant.codexLogout)}>Sign out of ChatGPT</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => signOut(agent.codexLogout)}>Sign out of ChatGPT</DropdownMenuItem>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setOpen(false)} aria-label="Close assistant">
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setOpen(false)} aria-label="Close agent">
           <X className="h-3.5 w-3.5" />
         </Button>
       </div>
@@ -439,7 +439,7 @@ export function AssistantPanel() {
         />
       ) : !conn ? (
         <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
-          Open a database to use the assistant.
+          Open a database to use the agent.
         </div>
       ) : (
         <>
@@ -449,7 +449,7 @@ export function AssistantPanel() {
               <div className="flex flex-col gap-3 pt-6 text-sm">
                 <p className="text-muted-foreground">
                   Ask about the SQL in <span className="text-foreground">{activeTab?.title ?? "your tab"}</span>, or
-                  for a new query on <span className="text-foreground">{conn.name}</span>. The assistant writes and runs
+                  for a new query on <span className="text-foreground">{conn.name}</span>. The agent writes and runs
                   its SQL in {target === "new" ? "a new tab" : "this tab"}; reads run right away, changes to data only
                   when you allow writes.
                 </p>
@@ -512,8 +512,8 @@ export function AssistantPanel() {
                 </Select>
                 <Select value={target} onValueChange={(v) => setTarget(v as "new" | "current")}>
                   <SelectTrigger
-                    aria-label="Where the assistant writes"
-                    title="Where the assistant writes and runs its SQL"
+                    aria-label="Where the agent writes"
+                    title="Where the agent writes and runs its SQL"
                     className="h-6 w-auto gap-1 border-0 bg-transparent px-1.5 text-xs shadow-none"
                   >
                     <SelectValue />
@@ -528,13 +528,13 @@ export function AssistantPanel() {
                     "flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap px-1.5 text-xs",
                     allowWrites ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground",
                   )}
-                  title="Let the assistant run SQL that changes this database (INSERT, UPDATE, DELETE, DDL) without asking. Reads always run."
+                  title="Let the agent run SQL that changes this database (INSERT, UPDATE, DELETE, DDL) without asking. Reads always run."
                 >
                   <Switch
                     checked={allowWrites}
                     onCheckedChange={(v) => setWriteAccess(accessKey, v)}
                     className="scale-75"
-                    aria-label="Allow the assistant to run writes"
+                    aria-label="Allow the agent to run writes"
                   />
                   Run writes
                 </label>
@@ -542,7 +542,7 @@ export function AssistantPanel() {
                 {running ? (
                   <Button size="icon" variant="secondary" className="h-6 w-6" onClick={() => {
                       stopWrites(chatId!);
-                      assistant.cancel(chatId!);
+                      agent.cancel(chatId!);
                     }} aria-label="Stop">
                     <Square className="h-3 w-3" />
                   </Button>
@@ -595,7 +595,7 @@ function Setup({
   const save = async () => {
     setSaving(true);
     try {
-      await assistant.setKey(provider, key);
+      await agent.setKey(provider, key);
       setKey("");
       onUse(provider === "openai" ? "openai" : "api");
     } catch (e) {
@@ -609,10 +609,10 @@ function Setup({
       // First time only: fetch the sign-in tool
       if (!info.console?.installed) {
         setSignInStep("setup");
-        await assistant.consoleInstall();
+        await agent.consoleInstall();
       }
       setSignInStep("approve");
-      await assistant.consoleLogin();
+      await agent.consoleLogin();
       onUse("console");
     } catch (e) {
       toast.error("Sign-in did not finish", { description: errorMessage(e) });
@@ -623,7 +623,7 @@ function Setup({
   const codexSignIn = async () => {
     setCodexSigningIn(true);
     try {
-      await assistant.codexLogin();
+      await agent.codexLogin();
       onUse("codex");
     } catch (e) {
       toast.error("Sign-in did not finish", { description: errorMessage(e) });
@@ -641,7 +641,7 @@ function Setup({
         {info.claudeCode ? (
           <>
             <p className="text-muted-foreground">
-              Found {info.claudeCode.version ?? "Claude Code"}. The assistant runs through it with your Claude
+              Found {info.claudeCode.version ?? "Claude Code"}. The agent runs through it with your Claude
               sign-in and plan, and only gets this app's database tools.
             </p>
             <Button size="sm" onClick={() => onUse("claude-code")}>
@@ -651,7 +651,7 @@ function Setup({
         ) : (
           <p className="text-muted-foreground">
             Install Claude Code (claude.ai/code) and sign in once with <span className="font-data text-xs">claude</span>{" "}
-            in a terminal. The assistant then uses your Claude plan.
+            in a terminal. The agent then uses your Claude plan.
           </p>
         )}
       </section>
@@ -779,7 +779,7 @@ function Setup({
   );
 }
 
-function ItemView({ item, conversationId }: { item: AssistantItem; conversationId: string }) {
+function ItemView({ item, conversationId }: { item: AgentItem; conversationId: string }) {
   switch (item.kind) {
     case "user":
       return (
@@ -829,7 +829,7 @@ function Proposal({
   item,
   conversationId,
 }: {
-  item: Extract<AssistantItem, { kind: "proposal" }>;
+  item: Extract<AgentItem, { kind: "proposal" }>;
   conversationId: string;
 }) {
   const tab = useEditorStore((s) => s.tabs.find((t) => t.id === item.tabId));
@@ -857,14 +857,14 @@ function Proposal({
     const editor = useEditorStore.getState();
     editor.updateTabSql(tab.id, applied ? item.sql : item.before);
     editor.setActiveTab(tab.id);
-    useAssistantStore.getState().setApplied(conversationId, item.id, applied);
+    useAgentStore.getState().setApplied(conversationId, item.id, applied);
   };
 
   // This block's SQL: in its tab if the tab still holds it, else in a new
   // tab, so a later edit or query in that tab is neither run nor lost
   const run = () => {
     const editor = useEditorStore.getState();
-    const id = tab && tab.sql === item.sql ? tab.id : editor.addTab("Assistant", item.sql);
+    const id = tab && tab.sql === item.sql ? tab.id : editor.addTab("Agent", item.sql);
     runInTab(id, item.sql);
   };
 

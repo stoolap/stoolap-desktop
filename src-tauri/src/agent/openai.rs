@@ -53,7 +53,7 @@ fn error_message(status: u16, text: &str) -> String {
         .and_then(|v| v["error"]["message"].as_str().map(str::to_string))
         .unwrap_or_else(|| text.to_string());
     match status {
-        401 => "The OpenAI API key was rejected. Check it in the assistant settings.".into(),
+        401 => "The OpenAI API key was rejected. Check it in the agent settings.".into(),
         429 => format!("OpenAI rate limit or quota: {message}"),
         _ => format!("OpenAI API error {status}: {message}"),
     }
@@ -254,7 +254,7 @@ pub async fn run_loop(
             }));
         }
     }
-    Err("The assistant took too many steps without finishing.".into())
+    Err("The agent took too many steps without finishing.".into())
 }
 
 #[cfg(test)]

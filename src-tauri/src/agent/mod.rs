@@ -1,4 +1,4 @@
-//! SQL assistant over the open connection, through one of these backends:
+//! SQL agent over the open connection, through one of these backends:
 //!
 //! - the user's local Claude Code (`claude -p`, their own sign-in), given the
 //!   tools through a local MCP server ([claude_code], [mcp]);
@@ -8,7 +8,7 @@
 //!   home, given the tools as dynamic tools ([codex]);
 //! - the OpenAI API with an API key, a tool loop run here ([openai]).
 //!
-//! Progress streams to the renderer as `assistant:event` events.
+//! Progress streams to the renderer as `agent:event` events.
 
 mod api;
 mod claude_code;
@@ -41,11 +41,11 @@ fn keychain_user(provider: &str) -> Result<&'static str, String> {
 /// Model turns per request before the loop gives up
 const MAX_TURNS: usize = 16;
 
-/// The Stoolap SQL dialect, written for the assistant and checked against
+/// The Stoolap SQL dialect, written for the agent and checked against
 /// the engine (every ```sql block runs in a test below).
 const SQL_GUIDE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/assistant/stoolap-sql-guide.md"
+    "/agent/stoolap-sql-guide.md"
 ));
 
 #[derive(Default)]
@@ -103,7 +103,7 @@ impl Conversation {
 }
 
 #[derive(Default)]
-pub struct AssistantState {
+pub struct AgentState {
     conversations: Mutex<HashMap<String, Conversation>>,
     mcp_port: Mutex<Option<u16>>,
     /// MCP path token -> what that request's tools act on
@@ -162,7 +162,7 @@ pub struct EditorContext {
     sql: String,
     selection: Option<String>,
     last_error: Option<String>,
-    /// The tab the assistant writes into: this one, or one of its own
+    /// The tab the agent writes into: this one, or one of its own
     target_tab_id: String,
     target_tab_title: String,
 }
@@ -184,7 +184,7 @@ enum Event {
     /// write_query's SQL so far, while it streams in
     Draft { tab_id: String, sql: String },
     /// write_query's complete SQL: write it into the tab, maybe run it, and
-    /// answer with assistant_write_result
+    /// answer with agent_write_result
     /// `conn_id` is the database the request is about; it runs only there
     Write {
         request_id: String,
@@ -201,7 +201,7 @@ enum Event {
 
 fn emit(app: &AppHandle, conversation_id: &str, event: Event) {
     let _ = app.emit(
-        "assistant:event",
+        "agent:event",
         json!({"conversationId": conversation_id, "event": event}),
     );
 }
@@ -234,7 +234,7 @@ fn is_openai(backend: &str) -> bool {
 
 /// The models a backend offers; the first is the default.
 #[tauri::command]
-pub async fn assistant_models(app: AppHandle, backend: String) -> Result<Vec<ModelInfo>, String> {
+pub async fn agent_models(app: AppHandle, backend: String) -> Result<Vec<ModelInfo>, String> {
     let list: Vec<(String, String)> = match backend.as_str() {
         "codex" => {
             let path = codex::find().ok_or("Codex was not found.")?;
@@ -247,7 +247,7 @@ pub async fn assistant_models(app: AppHandle, backend: String) -> Result<Vec<Mod
 }
 
 #[tauri::command]
-pub async fn assistant_backends(app: AppHandle) -> Backends {
+pub async fn agent_backends(app: AppHandle) -> Backends {
     let data = data_dir(&app).ok();
     // Finding and asking the CLIs spawns processes: keep it off the main thread
     tauri::async_runtime::spawn_blocking(move || Backends {
@@ -283,20 +283,20 @@ pub async fn assistant_backends(app: AppHandle) -> Backends {
 /// Sign the app's Codex home in to ChatGPT in the browser. Resolves when
 /// the user has approved it (or it failed or timed out).
 #[tauri::command]
-pub async fn assistant_codex_login(app: AppHandle) -> Result<(), String> {
+pub async fn agent_codex_login(app: AppHandle) -> Result<(), String> {
     let path = codex::find().ok_or("Codex was not found.")?;
     codex::login(&path, &data_dir(&app)?).await
 }
 
 #[tauri::command]
-pub async fn assistant_codex_logout(app: AppHandle) -> Result<(), String> {
+pub async fn agent_codex_logout(app: AppHandle) -> Result<(), String> {
     let path = codex::find().ok_or("Codex was not found.")?;
     codex::logout(&path, &data_dir(&app)?).await
 }
 
 /// Open a link from a reply in the browser; only web links.
 #[tauri::command]
-pub fn assistant_open_link(url: String) -> Result<(), String> {
+pub fn agent_open_link(url: String) -> Result<(), String> {
     if !(url.starts_with("https://") || url.starts_with("http://")) {
         return Err("Only web links can be opened.".into());
     }
@@ -305,19 +305,19 @@ pub fn assistant_open_link(url: String) -> Result<(), String> {
 
 /// Fetch the app's copy of `ant` (once; checked against its pinned SHA-256).
 #[tauri::command]
-pub async fn assistant_console_install(app: AppHandle) -> Result<(), String> {
+pub async fn agent_console_install(app: AppHandle) -> Result<(), String> {
     console::install(&data_dir(&app)?).await.map(|_| ())
 }
 
 /// Sign in to the Claude API in the browser, through `ant auth login`.
 /// Resolves when the user has approved it (or it failed or timed out).
 #[tauri::command]
-pub async fn assistant_console_login(app: AppHandle) -> Result<(), String> {
+pub async fn agent_console_login(app: AppHandle) -> Result<(), String> {
     console::install(&data_dir(&app)?).await?.login().await
 }
 
 #[tauri::command]
-pub async fn assistant_console_logout(app: AppHandle) -> Result<(), String> {
+pub async fn agent_console_logout(app: AppHandle) -> Result<(), String> {
     match console::Ant::installed(&data_dir(&app)?) {
         Some(ant) => tauri::async_runtime::spawn_blocking(move || ant.logout())
             .await
@@ -329,7 +329,7 @@ pub async fn assistant_console_logout(app: AppHandle) -> Result<(), String> {
 /// Stored in the OS credential store (Keychain, Credential Manager, Secret
 /// Service); never returned to the renderer.
 #[tauri::command]
-pub fn assistant_set_key(provider: String, key: String) -> Result<(), String> {
+pub fn agent_set_key(provider: String, key: String) -> Result<(), String> {
     let key = key.trim();
     if key.is_empty() {
         return Err("The key is empty.".into());
@@ -338,7 +338,7 @@ pub fn assistant_set_key(provider: String, key: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn assistant_delete_key(provider: String) -> Result<(), String> {
+pub fn agent_delete_key(provider: String) -> Result<(), String> {
     match keychain(&provider)?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(e.to_string()),
@@ -346,7 +346,7 @@ pub fn assistant_delete_key(provider: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn assistant_reset(state: State<'_, AssistantState>, conversation_id: String) {
+pub fn agent_reset(state: State<'_, AgentState>, conversation_id: String) {
     if let Ok(mut convs) = state.conversations.lock() {
         if let Some(c) = convs.get_mut(&conversation_id) {
             c.cancel.store(true, Ordering::Relaxed);
@@ -356,7 +356,7 @@ pub fn assistant_reset(state: State<'_, AssistantState>, conversation_id: String
 }
 
 #[tauri::command]
-pub fn assistant_cancel(state: State<'_, AssistantState>, conversation_id: String) {
+pub fn agent_cancel(state: State<'_, AgentState>, conversation_id: String) {
     if let Ok(convs) = state.conversations.lock() {
         if let Some(c) = convs.get(&conversation_id) {
             c.cancel.store(true, Ordering::Relaxed);
@@ -367,9 +367,9 @@ pub fn assistant_cancel(state: State<'_, AssistantState>, conversation_id: Strin
 /// Start one request. Returns at once; progress arrives as events.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub fn assistant_send(
+pub fn agent_send(
     app: AppHandle,
-    state: State<'_, AssistantState>,
+    state: State<'_, AgentState>,
     conversation_id: String,
     conn_id: String,
     connection_name: String,
@@ -408,7 +408,7 @@ pub fn assistant_send(
             console::Ant::installed(&data_dir(&app)?)
                 .ok_or("Sign in with your Anthropic account first.")?,
         )),
-        other => return Err(format!("Unknown assistant backend {other}")),
+        other => return Err(format!("Unknown agent backend {other}")),
     };
 
     let cancel = Arc::new(AtomicBool::new(false));
@@ -417,7 +417,7 @@ pub fn assistant_send(
         let new_here = !convs.contains_key(&conversation_id);
         let conv = convs.entry(conversation_id.clone()).or_default();
         if conv.running {
-            return Err("The assistant is still working on the previous request.".into());
+            return Err("The agent is still working on the previous request.".into());
         }
         let fresh = conv.start_on(&backend, new_here);
         conv.running = true;
@@ -462,7 +462,7 @@ pub fn assistant_send(
             }
             Via::Codex(path) => match data_dir(&app) {
                 Ok(data) => {
-                    let workdir = data.join("assistant");
+                    let workdir = data.join("agent");
                     let args = codex::RunArgs {
                         codex: &path,
                         data_dir: &data,
@@ -477,7 +477,7 @@ pub fn assistant_send(
             },
         };
 
-        let state = app.state::<AssistantState>();
+        let state = app.state::<AgentState>();
         let result = result.map(|outcome| {
             if let Ok(mut convs) = state.conversations.lock() {
                 if let Some(conv) = convs.get_mut(&conversation_id) {
@@ -499,7 +499,7 @@ pub fn assistant_send(
             }
         }
         if let Err(e) = &result {
-            eprintln!("[assistant] {conversation_id}: request ended: {e}");
+            eprintln!("[agent] {conversation_id}: request ended: {e}");
         }
         match result {
             Ok(()) => emit(&app, &conversation_id, Event::Done),
@@ -530,7 +530,7 @@ async fn run_claude_code(
     let port = mcp::ensure_started(app)?;
     // A fresh token per request, removed when it ends
     let token = uuid::Uuid::new_v4().to_string();
-    let state = app.state::<AssistantState>();
+    let state = app.state::<AgentState>();
     state
         .mcp_sessions
         .lock()
@@ -542,7 +542,7 @@ async fn run_claude_code(
         .path()
         .app_data_dir()
         .map_err(|e| e.to_string())?
-        .join("assistant");
+        .join("agent");
     std::fs::create_dir_all(&workdir).map_err(|e| e.to_string())?;
 
     let result = claude_code::run(
@@ -646,7 +646,7 @@ async fn run_loop(
         }
         messages.push(json!({"role": "user", "content": results}));
     }
-    Err("The assistant took too many steps without finishing.".into())
+    Err("The agent took too many steps without finishing.".into())
 }
 
 /// Run one tool call for either backend (blocking).
@@ -690,7 +690,7 @@ fn write_query(app: &AppHandle, target: &McpSession, input: &Value) -> tools::Ou
     }
     let request_id = uuid::Uuid::new_v4().to_string();
     let (tx, rx) = std::sync::mpsc::channel();
-    let state = app.state::<AssistantState>();
+    let state = app.state::<AgentState>();
     if let Ok(mut pending) = state.pending_writes.lock() {
         pending.insert(request_id.clone(), tx);
     }
@@ -722,7 +722,7 @@ fn write_query(app: &AppHandle, target: &McpSession, input: &Value) -> tools::Ou
 
 /// The renderer's report of running a write_query in the tab
 #[tauri::command]
-pub fn assistant_write_result(state: State<'_, AssistantState>, request_id: String, outcome: Value) {
+pub fn agent_write_result(state: State<'_, AgentState>, request_id: String, outcome: Value) {
     if let Ok(pending) = state.pending_writes.lock() {
         if let Some(tx) = pending.get(&request_id) {
             let _ = tx.send(outcome);
@@ -750,7 +750,7 @@ fn user_text(text: &str, connection: &str, allow_writes: bool, ctx: &EditorConte
 
 fn system_prompt() -> String {
     format!(
-        "You are the SQL assistant in Stoolap Desktop, a desktop client for the Stoolap embedded SQL database (version 0.5). \
+        "You are the SQL agent in Stoolap Desktop, a desktop client for the Stoolap embedded SQL database (version 0.5). \
 You help the user write, fix, explain and speed up SQL for the database they have open.\n\n\
 How to work:\n\
 - Each user message ends with an <editor> block: the SQL in the tab the user is looking at, their selection if any, and the last error that tab showed. \

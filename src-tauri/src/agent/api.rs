@@ -42,7 +42,7 @@ pub enum StreamEvent<'a> {
 
 /// One finished model turn.
 pub struct Turn {
-    /// The assistant message's content blocks, unchanged, to send back next
+    /// The agent message's content blocks, unchanged, to send back next
     /// request (thinking blocks included: they must be replayed as received).
     pub content: Vec<Value>,
     pub stop_reason: String,
@@ -77,7 +77,7 @@ pub enum Credential {
     Console(super::console::Ant),
 }
 
-/// Send one streaming request and assemble the assistant turn.
+/// Send one streaming request and assemble the agent turn.
 pub async fn stream_turn(
     credential: &Credential,
     body: &Value,
@@ -100,7 +100,7 @@ pub async fn stream_turn(
             let token = tauri::async_runtime::spawn_blocking(move || ant.access_token())
                 .await
                 .map_err(|e| e.to_string())?
-                .ok_or("You are signed out of your Anthropic account. Sign in again in the assistant settings.")?;
+                .ok_or("You are signed out of your Anthropic account. Sign in again in the agent settings.")?;
             // OAuth tokens need this beta on /v1/messages
             betas.push("oauth-2025-04-20");
             req.header("authorization", format!("Bearer {token}"))
@@ -122,8 +122,8 @@ pub async fn stream_turn(
             .unwrap_or(text);
         return Err(match status.as_u16() {
             401 => match credential {
-                Credential::ApiKey(_) => "The API key was rejected. Check it in the assistant settings.".to_string(),
-                Credential::Console(_) => "Your Anthropic sign-in was rejected or has expired. Sign in again in the assistant settings.".to_string(),
+                Credential::ApiKey(_) => "The API key was rejected. Check it in the agent settings.".to_string(),
+                Credential::Console(_) => "Your Anthropic sign-in was rejected or has expired. Sign in again in the agent settings.".to_string(),
             },
             429 => format!("Rate limited by the Claude API: {message}"),
             _ => format!("Claude API error {}: {message}", status.as_u16()),

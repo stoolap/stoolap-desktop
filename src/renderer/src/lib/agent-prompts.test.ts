@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { contextPrompts } from "./assistant-prompts";
-import { completion, mentionOptions } from "@/components/assistant/composer";
+import { contextPrompts } from "./agent-prompts";
+import { completion, mentionOptions } from "@/components/agent/composer";
 
 describe("contextPrompts", () => {
   it("offers fixing an error first, and asks about the query only when there is one", () => {
