@@ -45,17 +45,23 @@ const SEE_RESULT_MS = 1500;
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Conversations the user stopped: their writes never run, until the next request */
-const stopped = new Set<string>();
+/**
+ * Per conversation: its current request (numbered) and whether the user
+ * stopped it. A write belongs to the request that was current when it
+ * arrived, and runs only while that request is current and not stopped,
+ * so a new request never revives a stopped one's write.
+ */
+const requests = new Map<string, { n: number; stopped: boolean }>();
+const requestOf = (conversationId: string) => requests.get(conversationId) ?? { n: 0, stopped: false };
 
-/** A new request starts: its writes may run. */
+/** A new request starts in the conversation. */
 export function startWrites(conversationId: string): void {
-  stopped.delete(conversationId);
+  requests.set(conversationId, { n: requestOf(conversationId).n + 1, stopped: false });
 }
 
 /** The user stopped the conversation: writes it has not run yet never run. */
 export function stopWrites(conversationId: string): void {
-  stopped.add(conversationId);
+  requests.set(conversationId, { ...requestOf(conversationId), stopped: true });
 }
 
 /**
@@ -66,10 +72,12 @@ export function stopWrites(conversationId: string): void {
 function blockedReason(
   conversationId: string,
   w: { connId: string; sql: string; allowWrites: boolean },
+  request: number,
 ): string | null {
   const assistantState = useAssistantStore.getState();
   const conversation = assistantState.conversations[conversationId];
-  if (!conversation || stopped.has(conversationId)) return "the user stopped the request";
+  const current = requestOf(conversationId);
+  if (!conversation || current.stopped || current.n !== request) return "the user stopped the request";
   if (useConnectionStore.getState().activeId !== w.connId) {
     return "the user switched to another database; it is in the tab, not run";
   }
@@ -128,6 +136,7 @@ export async function applyWrite(
   conversationId: string,
   w: { requestId: string; connId: string; tabId: string; sql: string; explanation: string; allowWrites: boolean },
 ): Promise<void> {
+  const request = requestOf(conversationId).n;
   const id = resolveTab(w.tabId);
   const editor = useEditorStore.getState();
   const before = beforeWrite.get(w.tabId) ?? editor.tabs.find((t) => t.id === id)?.sql ?? "";
@@ -157,7 +166,7 @@ export async function applyWrite(
       useEditorStore.getState().setActiveTab(id);
       await nextFrame();
       // Checked with nothing async between it and the run starting
-      const reason = blockedReason(conversationId, w);
+      const reason = blockedReason(conversationId, w, request);
       if (reason) {
         outcome = { ran: false, reason };
         useAssistantStore.getState().setNotRun(conversationId, itemId);

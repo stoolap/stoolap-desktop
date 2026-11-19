@@ -2,6 +2,7 @@ use crate::db::{DbManager, ExecResult, QueryResult};
 use crate::sql_utils::{classify_statement, modifies_data, split_statements, strip_comments, StatementType};
 use std::sync::atomic::{AtomicBool, Ordering};
 use stoolap::api::Database;
+use stoolap::parser::ast::Statement;
 use tauri::State;
 
 #[tauri::command]
@@ -121,16 +122,20 @@ pub fn run_script(
 }
 
 /// Follow BEGIN, COMMIT and ROLLBACK run on the connection's own handle.
-/// A COMMIT or ROLLBACK ends the transaction even when it fails (a COMMIT
-/// that hits a write conflict leaves none open).
+/// They are read with the engine's own parser: one it can't parse never ran
+/// and leaves the transaction as it was. A COMMIT or ROLLBACK that parsed
+/// ends the transaction even when it fails (a COMMIT that hits a write
+/// conflict leaves none open); ROLLBACK TO a savepoint keeps it.
 fn note_transaction(in_transaction: &AtomicBool, stmt: &str, succeeded: bool) {
-    let upper = stmt.trim_start().to_uppercase();
-    let words: Vec<&str> = upper.split_whitespace().collect();
-    match words.first() {
-        Some(&"BEGIN") if succeeded => in_transaction.store(true, Ordering::Relaxed),
-        Some(&"COMMIT") => in_transaction.store(false, Ordering::Relaxed),
-        // ROLLBACK [TRANSACTION] TO [SAVEPOINT] keeps the transaction open
-        Some(&"ROLLBACK") if !words.contains(&"TO") => in_transaction.store(false, Ordering::Relaxed),
+    let head = stmt.trim_start().get(..8).unwrap_or(stmt).to_uppercase();
+    if !["BEGIN", "COMMIT", "ROLLBACK"].iter().any(|k| head.starts_with(k)) {
+        return;
+    }
+    let Ok(parsed) = stoolap::parser::parse_sql(stmt) else { return };
+    match parsed.first() {
+        Some(Statement::Begin(_)) if succeeded => in_transaction.store(true, Ordering::Relaxed),
+        Some(Statement::Commit(_)) => in_transaction.store(false, Ordering::Relaxed),
+        Some(Statement::Rollback(r)) if r.savepoint_name.is_none() => in_transaction.store(false, Ordering::Relaxed),
         _ => {}
     }
 }
@@ -277,6 +282,21 @@ mod tests {
             run_script(&db, &id, stmt).unwrap();
         }
         run_script(&db, &id, "INSERT INTO t VALUES (1); INSERT INTO t VALUES (2)").unwrap();
+        run_script(&db, &id, "ROLLBACK").unwrap();
+        let rows = run_script(&db, &id, "SELECT COUNT(*) FROM t").unwrap();
+        assert_eq!(rows["rows"], serde_json::json!([[0]]));
+    }
+
+    #[test]
+    fn a_commit_that_does_not_parse_keeps_the_transaction() {
+        let db = DbManager::new();
+        let id = db.open(":memory:", None).unwrap().id;
+        run_script(&db, &id, "CREATE TABLE t (id INTEGER PRIMARY KEY)").unwrap();
+        run_script(&db, &id, "BEGIN").unwrap();
+        run_script(&db, &id, "INSERT INTO t VALUES (1)").unwrap();
+        run_script(&db, &id, "COMMIT INVALID").unwrap_err();
+        run_script(&db, &id, "ROLLBACK INVALID").unwrap_err();
+        run_script(&db, &id, "INSERT INTO t VALUES (2); INSERT INTO t VALUES (3)").unwrap();
         run_script(&db, &id, "ROLLBACK").unwrap();
         let rows = run_script(&db, &id, "SELECT COUNT(*) FROM t").unwrap();
         assert_eq!(rows["rows"], serde_json::json!([[0]]));

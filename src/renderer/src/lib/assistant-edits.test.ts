@@ -117,6 +117,16 @@ describe("applyWrite", () => {
     expect(ran).toHaveLength(1);
   });
 
+  it("doesn't run a stopped request's write once a new request starts", async () => {
+    const { chat, tabId } = setup(true);
+    const done = applyWrite(chat, write(tabId, "DELETE FROM t"));
+    stopWrites(chat);
+    startWrites(chat);
+    await vi.runAllTimersAsync();
+    await done;
+    expect(ran).toEqual([]);
+  });
+
   it("doesn't run on another database the user switched to", async () => {
     const { chat, tabId } = setup(true);
     const done = applyWrite(chat, write(tabId, "SELECT 1"));
