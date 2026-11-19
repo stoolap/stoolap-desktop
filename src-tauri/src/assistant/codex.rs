@@ -449,7 +449,7 @@ fn parse_models(list: &Value) -> Vec<(String, String)> {
         .collect()
 }
 
-fn open_in_browser(url: &str) -> Result<(), String> {
+pub(super) fn open_in_browser(url: &str) -> Result<(), String> {
     let mut cmd = if cfg!(target_os = "macos") {
         std::process::Command::new("open")
     } else if cfg!(windows) {

@@ -52,7 +52,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import { useModKey } from "@/hooks/use-mod-key";
 import { useEditorSchema } from "@/hooks/use-schema";
 import { contextPrompts } from "@/lib/assistant-prompts";
-import { messageBlocks } from "@/lib/message-blocks";
+import { MessageText } from "./message-text";
 import { Composer, type ComposerHandle } from "./composer";
 
 /** "5 min ago", "yesterday", or the date */
@@ -820,47 +820,6 @@ function Thinking({ text }: { text: string }) {
   );
 }
 
-/** Plain text with fenced code blocks (copyable) and `inline code`; no other markdown. */
-function MessageText({ text }: { text: string }) {
-  return (
-    <div className="flex flex-col gap-2 text-sm leading-relaxed">
-      {messageBlocks(text).map((block, i) =>
-        block.kind === "code" ? (
-          <div key={i} className="group relative">
-            <pre className="font-data overflow-x-auto rounded-md bg-muted px-2.5 py-2 text-xs">{block.code}</pre>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="absolute right-1 top-1 h-6 w-6 bg-muted opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-              aria-label="Copy code"
-              onClick={() =>
-                navigator.clipboard.writeText(block.code).then(
-                  () => toast.success("Copied"),
-                  () => toast.error("Could not copy"),
-                )
-              }
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        ) : (
-          <p key={i} className="whitespace-pre-wrap">
-            {block.text.split(/(`[^`\n]+`)/).map((seg, j) =>
-              seg.startsWith("`") && seg.endsWith("`") && seg.length > 1 ? (
-                <code key={j} className="font-data rounded bg-muted px-1 py-0.5 text-xs">
-                  {seg.slice(1, -1)}
-                </code>
-              ) : (
-                seg
-              ),
-            )}
-          </p>
-        ),
-      )}
-    </div>
-  );
-}
-
 function Proposal({
   item,
   conversationId,
@@ -894,6 +853,14 @@ function Proposal({
     editor.updateTabSql(tab.id, applied ? item.sql : item.before);
     editor.setActiveTab(tab.id);
     useAssistantStore.getState().setApplied(conversationId, item.id, applied);
+  };
+
+  // This block's SQL: in its tab if the tab still holds it, else in a new
+  // tab, so a later edit or query in that tab is neither run nor lost
+  const run = () => {
+    const editor = useEditorStore.getState();
+    const id = tab && tab.sql === item.sql ? tab.id : editor.addTab("Assistant", item.sql);
+    runInTab(id, item.sql);
   };
 
   const copy = () => {
@@ -946,7 +913,7 @@ function Proposal({
             size="sm"
             className="h-6 px-2 text-xs"
             variant={item.autoRan ? "ghost" : "default"}
-            onClick={() => runInTab(tab.id, tab.sql)}
+            onClick={run}
             title={item.autoRan ? "Run it again" : "Run it in the tab; this SQL may change data"}
           >
             <Play className="h-3 w-3" /> {item.autoRan ? "Run again" : "Run"}
