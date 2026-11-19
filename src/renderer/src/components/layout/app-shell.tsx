@@ -194,15 +194,13 @@ export function AppShell() {
       {/* Headless toolbar — just manages dialogs */}
       <Toolbar />
 
-      {/* macOS title bar drag region with centered title */}
+      {/* macOS title bar drag region with centered title. Tauri moves the
+          window from it and zooms it on a double-click (both need their
+          permissions in capabilities/) */}
       {IS_MAC && (
         <div
           data-tauri-drag-region
           className="h-[38px] shrink-0 drag-region flex items-center justify-center"
-          onDoubleClick={async () => {
-            const { getCurrentWindow } = await import("@tauri-apps/api/window");
-            getCurrentWindow().toggleMaximize();
-          }}
         >
           <span className="text-xs text-muted-foreground/60 font-medium tracking-tight pointer-events-none">
             {activeConn ? activeConn.name : "Stoolap Desktop"}

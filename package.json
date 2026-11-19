@@ -1,6 +1,6 @@
 {
   "name": "stoolap-desktop",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "description": "Stoolap Desktop - Native database management for Stoolap",
   "scripts": {
     "tauri": "tauri",
