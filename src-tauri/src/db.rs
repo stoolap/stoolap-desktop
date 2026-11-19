@@ -59,6 +59,8 @@ pub struct IndexInfo {
     pub index_name: String,
     #[serde(rename = "columnName")]
     pub column_name: String,
+    /// The indexed columns, in order (`column_name` reads "(a, b)" for several)
+    pub columns: Vec<String>,
     #[serde(rename = "indexType")]
     pub index_type: String,
     #[serde(rename = "isUnique")]

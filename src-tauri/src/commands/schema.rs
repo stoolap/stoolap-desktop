@@ -89,6 +89,18 @@ pub async fn db_describe(
         .collect())
 }
 
+/// The columns of an index as SHOW INDEXES writes them: one name, or
+/// "(a, b, c)" for several. The engine writes the names unquoted and joins
+/// them with ", ", so a name holding a comma without a space ("a,b") stays
+/// whole; one holding ", " can't be told apart from two columns.
+fn index_columns(listed: &str) -> Vec<String> {
+    let listed = listed.trim();
+    match listed.strip_prefix('(').and_then(|s| s.strip_suffix(')')) {
+        Some(inner) => inner.split(", ").map(|c| c.trim().to_string()).filter(|c| !c.is_empty()).collect(),
+        None => vec![listed.to_string()],
+    }
+}
+
 #[tauri::command]
 pub async fn db_indexes(
     state: State<'_, DbManager>,
@@ -118,6 +130,7 @@ pub async fn db_indexes(
             IndexInfo {
                 table_name: get_str(0),
                 index_name: get_str(1),
+                columns: index_columns(&get_str(2)),
                 column_name: get_str(2),
                 index_type: get_str(3),
                 is_unique,
@@ -321,5 +334,24 @@ mod tests {
         assert_eq!(fks[0].referenced_table, "müşteriler");
         assert_eq!(fks[0].referenced_column, "ıd");
         assert_eq!(fks[0].on_delete, "SET NULL");
+    }
+
+    #[test]
+    fn index_columns_follow_show_indexes() {
+        assert_eq!(index_columns("plain"), ["plain"]);
+        assert_eq!(index_columns("(exchange, symbol, funding_time)"), ["exchange", "symbol", "funding_time"]);
+        // As the engine writes them, unquoted
+        assert_eq!(index_columns("(my col, Order)"), ["my col", "Order"]);
+        assert_eq!(index_columns("(a,b, plain)"), ["a,b", "plain"]);
+    }
+
+    #[test]
+    fn the_engine_lists_index_columns_this_way() {
+        let db = stoolap::api::Database::open_in_memory().unwrap();
+        db.execute(r#"CREATE TABLE t (id INTEGER PRIMARY KEY, "my col" TEXT, "a,b" TEXT, plain TEXT)"#, ()).unwrap();
+        db.execute(r#"CREATE INDEX i1 ON t ("my col", "a,b", plain)"#, ()).unwrap();
+        let rows = crate::db::DbManager::query_on(&db, "SHOW INDEXES FROM t", None).unwrap().rows;
+        let listed = rows.iter().find(|r| r[1] == "i1").unwrap()[2].as_str().unwrap().to_string();
+        assert_eq!(index_columns(&listed), ["my col", "a,b", "plain"], "{listed}");
     }
 }

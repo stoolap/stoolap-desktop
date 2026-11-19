@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import * as api from "@/lib/api-client";
 import type { ColumnInfo, IndexInfo, ForeignKeyInfo } from "@/lib/types";
 import { Tip } from "@/components/ui/tip";
+import { indexQuery } from "@/lib/sql-utils";
 
 /** Build a valid example vector string from a VECTOR(N) type. */
 function exampleVector(type: string): string {
@@ -91,18 +92,22 @@ function ColumnItem({
 function IndexItem({
   idx,
   tableName,
-  colType,
+  tableColumns,
   onDrop,
 }: {
   idx: IndexInfo;
   tableName: string;
-  colType?: string;
+  /** The table's columns, for the indexed ones' types */
+  tableColumns?: ColumnInfo[];
   onDrop: () => void;
 }) {
   const { t } = useTranslation("schema");
   const [expanded, setExpanded] = useState(false);
   const addTab = useEditorStore((s) => s.addTab);
   const isHnsw = idx.indexType.toUpperCase() === "HNSW";
+  const typeOf = (column: string) => tableColumns?.find((c) => c.field === column)?.type;
+  // An HNSW index is on one vector column
+  const colType = typeOf(idx.columns[0] ?? idx.columnName);
 
   const handleQueryUsingIndex = () => {
     if (isHnsw) {
@@ -112,10 +117,7 @@ function IndexItem({
         `-- Replace the query vector with your own\nSELECT *, VEC_DISTANCE_COSINE(${quoteId(idx.columnName)}, '${vec}') AS distance\nFROM ${quoteId(tableName)}\nORDER BY distance\nLIMIT 10`,
       );
     } else {
-      addTab(
-        idx.indexName,
-        `SELECT * FROM ${quoteId(tableName)} WHERE ${quoteId(idx.columnName)} = ?`,
-      );
+      addTab(idx.indexName, indexQuery(tableName, idx.indexName, idx.columns, typeOf));
     }
   };
 
@@ -494,13 +496,12 @@ function TableNode({
                 {t("tableTree.indexes")}
               </div>
               {indexes.map((idx) => {
-                const col = columns?.find((c) => c.field === idx.columnName);
                 return (
                   <IndexItem
                     key={idx.indexName}
                     idx={idx}
                     tableName={name}
-                    colType={col?.type}
+                    tableColumns={columns}
                     onDrop={() => handleDropIndex(idx.indexName)}
                   />
                 );

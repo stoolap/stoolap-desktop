@@ -4,6 +4,38 @@ export function quoteId(name: string): string {
 }
 
 /**
+ * A value of the column type `type` (as DESCRIBE names it) that stands in a
+ * template until the user writes theirs. It compares without an error, so
+ * the template runs as written.
+ */
+export function sampleValue(type: string | undefined): string {
+  const t = (type ?? "").toUpperCase();
+  if (t.includes("INT")) return "0";
+  if (/FLOAT|REAL|DOUBLE|NUMERIC|DECIMAL/.test(t)) return "0.0";
+  if (t.startsWith("BOOL")) return "TRUE";
+  if (t.startsWith("TIMESTAMP") || t.startsWith("DATETIME")) return "'2026-01-01 00:00:00'";
+  if (t === "DATE") return "'2026-01-01'";
+  if (t.startsWith("JSON")) return "'{}'";
+  return "''";
+}
+
+/**
+ * A query that uses an index: one condition per indexed column, in the
+ * index's order, each with a value to replace.
+ */
+export function indexQuery(
+  table: string,
+  index: string,
+  columns: string[],
+  typeOf: (column: string) => string | undefined,
+): string {
+  const conditions = columns.map(
+    (c, i) => `${i === 0 ? "WHERE" : "  AND"} ${quoteId(c)} = ${sampleValue(typeOf(c))}`,
+  );
+  return [`-- Uses the index ${index}: replace the values with yours`, `SELECT * FROM ${quoteId(table)}`, ...conditions].join("\n");
+}
+
+/**
  * Format a user-typed DEFAULT value: numbers, NULL/TRUE/FALSE, the
  * CURRENT_* keywords and already-quoted strings pass through; anything else
  * becomes a quoted string literal.

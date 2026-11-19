@@ -135,12 +135,11 @@ export function AgentPanel() {
         (backend === "console" && !info.console?.signedIn) ||
         (backend === "codex" && !info.codex?.signedIn) ||
         (backend === "openai" && !info.hasOpenaiKey)));
-  // Claude's models and OpenAI's are kept apart; an OpenAI model the
-  // account doesn't offer falls back to its default
+  // Claude's models and OpenAI's are kept apart; a model the account
+  // doesn't offer falls back to its default
   const openai = isOpenAi(backend);
-  const model = openai
-    ? (models.find((m) => m.id === openaiModel)?.id ?? models[0]?.id ?? "")
-    : claudeModel;
+  const chosen = openai ? openaiModel : claudeModel;
+  const model = models.find((m) => m.id === chosen)?.id ?? models[0]?.id ?? "";
   const setModel = openai ? setOpenaiModel : setClaudeModel;
 
   const activeId = useConnectionStore((s) => s.activeId);
@@ -188,7 +187,7 @@ export function AgentPanel() {
     refreshBackends();
   }, []);
 
-  // The model list follows the backend (OpenAI's comes from the account)
+  // The model list follows the backend and comes from the account
   const ready = info !== null && !needsSetup;
   useEffect(() => {
     if (!ready) return;

@@ -97,7 +97,10 @@ export interface ColumnInfo {
 export interface IndexInfo {
   tableName: string;
   indexName: string;
+  /** As SHOW INDEXES lists it: one name, or "(a, b)" for several */
   columnName: string;
+  /** The indexed columns, in order */
+  columns: string[];
   indexType: string;
   isUnique: boolean;
   options?: string;

@@ -9,9 +9,11 @@ use std::time::Duration;
 use crate::i18n::t;
 
 const API_URL: &str = "https://api.anthropic.com/v1/messages";
+const MODELS_URL: &str = "https://api.anthropic.com/v1/models";
 const API_VERSION: &str = "2026-10-21";
 
-/// Models offered in the panel. The user picks one; the first is the default.
+/// Models offered when the account's list can't be read (and for Claude
+/// Code, which has no list to ask). The first is the default.
 pub const MODELS: &[(&str, &str)] = &[
     ("claude-opus-5-5", "Claude Opus 5.5"),
     ("claude-sonnet-5-5", "Claude Sonnet 5.5"),
@@ -64,8 +66,10 @@ pub fn request_body(model: &str, system: &str, tools: &Value, messages: &[Value]
         "tools": tools,
         "messages": messages,
     });
-    // Server-side fallback on a policy decline; Claude Haiku 5.5 has none.
-    if model != "claude-haiku-5-5" {
+    // Server-side fallback on a policy decline, for the models known to have
+    // one: Claude Haiku 5.5 has none, and a model from the account's list we
+    // don't know might not either (the request would be refused)
+    if model != "claude-haiku-5-5" && MODELS.iter().any(|(id, _)| *id == model) {
         body["fallbacks"] = json!("default");
     }
     body
@@ -76,6 +80,68 @@ pub enum Credential {
     ApiKey(String),
     /// A browser sign-in kept by Anthropic's `ant` CLI
     Console(super::console::Ant),
+}
+
+/// Add the API version and the credential to a request. A browser sign-in
+/// is an OAuth token, which needs its beta next to any the request asks for.
+async fn signed(
+    req: reqwest::RequestBuilder,
+    credential: &Credential,
+    mut betas: Vec<&str>,
+) -> Result<reqwest::RequestBuilder, String> {
+    let mut req = match credential {
+        Credential::ApiKey(key) => req.header("x-api-key", key),
+        Credential::Console(ant) => {
+            // Short-lived; ask for it on every request (ant refreshes it)
+            let ant = ant.clone();
+            let token = tauri::async_runtime::spawn_blocking(move || ant.access_token())
+                .await
+                .map_err(|e| e.to_string())?
+                .ok_or_else(|| t("errors.signedOutAnthropic", &[]))?;
+            betas.push("oauth-2025-04-20");
+            req.header("authorization", format!("Bearer {token}"))
+        }
+    };
+    req = req.header("anthropic-version", API_VERSION);
+    if !betas.is_empty() {
+        req = req.header("anthropic-beta", betas.join(","));
+    }
+    Ok(req)
+}
+
+/// The models the account can run the agent on, newest first. (id, name)
+pub async fn models(credential: &Credential) -> Result<Vec<(String, String)>, String> {
+    let req = signed(client().get(format!("{MODELS_URL}?limit=1000")), credential, Vec::new()).await?;
+    let resp = req.send().await.map_err(|e| t("errors.reachClaude", &[("error", &e)]))?;
+    let status = resp.status().as_u16();
+    let text = resp.text().await.map_err(|e| e.to_string())?;
+    if status != 200 {
+        return Err(format!("{status}: {text}"));
+    }
+    let list: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    Ok(agent_models(&list))
+}
+
+/// The active models that take what `request_body` sends: adaptive thinking
+/// and an effort level. The API lists the newest first.
+fn agent_models(list: &Value) -> Vec<(String, String)> {
+    let supported = |caps: &Value, path: &[&str]| {
+        path.iter().fold(caps, |v, k| &v[k])["supported"].as_bool() == Some(true)
+    };
+    list["data"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|m| m["lifecycle"].as_str().is_none_or(|l| l == "active"))
+        .filter(|m| {
+            supported(&m["capabilities"], &["thinking", "types", "adaptive"])
+                && supported(&m["capabilities"], &["effort", "medium"])
+        })
+        .filter_map(|m| {
+            let id = m["id"].as_str()?;
+            Some((id.to_string(), m["display_name"].as_str().unwrap_or(id).to_string()))
+        })
+        .collect()
 }
 
 /// Send one streaming request and assemble the agent turn.
@@ -89,27 +155,7 @@ pub async fn stream_turn(
     if body.get("fallbacks").is_some() {
         betas.push("server-side-fallback-2026-07-01");
     }
-    let mut req = client()
-        .post(API_URL)
-        .header("anthropic-version", API_VERSION)
-        .header("content-type", "application/json");
-    req = match credential {
-        Credential::ApiKey(key) => req.header("x-api-key", key),
-        Credential::Console(ant) => {
-            // Short-lived; ask for it on every request (ant refreshes it)
-            let ant = ant.clone();
-            let token = tauri::async_runtime::spawn_blocking(move || ant.access_token())
-                .await
-                .map_err(|e| e.to_string())?
-                .ok_or_else(|| t("errors.signedOutAnthropic", &[]))?;
-            // OAuth tokens need this beta on /v1/messages
-            betas.push("oauth-2025-04-20");
-            req.header("authorization", format!("Bearer {token}"))
-        }
-    };
-    if !betas.is_empty() {
-        req = req.header("anthropic-beta", betas.join(","));
-    }
+    let req = signed(client().post(API_URL).header("content-type", "application/json"), credential, betas).await?;
     let resp = or_cancel(cancel, req.json(body).send())
         .await?
         .map_err(|e| t("errors.reachClaude", &[("error", &e)]))?;
@@ -380,5 +426,29 @@ mod tests {
         let out = or_cancel(&cancel, std::future::pending::<()>()).await;
         assert_eq!(out, Err("cancelled".to_string()));
         assert!(started.elapsed() < Duration::from_secs(1));
+    }
+
+    #[test]
+    fn offers_the_active_models_the_agent_can_run() {
+        let caps = |adaptive: bool| json!({"thinking": {"supported": true, "types": {"adaptive": {"supported": adaptive}}}, "effort": {"supported": adaptive, "medium": {"supported": adaptive}}});
+        let list = json!({"data": [
+            {"id": "claude-new-6", "display_name": "Claude New 6", "lifecycle": "active", "capabilities": caps(true)},
+            {"id": "claude-old-4", "display_name": "Claude Old 4", "lifecycle": "active", "capabilities": caps(false)},
+            {"id": "claude-going-5", "display_name": "Claude Going 5", "lifecycle": "deprecated", "capabilities": caps(true)},
+            {"id": "claude-unknown", "display_name": "Unknown", "capabilities": null},
+            {"id": "claude-mid-5", "display_name": "Claude Mid 5", "capabilities": caps(true)}
+        ], "has_more": false});
+        assert_eq!(
+            agent_models(&list),
+            [("claude-new-6".to_string(), "Claude New 6".to_string()), ("claude-mid-5".to_string(), "Claude Mid 5".to_string())]
+        );
+    }
+
+    #[test]
+    fn asks_for_fallbacks_only_where_they_exist() {
+        let body = |model: &str| request_body(model, "", &json!([]), &[]);
+        assert_eq!(body("claude-opus-5-5")["fallbacks"], "default");
+        assert!(body("claude-haiku-5-5").get("fallbacks").is_none());
+        assert!(body("claude-someday-9").get("fallbacks").is_none(), "an unknown model from the list");
     }
 }

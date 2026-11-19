@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import splitCases from "./sql-split-cases.json";
-import { explainAll, explainKind, formatDefaultValue, hasReturning, isExplain, isSingleReadOnly, quoteId, splitStatements } from "./sql-utils";
+import { explainAll, explainKind, formatDefaultValue, hasReturning, indexQuery, sampleValue, isExplain, isSingleReadOnly, quoteId, splitStatements } from "./sql-utils";
 
 describe("isExplain", () => {
   it("sees EXPLAIN after leading comments", () => {
@@ -87,12 +87,15 @@ describe("dump generation", () => {
 
   it("recreates indexes with an explicit type and skips primary keys", () => {
     const sql = generateTableIndexes("orders", [
-      { indexName: "pk_orders", columnName: "id", indexType: "BTREE", isUnique: true },
-      { indexName: "idx_status", columnName: "status", indexType: "HASH", isUnique: false },
-      { indexName: "idx_pair", columnName: "(a, b)", indexType: "MULTICOLUMN", isUnique: true },
+      { indexName: "pk_orders", columnName: "id", columns: ["id"], indexType: "BTREE", isUnique: true },
+      { indexName: "idx_status", columnName: "status", columns: ["status"], indexType: "HASH", isUnique: false },
+      { indexName: "idx_pair", columnName: "(a, b)", columns: ["a", "b"], indexType: "MULTICOLUMN", isUnique: true },
+      // A name holding a comma stays one column
+      { indexName: "idx_comma", columnName: "(a,b, c)", columns: ["a,b", "c"], indexType: "MULTICOLUMN", isUnique: false },
       {
         indexName: "idx_vec",
         columnName: "embedding",
+        columns: ["embedding"],
         indexType: "HNSW",
         isUnique: false,
         options: "metric=cosine, m=16, ef_construction=128",
@@ -101,6 +104,7 @@ describe("dump generation", () => {
     expect(sql.split("\n").filter(Boolean)).toEqual([
       'CREATE INDEX IF NOT EXISTS "idx_status" ON "orders"("status") USING HASH;',
       'CREATE UNIQUE INDEX IF NOT EXISTS "idx_pair" ON "orders"("a", "b");',
+      'CREATE INDEX IF NOT EXISTS "idx_comma" ON "orders"("a,b", "c");',
       `CREATE INDEX IF NOT EXISTS "idx_vec" ON "orders"("embedding") USING HNSW WITH (metric = 'cosine', m = 16, ef_construction = 128);`,
     ]);
   });
@@ -144,6 +148,33 @@ describe("foldUnchanged", () => {
       { type: "add", text: "F" },
       { type: "same", text: "g" },
       { type: "same", text: "h" },
+    ]);
+  });
+});
+
+describe("indexQuery", () => {
+  it("writes one runnable condition per column of the index", () => {
+    const types: Record<string, string> = { exchange: "Text", symbol: "Text", funding_time: "Timestamp" };
+    expect(indexQuery("funding_fees", "idx_ff", ["exchange", "symbol", "funding_time"], (c) => types[c])).toBe(
+      [
+        "-- Uses the index idx_ff: replace the values with yours",
+        'SELECT * FROM "funding_fees"',
+        `WHERE "exchange" = ''`,
+        `  AND "symbol" = ''`,
+        `  AND "funding_time" = '2026-01-01 00:00:00'`,
+      ].join("\n"),
+    );
+    expect(indexQuery("t", "i", ["my col"], () => "Integer")).toContain('WHERE "my col" = 0');
+  });
+
+  it("has a value for every column type", () => {
+    expect(["Integer", "Float", "Boolean", "Json", "Text", undefined].map(sampleValue)).toEqual([
+      "0",
+      "0.0",
+      "TRUE",
+      "'{}'",
+      "''",
+      "''",
     ]);
   });
 });
