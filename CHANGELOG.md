@@ -4,6 +4,16 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.9
+
+### Fixes
+- **Query Using Index** on an index over several columns now writes one condition per column, in the index's order. Before, it treated the whole column list as one column name, and the query failed.
+- The query it writes runs as it is: each column gets a value of its type for you to replace, where before a `?` stood that the editor can't fill in.
+- A backup no longer splits an indexed column whose name contains a comma into two columns.
+
+### Agent
+- With an Anthropic API key or an Anthropic account, the model list comes from your account, newest first, so new Claude models show up without an app update. It lists the models the agent can run on. If the list can't be read, the usual models are offered.
+
 ## v0.5.8
 
 ### Look and feel
