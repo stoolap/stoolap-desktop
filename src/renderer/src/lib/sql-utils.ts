@@ -123,6 +123,17 @@ export function isExplain(sql: string): boolean {
   return /^EXPLAIN\b/i.test(stripComments(sql).trimStart());
 }
 
+/**
+ * `sql` with EXPLAIN in front of every statement that lacks one, so Explain
+ * never runs a statement: `SELECT 1; DELETE FROM t` must not delete.
+ */
+export function explainAll(sql: string): string {
+  return splitStatements(sql)
+    .filter((s) => stripComments(s).trim())
+    .map((s) => (isExplain(s) ? s : `EXPLAIN ${s}`))
+    .join(";\n");
+}
+
 /** Drop -- line and block comments, keeping string literals intact. */
 function stripComments(sql: string): string {
   return sql.replace(/('(?:[^']|'')*')|--[^\n]*|\/\*[\s\S]*?\*\//g, (m, str) => str ?? " ");

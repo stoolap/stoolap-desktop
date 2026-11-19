@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { useEditorStore } from "@/stores/editor-store";
 import { useQueryExecution } from "@/hooks/use-query-execution";
 import { formatSQL } from "@/lib/sql-formatter";
-import { isExplain } from "@/lib/sql-utils";
+import { explainAll } from "@/lib/sql-utils";
 
 export function KeyboardShortcuts() {
   const { executeQuery, isConnected } = useQueryExecution();
@@ -56,11 +56,7 @@ export function KeyboardShortcuts() {
           isConnectedRef.current &&
           !activeTab.isRunning
         ) {
-          const sql = activeTab.sql.trimStart();
-          const query = isExplain(sql)
-            ? sql
-            : `EXPLAIN ${sql}`;
-          executeQuery(activeTab.id, query);
+          executeQuery(activeTab.id, explainAll(activeTab.sql));
         }
         return;
       }

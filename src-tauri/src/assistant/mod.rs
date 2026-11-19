@@ -145,7 +145,15 @@ enum Event {
     Draft { tab_id: String, sql: String },
     /// write_query's complete SQL: write it into the tab, maybe run it, and
     /// answer with assistant_write_result
-    Write { request_id: String, tab_id: String, sql: String, explanation: String, allow_writes: bool },
+    /// `conn_id` is the database the request is about; it runs only there
+    Write {
+        request_id: String,
+        conn_id: String,
+        tab_id: String,
+        sql: String,
+        explanation: String,
+        allow_writes: bool,
+    },
     Done,
     Error { message: String },
     Cancelled,
@@ -649,6 +657,7 @@ fn write_query(app: &AppHandle, target: &McpSession, input: &Value) -> tools::Ou
         &target.conversation_id,
         Event::Write {
             request_id: request_id.clone(),
+            conn_id: target.conn_id.clone(),
             tab_id: target.tab_id.clone(),
             sql: sql.to_string(),
             explanation: explanation.to_string(),
@@ -743,6 +752,7 @@ mod tests {
         assert_eq!(tool["isError"], true);
         let write = serde_json::to_value(Event::Write {
             request_id: "r".into(),
+            conn_id: "c".into(),
             tab_id: "tab".into(),
             sql: "SELECT 1".into(),
             explanation: "e".into(),
@@ -752,6 +762,7 @@ mod tests {
         assert_eq!(write["kind"], "write");
         assert_eq!(write["requestId"], "r");
         assert_eq!(write["tabId"], "tab");
+        assert_eq!(write["connId"], "c");
         assert_eq!(serde_json::to_value(Event::Done).unwrap(), json!({"kind": "done"}));
     }
 }

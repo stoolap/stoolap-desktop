@@ -65,9 +65,11 @@ export function RowEditorDialog({
           continue;
         }
         if (upper === "INTEGER" || upper === "INT") {
-          const parsed = parseInt(val, 10);
-          if (isNaN(parsed)) throw new Error(`${col.field}: invalid integer`);
-          row[col.field] = parsed;
+          const text = val.trim();
+          if (!/^[-+]?\d+$/.test(text)) throw new Error(`${col.field}: invalid integer`);
+          // Past 2^53 a JavaScript number rounds; the engine reads the text exactly
+          const parsed = Number(text);
+          row[col.field] = Number.isSafeInteger(parsed) ? parsed : text;
         } else if (upper === "FLOAT") {
           const parsed = parseFloat(val);
           if (isNaN(parsed)) throw new Error(`${col.field}: invalid number`);

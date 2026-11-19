@@ -1,5 +1,6 @@
 use crate::db::{DbManager, ExecResult, QueryResult};
-use crate::sql_utils::{classify_statement, split_statements, strip_comments, StatementType};
+use crate::sql_utils::{classify_statement, modifies_data, split_statements, strip_comments, StatementType};
+use std::sync::atomic::{AtomicBool, Ordering};
 use stoolap::api::Database;
 use tauri::State;
 
@@ -53,13 +54,15 @@ pub fn run_script(
     // are separate sessions with independent transaction state) so a
     // transaction the user opened in a previous call is still visible here.
     let db = state.get_db(conn_id)?;
+    let in_transaction = state.transaction_state(conn_id)?;
 
     if statements.len() == 1 {
-        return execute_single(&db, &statements[0], None);
+        let result = execute_single(&db, &statements[0], None)?;
+        note_transaction(&in_transaction, &statements[0]);
+        return Ok(result);
     }
 
     let start = std::time::Instant::now();
-    let types: Vec<StatementType> = statements.iter().map(|s| classify_statement(s)).collect();
 
     let has_explicit_txn = statements.iter().any(|s| {
         let u = s.trim_start().to_uppercase();
@@ -68,7 +71,10 @@ pub fn run_script(
             || u.starts_with("ROLLBACK")
             || u.starts_with("SAVEPOINT")
     });
-    let has_dml = !has_explicit_txn && types.contains(&StatementType::Dml);
+    // Inside a transaction the user opened, the script joins it instead
+    let has_dml = !has_explicit_txn
+        && !in_transaction.load(Ordering::Relaxed)
+        && statements.iter().any(|s| modifies_data(s));
 
     // The BEGIN/COMMIT wrapper runs on a clone of the handle, its own
     // session: commands running concurrently on this connection neither join
@@ -88,6 +94,9 @@ pub fn run_script(
         for (i, stmt) in statements.iter().enumerate() {
             let mut r = execute_single(db, stmt, None)
                 .map_err(|e| format!("Statement {} of {total}: {e}", i + 1))?;
+            if session.is_none() {
+                note_transaction(&in_transaction, stmt);
+            }
             r["sql"] = serde_json::Value::String(stmt.clone());
             results.push(r);
         }
@@ -109,6 +118,19 @@ pub fn run_script(
     }
 
     result
+}
+
+/// Follow BEGIN, COMMIT and ROLLBACK run on the connection's own handle.
+fn note_transaction(in_transaction: &AtomicBool, stmt: &str) {
+    let upper = stmt.trim_start().to_uppercase();
+    let mut words = upper.split_whitespace();
+    match (words.next(), words.next()) {
+        (Some("BEGIN"), _) => in_transaction.store(true, Ordering::Relaxed),
+        (Some("COMMIT"), _) => in_transaction.store(false, Ordering::Relaxed),
+        // ROLLBACK TO SAVEPOINT keeps the transaction open
+        (Some("ROLLBACK"), next) if next != Some("TO") => in_transaction.store(false, Ordering::Relaxed),
+        _ => {}
+    }
 }
 
 fn execute_single(
@@ -188,5 +210,41 @@ mod tests {
         assert!(err.starts_with("Statement 2 of 2:"), "{err}");
         let rows = run_script(&db, &id, "SELECT COUNT(*) FROM t").unwrap();
         assert_eq!(rows["rows"], serde_json::json!([[0]]));
+    }
+
+    #[test]
+    fn a_script_joins_a_transaction_the_user_opened() {
+        let db = DbManager::new();
+        let id = db.open(":memory:", None).unwrap().id;
+        run_script(&db, &id, "CREATE TABLE t (id INTEGER PRIMARY KEY)").unwrap();
+        run_script(&db, &id, "BEGIN").unwrap();
+        run_script(&db, &id, "INSERT INTO t VALUES (1); INSERT INTO t VALUES (2)").unwrap();
+        run_script(&db, &id, "ROLLBACK").unwrap();
+        let rows = run_script(&db, &id, "SELECT COUNT(*) FROM t").unwrap();
+        assert_eq!(rows["rows"], serde_json::json!([[0]]));
+
+        // After the ROLLBACK, scripts get their own transaction again
+        run_script(&db, &id, "INSERT INTO t VALUES (3); INSERT INTO t VALUES (4)").unwrap();
+        let rows = run_script(&db, &id, "SELECT COUNT(*) FROM t").unwrap();
+        assert_eq!(rows["rows"], serde_json::json!([[2]]));
+    }
+
+    #[test]
+    fn a_write_with_returning_rolls_back_with_its_script() {
+        let db = DbManager::new();
+        let id = db.open(":memory:", None).unwrap().id;
+        run_script(&db, &id, "CREATE TABLE t (id INTEGER PRIMARY KEY)").unwrap();
+        run_script(&db, &id, "INSERT INTO t VALUES (1) RETURNING id; SELECT * FROM nope").unwrap_err();
+        let rows = run_script(&db, &id, "SELECT COUNT(*) FROM t").unwrap();
+        assert_eq!(rows["rows"], serde_json::json!([[0]]));
+    }
+
+    #[test]
+    fn a_cte_write_with_returning_returns_its_rows() {
+        let db = DbManager::new();
+        let id = db.open(":memory:", None).unwrap().id;
+        run_script(&db, &id, "CREATE TABLE t (id INTEGER PRIMARY KEY)").unwrap();
+        let out = run_script(&db, &id, "WITH v AS (SELECT 7 AS id) INSERT INTO t SELECT id FROM v RETURNING id").unwrap();
+        assert_eq!(out["rows"], serde_json::json!([[7]]));
     }
 }

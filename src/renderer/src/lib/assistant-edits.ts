@@ -3,12 +3,15 @@ import type { StatementOutcome, WriteOutcome } from "@/lib/assistant";
 import { isSingleReadOnly } from "@/lib/sql-utils";
 import type { ApiResult, DdlResult, ExecResult, QueryResult, ScriptResult } from "@/lib/types";
 import { useAssistantStore } from "@/stores/assistant-store";
+import { useConnectionStore } from "@/stores/connection-store";
 import { useEditorStore } from "@/stores/editor-store";
 
 /** A request to run SQL in a tab, served by that tab's QueryToolbar. */
 export interface RunTabRequest {
   tabId: string;
   sql: string;
+  /** Run only while this connection is the active one */
+  connId?: string;
   /** Set by the toolbar when it takes the request */
   handled?: boolean;
   done: (result: ApiResult | ScriptResult | undefined) => void;
@@ -19,12 +22,16 @@ export interface RunTabRequest {
  * timeout, history and the result grid work as for any run. Resolves with
  * what the tab shows, or undefined when no toolbar took the request.
  */
-export function runInTab(tabId: string, sql: string): Promise<ApiResult | ScriptResult | undefined> {
+export function runInTab(
+  tabId: string,
+  sql: string,
+  connId?: string,
+): Promise<ApiResult | ScriptResult | undefined> {
   useEditorStore.getState().setActiveTab(tabId);
   return new Promise((resolve) => {
     // Let the tab's toolbar mount before it hears the request
     requestAnimationFrame(() => {
-      const detail: RunTabRequest = { tabId, sql, done: resolve };
+      const detail: RunTabRequest = { tabId, sql, connId, done: resolve };
       window.dispatchEvent(new CustomEvent("stoolap:run-tab", { detail }));
       if (!detail.handled) resolve(undefined);
     });
@@ -36,6 +43,36 @@ const READ_SQL_MS = 700;
 const SEE_RESULT_MS = 1500;
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Bumped by Stop: a write still waiting to run sees it and doesn't run */
+const stops = new Map<string, number>();
+
+/** The user stopped the conversation: writes it has not run yet never run. */
+export function stopWrites(conversationId: string): void {
+  stops.set(conversationId, (stops.get(conversationId) ?? 0) + 1);
+}
+
+/**
+ * Why a write that was going to run must not run now, checked right before
+ * it runs: the user may have stopped or deleted the conversation, switched
+ * to another database, or taken back write access while it waited.
+ */
+function blockedReason(
+  conversationId: string,
+  w: { connId: string; sql: string; allowWrites: boolean },
+  stopsAtStart: number,
+): string | null {
+  const assistantState = useAssistantStore.getState();
+  const conversation = assistantState.conversations[conversationId];
+  if (!conversation || (stops.get(conversationId) ?? 0) !== stopsAtStart) return "the user stopped the request";
+  if (useConnectionStore.getState().activeId !== w.connId) {
+    return "the user switched to another database; it is in the tab, not run";
+  }
+  if (!isSingleReadOnly(w.sql) && !(w.allowWrites && assistantState.writeAccess[conversation.dbKey])) {
+    return "the user turned off Run writes; it waits in the tab for the user to run it";
+  }
+  return null;
+}
 
 /** Requested tab -> the tab actually written to (a new one if it was closed) */
 const tabFor = new Map<string, string>();
@@ -84,8 +121,9 @@ function outcomeOf(result: ApiResult | ScriptResult | undefined): WriteOutcome {
  */
 export async function applyWrite(
   conversationId: string,
-  w: { requestId: string; tabId: string; sql: string; explanation: string; allowWrites: boolean },
+  w: { requestId: string; connId: string; tabId: string; sql: string; explanation: string; allowWrites: boolean },
 ): Promise<void> {
+  const stopsAtStart = stops.get(conversationId) ?? 0;
   const id = resolveTab(w.tabId);
   const editor = useEditorStore.getState();
   const before = beforeWrite.get(w.tabId) ?? editor.tabs.find((t) => t.id === id)?.sql ?? "";
@@ -96,7 +134,7 @@ export async function applyWrite(
 
   // Reads always run; anything else only with the user's permission
   const runs = isSingleReadOnly(w.sql) || w.allowWrites;
-  useAssistantStore.getState().addProposal(conversationId, {
+  const itemId = useAssistantStore.getState().addProposal(conversationId, {
     kind: "proposal",
     tabId: id,
     before,
@@ -112,8 +150,14 @@ export async function applyWrite(
       // Paced so the user can follow: read the SQL, then see its result,
       // before the assistant moves on to its next step
       await pause(READ_SQL_MS);
-      outcome = outcomeOf(await runInTab(id, w.sql));
-      await pause(SEE_RESULT_MS);
+      const reason = blockedReason(conversationId, w, stopsAtStart);
+      if (reason) {
+        outcome = { ran: false, reason };
+        useAssistantStore.getState().setNotRun(conversationId, itemId);
+      } else {
+        outcome = outcomeOf(await runInTab(id, w.sql, w.connId));
+        await pause(SEE_RESULT_MS);
+      }
     }
   } finally {
     // The assistant waits for this

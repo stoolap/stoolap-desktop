@@ -36,7 +36,7 @@ import { formatSQL } from "@/lib/sql-formatter";
 import { saveFile, escapeCSV, basename, errorMessage } from "@/lib/utils";
 import { toast } from "sonner";
 import { useModKey } from "@/hooks/use-mod-key";
-import { isExplain } from "@/lib/sql-utils";
+import { explainAll } from "@/lib/sql-utils";
 
 function resultStats(result: ApiResult | null) {
   if (!result) return null;
@@ -86,7 +86,7 @@ export function QueryToolbar() {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<RunTabRequest>).detail;
       detail.handled = true;
-      executeRef.current(detail.tabId, detail.sql).then(detail.done);
+      executeRef.current(detail.tabId, detail.sql, detail.connId).then(detail.done);
     };
     window.addEventListener("stoolap:run-tab", handler);
     return () => window.removeEventListener("stoolap:run-tab", handler);
@@ -112,11 +112,7 @@ export function QueryToolbar() {
 
   const handleExplain = () => {
     if (activeTab && activeTab.sql.trim()) {
-      const sql = activeTab.sql.trimStart();
-      const query = isExplain(sql)
-        ? sql
-        : `EXPLAIN ${sql}`;
-      executeQuery(activeTab.id, query);
+      executeQuery(activeTab.id, explainAll(activeTab.sql));
     }
   };
 

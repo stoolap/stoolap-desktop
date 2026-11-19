@@ -44,7 +44,7 @@ import * as assistant from "@/lib/assistant";
 import { isOpenAi, type AssistantModel, type Backend, type Backends, type KeyProvider } from "@/lib/assistant";
 import { getEditorSelection } from "@/lib/editor-registry";
 import { foldUnchanged, lineDiff } from "@/lib/line-diff";
-import { runInTab } from "@/lib/assistant-edits";
+import { runInTab, stopWrites } from "@/lib/assistant-edits";
 import { cn, errorMessage } from "@/lib/utils";
 import { useAssistantStore, type AssistantItem } from "@/stores/assistant-store";
 import { useConnectionStore } from "@/stores/connection-store";
@@ -289,6 +289,7 @@ export function AssistantPanel() {
   };
   const deleteChat = () => {
     if (!chatId) return;
+    stopWrites(chatId);
     assistant.cancel(chatId).catch(() => {});
     assistant.reset(chatId).catch(() => {});
     useAssistantStore.getState().deleteChat(chatId);
@@ -538,7 +539,10 @@ export function AssistantPanel() {
                 </label>
                 <div className="flex-1" />
                 {running ? (
-                  <Button size="icon" variant="secondary" className="h-6 w-6" onClick={() => assistant.cancel(chatId!)} aria-label="Stop">
+                  <Button size="icon" variant="secondary" className="h-6 w-6" onClick={() => {
+                      stopWrites(chatId!);
+                      assistant.cancel(chatId!);
+                    }} aria-label="Stop">
                     <Square className="h-3 w-3" />
                   </Button>
                 ) : (
