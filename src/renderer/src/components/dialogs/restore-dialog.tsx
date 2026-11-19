@@ -202,14 +202,20 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <Checkbox
-              checked={useTransaction}
-              onCheckedChange={(v) => setUseTransaction(!!v)}
-              disabled={loading}
-            />
-            Wrap in transaction (rollback on error)
-          </label>
+          <div className="space-y-1">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox
+                checked={useTransaction}
+                onCheckedChange={(v) => setUseTransaction(!!v)}
+                disabled={loading}
+              />
+              Insert rows in transactions
+            </label>
+            <p className="pl-6 text-xs text-muted-foreground">
+              On an error, only the rows since the last CREATE (or other non-row statement) are
+              rolled back. Tables, indexes and rows restored before that stay.
+            </p>
+          </div>
 
           {loading && (
             <div className="space-y-2">
