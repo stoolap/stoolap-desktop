@@ -94,4 +94,21 @@ describe("query runs", () => {
     const shown = useEditorStore.getState().tabs.find((t) => t.id === tabId)!.result as { time: number };
     expect(shown.time).toBeGreaterThanOrEqual(25);
   });
+
+  it("keeps a script's wait for the toolbar, and each statement's own time", async () => {
+    const tabId = useEditorStore.getState().addTab("Query", "");
+    const done = executeQuery()(tabId, "SELECT * FROM big; SELECT 1");
+    await new Promise((r) => setTimeout(r, 30));
+    pending[pending.length - 1]({
+      results: [
+        { columns: ["a"], rows: [[1]], time: 1, sql: "SELECT * FROM big" },
+        { columns: ["b"], rows: [[1]], time: 2, sql: "SELECT 1" },
+      ],
+      time: 3,
+    });
+    await done;
+    const tab = useEditorStore.getState().tabs.find((t) => t.id === tabId)!;
+    expect(tab.resultsTime).toBeGreaterThanOrEqual(25);
+    expect(tab.results?.map((r) => (r as { time: number }).time)).toEqual([1, 2]);
+  });
 });

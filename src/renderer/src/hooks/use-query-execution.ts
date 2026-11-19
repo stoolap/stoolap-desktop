@@ -115,7 +115,7 @@ export function useQueryExecution() {
         // the engine's own time leaves out sending a large result over
         if ("time" in result) result.time = Math.round((performance.now() - started) * 100) / 100;
         if ("results" in result) {
-          useEditorStore.getState().setTabResults(tabId, result.results);
+          useEditorStore.getState().setTabResults(tabId, result.results, result.time);
         } else {
           useEditorStore.getState().setTabResult(tabId, result);
         }
