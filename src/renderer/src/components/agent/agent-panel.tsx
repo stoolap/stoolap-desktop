@@ -16,7 +16,6 @@ import {
   Terminal,
   Undo2,
   MoreHorizontal,
-  Sparkles,
   Square,
   SquarePen,
   Trash2,
@@ -336,7 +335,7 @@ export function AgentPanel() {
     <div className="flex h-full flex-col bg-background">
       {/* Header */}
       <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border/40 pl-3 pr-1">
-        <Sparkles className="h-3.5 w-3.5 text-primary" />
+        {/* No icon: the toggle beside the tabs, right next to it, shows it */}
         <span className="text-xs font-medium">{t("panel.title")}</span>
         <div className="flex-1" />
         <Tooltip>
@@ -805,7 +804,8 @@ function ItemView({ item, conversationId }: { item: AgentItem; conversationId: s
   switch (item.kind) {
     case "user":
       return (
-        <div className="self-end max-w-[90%] whitespace-pre-wrap rounded-lg bg-accent px-3 py-2 text-sm">
+        // Set apart from the agent's replies: black in light mode, a raised grey in dark
+        <div className="self-end max-w-[90%] whitespace-pre-wrap rounded-2xl bg-black px-3 py-2 text-sm text-white dark:bg-[#2f2f2f] dark:text-foreground">
           {item.text}
         </div>
       );

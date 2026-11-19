@@ -118,7 +118,7 @@ fn main() {
 /// webview's first frame.
 fn match_background_to_theme(window: &tauri::WebviewWindow, theme: Option<tauri::Theme>) {
     let color = match theme {
-        Some(tauri::Theme::Dark) => tauri::window::Color(0x23, 0x23, 0x23, 0xff),
+        Some(tauri::Theme::Dark) => tauri::window::Color(0x18, 0x18, 0x18, 0xff),
         _ => tauri::window::Color(0xff, 0xff, 0xff, 0xff),
     };
     let _ = window.set_background_color(Some(color));
