@@ -4,6 +4,12 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.7
+
+### Fixes
+- On macOS the window can be moved again by dragging its title bar, and double-clicking the title bar zooms it.
+- The agent no longer starts Claude Code on its own the first time you use it. You choose how it runs (Claude Code is recommended when it is installed), once; a request made before that, such as **Fix with agent**, waits for your choice.
+
 ## v0.5.6
 
 ### Scripts and transactions
