@@ -8,11 +8,17 @@ interface ConnectionState {
   setActiveId: (id: string | null) => void;
   addConnection: (meta: ConnectionMeta) => void;
   removeConnection: (id: string) => void;
+  /** Connections whose session is inside a transaction the user began */
+  openTransactions: Record<string, boolean>;
+  setTransactionOpen: (id: string, open: boolean) => void;
 }
 
 export const useConnectionStore = create<ConnectionState>((set) => ({
   connections: [],
   activeId: null,
+  openTransactions: {},
+  setTransactionOpen: (id, open) =>
+    set((s) => (s.openTransactions[id] === open ? s : { openTransactions: { ...s.openTransactions, [id]: open } })),
   setConnections: (connections) => set({ connections }),
   setActiveId: (activeId) => set({ activeId }),
   addConnection: (meta) =>

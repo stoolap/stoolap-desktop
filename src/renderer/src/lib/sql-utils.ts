@@ -96,6 +96,22 @@ export function isSingleReadOnly(sql: string): boolean {
   return !/\b(INSERT|UPDATE|DELETE|MERGE|RETURNING|CREATE|DROP|ALTER|TRUNCATE)\b/.test(code);
 }
 
+/** True when `sql` has a RETURNING clause (strings, names and comments aside): its rows are what it wrote. */
+export function hasReturning(sql: string): boolean {
+  return /\bRETURNING\b/i.test(sql.replace(QUOTED_OR_COMMENT, (_, quoted?: string) => (quoted ? quoted[0].repeat(2) : " ")));
+}
+
+/**
+ * For an EXPLAIN, whether making its plan ran a write: EXPLAIN ANALYZE runs
+ * its statement, so EXPLAIN ANALYZE UPDATE changes data. Undefined when
+ * `sql` isn't an EXPLAIN.
+ */
+export function explainKind(sql: string): "read" | "write" | undefined {
+  if (!isExplain(sql)) return undefined;
+  const code = sql.replace(QUOTED_OR_COMMENT, (_, quoted?: string) => (quoted ? quoted[0].repeat(2) : " ")).trim();
+  return /^EXPLAIN\s+ANALYZE\b/i.test(code) && /\b(INSERT|UPDATE|DELETE|MERGE)\b/i.test(code) ? "write" : "read";
+}
+
 /** True when `sql` is an EXPLAIN (or EXPLAIN ANALYZE), comments before it aside. */
 export function isExplain(sql: string): boolean {
   return /^EXPLAIN\b/i.test(stripComments(sql).trimStart());

@@ -1,4 +1,4 @@
-import type { RunEntry } from "@/lib/types";
+import type { EditorTab, RunEntry } from "@/lib/types";
 import { basename } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useEditorStore } from "@/stores/editor-store";
@@ -17,6 +17,13 @@ export function localTime(ms: number): string {
     `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ` +
     `${offset < 0 ? "-" : "+"}${pad(Math.trunc(offset / 60))}:${pad(offset % 60)}`
   );
+}
+
+/** The error a tab's last run showed: a failed statement, or the one a script failed on */
+export function tabError(tab: EditorTab | null | undefined): string | undefined {
+  if (!tab) return undefined;
+  if (tab.resultsError) return tab.resultsError;
+  return tab.result && "error" in tab.result && tab.result.error ? tab.result.error : undefined;
 }
 
 /** A database's key: its path, or the connection id when in memory */
@@ -71,7 +78,7 @@ export function editorSnapshot(
         ranOn: t.lastDb === undefined ? undefined : t.lastDb === db ? "this" : "other",
         ranOnName: t.lastDb !== undefined && t.lastDb !== db ? nameOf(t.lastDb, t.lastDbName) : undefined,
         lastRunAt: t.lastRunAt ? localTime(t.lastRunAt) : undefined,
-        lastError: t.result && "error" in t.result && t.result.error ? t.result.error.slice(0, 500) : undefined,
+        lastError: tabError(t)?.slice(0, 500),
       })),
     runs: runLog
       .filter((r) => r.db === db)

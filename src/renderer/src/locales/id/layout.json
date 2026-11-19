@@ -6,7 +6,9 @@
   "statusBar": {
     "inMemory": "Dalam Memori",
     "noConnection": "Tidak ada koneksi",
-    "inMemoryHint": "Hanya di memori: perubahan hilang saat basis data atau aplikasi ditutup. Buat cadangan untuk menyimpannya."
+    "inMemoryHint": "Hanya di memori: perubahan hilang saat basis data atau aplikasi ditutup. Buat cadangan untuk menyimpannya.",
+    "transactionOpen": "Transaksi terbuka",
+    "transactionOpenHint": "Sesi Anda berada di dalam transaksi: yang Anda jalankan belum di-commit dan sesi lain tidak melihatnya. Jalankan COMMIT untuk menyimpannya atau ROLLBACK untuk membatalkannya."
   },
   "dataTab": {
     "unavailable": "Tabel \"{{table}}\" tidak lagi tersedia: {{error}}",

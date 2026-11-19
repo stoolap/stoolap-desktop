@@ -99,7 +99,7 @@ pub fn definitions() -> Value {
         },
         {
             "name": "check_query",
-            "description": "Run one read-only statement (SELECT, WITH ... SELECT, SHOW, DESCRIBE, PRAGMA without a value, or EXPLAIN / EXPLAIN ANALYZE of a read) to check something for yourself, without touching the user's tab: a count, a distinct list, whether a value exists, a plan with real timings. It runs in its own transaction that is rolled back, under the query timeout. You get the columns, up to 50 rows, the total row count and how long it took; the user sees each check, its SQL and its first 20 rows as a step in the agent panel, a refused or failed check as an error step. Its time is the engine's, inside a rolled-back transaction, so it is lower than the user's wait in query_history. Prefer small results (aggregates, LIMIT). To show the user something, or to change data, use write_query.",
+            "description": "Run one read-only statement (SELECT, WITH ... SELECT, SHOW, DESCRIBE, PRAGMA without a value, or EXPLAIN / EXPLAIN ANALYZE of a read) to check something for yourself, without touching the user's tab: a count, a distinct list, whether a value exists, a plan with real timings. It runs in its own transaction that is rolled back, under the query timeout. You get the columns, up to 50 rows, the total row count and how long it took; the user sees each check, its SQL and its first 20 rows as a step in the agent panel, a refused or failed check as an error step. Its time is the engine's, inside a rolled-back transaction, so it is lower than the user's wait in query_history. That transaction is its own: CURRENT_TRANSACTION_ID() in a check says nothing about the user's session; the result says whether the user's session has a transaction open. Prefer small results (aggregates, LIMIT). To show the user something, or to change data, use write_query.",
             "strict": true,
             "input_schema": strict_object(
                 json!({
@@ -290,6 +290,12 @@ fn check_query(db: &DbManager, conn_id: &str, sql: &str, repeat: usize) -> Outpu
                 0 => "no query timeout".to_string(),
                 ms => format!("query timeout {ms} ms"),
             };
+            // It runs in a session of its own, so it can't see what the user's open transaction changed
+            let open = if db.transaction_state(conn_id).is_ok_and(|t| t.load(std::sync::atomic::Ordering::Relaxed)) {
+                " The user's session has an open transaction: this check runs outside it and doesn't see its uncommitted changes."
+            } else {
+                " The user's session has no open transaction."
+            };
             let timing = match times.as_slice() {
                 [_] => String::new(),
                 all => format!(
@@ -311,7 +317,7 @@ fn check_query(db: &DbManager, conn_id: &str, sql: &str, repeat: usize) -> Outpu
             };
             Output {
                 content: format!(
-                    "Checked ({timeout}); the user's tab is unchanged. You get up to {MAX_ROWS} rows below; the user sees this check in the panel with its first {DETAIL_ROWS} rows.{timing} {result}"
+                    "Checked ({timeout}); the user's tab is unchanged. You get up to {MAX_ROWS} rows below; the user sees this check in the panel with its first {DETAIL_ROWS} rows.{open}{timing} {result}"
                 ),
                 is_error: false,
                 summary: t_count("steps.checked", count as i64, &[]),
@@ -415,19 +421,93 @@ fn short_sql(sql: &str) -> String {
     }
 }
 
+/// "1 row", "2 rows"
+fn rows(n: i64, what: &str) -> String {
+    if n == 1 { format!("1 row{what}") } else { format!("{n} rows{what}") }
+}
+
+/// What a run's rows were: a plan (and whether EXPLAIN ANALYZE ran a write
+/// to make it), what a write returned, or what a read found
+fn rows_of(r: &Value, n: i64) -> String {
+    let lines = if n == 1 { "1 line".to_string() } else { format!("{n} lines") };
+    match r["plan"].as_str() {
+        Some("write") => format!("plan of {lines} · EXPLAIN ANALYZE ran the write"),
+        Some(_) => format!("plan of {lines}"),
+        None if r["writes"] == true => rows(n, " changed (RETURNING)"),
+        None => rows(n, ""),
+    }
+}
+
+/// How a run touched the user's transaction: "opened", "inside" or "ended"
+/// (older entries say inTransaction instead)
+fn transaction_of(r: &Value) -> Option<&str> {
+    r["transaction"].as_str().or(if r["inTransaction"] == true { Some("inside") } else { None })
+}
+
+/// For each run in a transaction, what became of that transaction: walked
+/// oldest first, each run is matched with the run that ended it. Index ->
+/// (its fate, when the transaction was opened).
+fn transaction_fates(runs: &[Value]) -> std::collections::HashMap<usize, (&'static str, String)> {
+    let mut fates = std::collections::HashMap::new();
+    let mut group: Vec<usize> = Vec::new();
+    for i in (0..runs.len()).rev() {
+        match transaction_of(&runs[i]) {
+            Some("opened") => group = vec![i],
+            Some("inside") => group.push(i),
+            Some("ended") => {
+                let head = runs[i]["sql"].as_str().unwrap_or_default().trim_start().to_uppercase();
+                let fate = if head.starts_with("ROLLBACK") {
+                    "rolled back"
+                } else if head.starts_with("COMMIT") {
+                    "committed"
+                } else {
+                    "ended"
+                };
+                let opened = group.first().and_then(|&g| runs[g]["time"].as_str()).unwrap_or("earlier").to_string();
+                group.push(i);
+                for g in group.drain(..) {
+                    fates.insert(g, (fate, opened.clone()));
+                }
+            }
+            _ => {}
+        }
+    }
+    for g in group {
+        fates.insert(g, ("still open", String::new()));
+    }
+    fates
+}
+
 fn query_history(target: &McpSession, limit: Option<usize>, tab: Option<&str>) -> Output {
     let recorded = target.live.lock().map(|l| l.runs.clone()).unwrap_or_default();
+    let fates = transaction_fates(&recorded);
     let runs: Vec<String> = recorded
         .iter()
-        .filter(|r| tab.is_none_or(|t| r["tab"].as_str().is_some_and(|rt| rt.eq_ignore_ascii_case(t))))
+        .enumerate()
+        .filter(|(_, r)| tab.is_none_or(|t| r["tab"].as_str().is_some_and(|rt| rt.eq_ignore_ascii_case(t))))
         .take(limit.unwrap_or(HISTORY_RUNS).clamp(1, MAX_HISTORY_RUNS))
-        .map(|r| {
+        .map(|(index, r)| {
+            let failed = r["error"].is_string();
+            let rolled_back = r["rolledBack"] == true;
+            let script = match r["statements"].as_i64() {
+                Some(n) => format!("script of {n} statements{} · ", if rolled_back { ", rolled back" } else { "" }),
+                None => String::new(),
+            };
             let outcome = if let Some(e) = r["error"].as_str() {
-                format!("failed: {}", truncate(e))
+                // The advice to end a transaction was for then; what became
+                // of it is said below. Shortened in the middle: the end says
+                // what became of a script's transaction
+                use crate::commands::query::{BEGUN_ROLLED_BACK, SCRIPT_ROLLED_BACK, STILL_OPEN};
+                let mut e = e.replace(STILL_OPEN, "");
+                // The header already says the script was rolled back
+                if rolled_back {
+                    e = e.replace(SCRIPT_ROLLED_BACK, "").replace(BEGUN_ROLLED_BACK, "");
+                }
+                format!("{script}failed: {}", truncate_middle(&e))
             } else if let Some(n) = r["rows"].as_i64() {
-                format!("{n} rows")
+                rows_of(r, n)
             } else if let Some(n) = r["changes"].as_i64() {
-                format!("{n} rows changed")
+                rows(n, " changed")
             } else if let Some(n) = r["statements"].as_i64() {
                 format!("script of {n} statements")
             } else if let Some(ddl) = r["ddl"].as_str() {
@@ -445,7 +525,25 @@ fn query_history(target: &McpSession, limit: Option<usize>, tab: Option<&str>) -
                 (None, Some("agent")) => " · you ran it".to_string(),
                 (None, _) => " · the user ran it".to_string(),
             };
-            // Each statement of a script, so a slow or empty one stands out
+            // Where it stood in the user's transaction, and what became of that
+            let fate = fates.get(&index);
+            let later = match fate {
+                Some(("still open", _)) => ", still open: not committed yet".to_string(),
+                Some((fate, _)) => format!(", later {fate}"),
+                None => String::new(),
+            };
+            let transaction = match transaction_of(r) {
+                Some("opened") => format!(" · opened a transaction{later}"),
+                Some("inside") if failed => " · inside a transaction".to_string(),
+                Some("inside") => format!(" · inside a transaction{later}"),
+                Some("ended") => match fate {
+                    Some((_, opened)) => format!(" · ended the transaction opened at {opened}"),
+                    None => " · ended the transaction".to_string(),
+                },
+                _ => String::new(),
+            };
+            // Each statement of a script, so a slow or empty one stands out,
+            // and the one it failed on and those that didn't run
             let steps: String = r["steps"]
                 .as_array()
                 .map(|steps| {
@@ -453,17 +551,23 @@ fn query_history(target: &McpSession, limit: Option<usize>, tab: Option<&str>) -
                         .iter()
                         .enumerate()
                         .map(|(i, st)| {
-                            let result = if let Some(n) = st["rows"].as_i64() {
-                                format!("{n} rows")
-                            } else if let Some(n) = st["changes"].as_i64() {
-                                format!("{n} rows changed")
-                            } else {
-                                format!("{} done", st["ddl"].as_str().unwrap_or("statement"))
+                            let result = match st["status"].as_str() {
+                                Some(status) => status.to_string(),
+                                None => {
+                                    let done = if let Some(n) = st["rows"].as_i64() {
+                                        rows_of(st, n)
+                                    } else if let Some(n) = st["changes"].as_i64() {
+                                        rows(n, " changed")
+                                    } else {
+                                        format!("{} done", st["ddl"].as_str().unwrap_or("statement"))
+                                    };
+                                    let undone = if rolled_back { " · rolled back" } else { "" };
+                                    format!("{done} · {} ms{undone}", st["ms"].as_f64().unwrap_or(0.0))
+                                }
                             };
                             format!(
-                                "\n  {}. {result} · {} ms · {}",
+                                "\n  {}. {result} · {}",
                                 i + 1,
-                                st["ms"].as_f64().unwrap_or(0.0),
                                 truncate(st["sql"].as_str().unwrap_or_default().split_whitespace().collect::<Vec<_>>().join(" ").as_str())
                             )
                         })
@@ -471,7 +575,7 @@ fn query_history(target: &McpSession, limit: Option<usize>, tab: Option<&str>) -
                 })
                 .unwrap_or_default();
             format!(
-                "- {when} · {} ms · {outcome}{place}{steps}\n{}",
+                "- {when} · {} ms · {outcome}{place}{transaction}{steps}\n{}",
                 r["ms"].as_f64().unwrap_or(0.0),
                 short_sql(r["sql"].as_str().unwrap_or_default()),
             )
@@ -558,8 +662,19 @@ pub fn format_run(outcome: &Value, tab: &str) -> Output {
         );
     }
     if let Some(e) = outcome["error"].as_str() {
+        // A script that failed partway: what ran before the failure, then the failure
+        let before: String = outcome["statements"]
+            .as_array()
+            .map(|stmts| {
+                stmts
+                    .iter()
+                    .enumerate()
+                    .map(|(i, st)| format!("\n\nStatement {}: {}", i + 1, statement_text(st)))
+                    .collect()
+            })
+            .unwrap_or_default();
         return ok(
-            format!("Written into \"{tab}\" and run. It failed: {e}"),
+            format!("Written into \"{tab}\" and run. It failed: {e}{before}"),
             t("steps.ranFailed", &[("tab", &tab), ("error", &e)]),
         );
     }
@@ -615,6 +730,12 @@ fn statement_text(r: &Value) -> String {
         .unwrap_or_default();
     let total = r["rowCount"].as_u64().unwrap_or(rows.len() as u64);
     let shown = &rows[..rows.len().min(MAX_ROWS)];
+    // A plan's rows aren't data; EXPLAIN ANALYZE of a write ran it
+    if let Some(kind) = r["plan"].as_str() {
+        let wrote = if kind == "write" { " EXPLAIN ANALYZE ran the write: the data changed." } else { "" };
+        let lines = if total == 1 { "1 line".to_string() } else { format!("{total} lines") };
+        return format!("A plan of {lines}{took}.{wrote}\n{}", table_text(&columns, shown));
+    }
     let mut text = format!("{total} row{}{took}.\n{}", if total == 1 { "" } else { "s" }, table_text(&columns, shown));
     if total as usize > shown.len() {
         text.push_str(&format!("\n(first {} of {total} rows)", shown.len()));
@@ -739,6 +860,17 @@ fn cell(v: &Value) -> String {
         Value::String(s) => truncate(s),
         other => truncate(&other.to_string()),
     }
+}
+
+/// `s` with its middle cut when it is long, keeping how it starts and ends
+fn truncate_middle(s: &str) -> String {
+    let n = s.chars().count();
+    if n <= MAX_CELL_CHARS * 2 {
+        return s.to_string();
+    }
+    let head: String = s.chars().take(MAX_CELL_CHARS).collect();
+    let tail: String = s.chars().skip(n - MAX_CELL_CHARS).collect();
+    format!("{head} … {tail}")
 }
 
 /// `s` cut to MAX_CELL_CHARS, marked with … when cut
@@ -868,6 +1000,61 @@ mod tests {
     }
 
     #[test]
+    fn history_says_what_became_of_each_transaction() {
+        // Newest first, as the renderer keeps them
+        let runs = vec![
+            json!({"sql": "ROLLBACK", "at": 0, "ms": 1, "ddl": "ROLLBACK", "transaction": "ended"}),
+            json!({"sql": "INSERT INTO c VALUES (1, 99)", "at": 0, "ms": 1, "error": "fk", "transaction": "inside"}),
+            json!({"sql": "UPDATE t SET x = 1", "at": 0, "ms": 1, "changes": 1, "transaction": "inside"}),
+            json!({"sql": "BEGIN", "at": 0, "time": "2026-11-19 10:00:00 +03:00", "ms": 1, "ddl": "BEGIN", "transaction": "opened"}),
+            json!({"sql": "SELECT 1", "at": 0, "ms": 1, "rows": 1}),
+        ];
+        let target = McpSession {
+            live: std::sync::Arc::new(std::sync::Mutex::new(Live { tabs: vec![], runs })),
+            ..session("")
+        };
+        let history = query_history(&target, None, None).content;
+        assert!(history.contains("ROLLBACK done · the user ran it · ended the transaction opened at 2026-11-19 10:00:00 +03:00"), "{history}");
+        assert!(history.contains("failed: fk · the user ran it · inside a transaction\n"), "{history}");
+        assert!(history.contains("1 row changed · the user ran it · inside a transaction, later rolled back"), "{history}");
+        assert!(history.contains("BEGIN done · the user ran it · opened a transaction, later rolled back"), "{history}");
+        assert!(history.contains("1 row · the user ran it\nSELECT 1"), "{history}");
+
+        let script = vec![json!({
+            "sql": "BEGIN; INSERT INTO t VALUES (1) RETURNING id; INSERT INTO c VALUES (9); SELECT 1", "at": 0, "ms": 5,
+            "statements": 4, "rolledBack": true, "transaction": null,
+            "error": "Statement 3 of 4: fk. The statement after it did not run. The transaction the script began was rolled back.",
+            "steps": [
+                {"sql": "BEGIN", "ms": 1, "ddl": "BEGIN"},
+                {"sql": "INSERT INTO t VALUES (1) RETURNING id", "ms": 1, "rows": 1, "writes": true},
+                {"sql": "INSERT INTO c VALUES (9)", "status": "failed"},
+                {"sql": "SELECT 1", "status": "not run"},
+            ],
+        })];
+        let target = McpSession { live: std::sync::Arc::new(std::sync::Mutex::new(Live { tabs: vec![], runs: script })), ..session("") };
+        let history = query_history(&target, None, None).content;
+        assert!(history.contains("script of 4 statements, rolled back · failed: Statement 3 of 4: fk. The statement after it did not run. ·"), "said once: {history}");
+        assert!(history.contains("2. 1 row changed (RETURNING) · 1 ms · rolled back · INSERT"), "{history}");
+        assert!(history.contains("3. failed · INSERT INTO c VALUES (9)\n  4. not run · SELECT 1"), "{history}");
+
+        // A plan isn't data rows; EXPLAIN ANALYZE of a write changed data
+        let plans = vec![
+            json!({"sql": "EXPLAIN ANALYZE UPDATE t SET x = 1", "at": 0, "ms": 1, "rows": 5, "plan": "write"}),
+            json!({"sql": "EXPLAIN SELECT 1", "at": 0, "ms": 1, "rows": 1, "plan": "read"}),
+        ];
+        let target = McpSession { live: std::sync::Arc::new(std::sync::Mutex::new(Live { tabs: vec![], runs: plans })), ..session("") };
+        let history = query_history(&target, None, None).content;
+        assert!(history.contains("plan of 5 lines · EXPLAIN ANALYZE ran the write"), "{history}");
+        assert!(history.contains("plan of 1 line · the user"), "{history}");
+
+        // Advice that was right then isn't repeated later
+        let stale = vec![json!({"sql": "UPDATE t SET x = 1", "at": 0, "ms": 1, "transaction": "inside",
+            "error": format!("fk.{}", crate::commands::query::STILL_OPEN)})];
+        let target = McpSession { live: std::sync::Arc::new(std::sync::Mutex::new(Live { tabs: vec![], runs: stale })), ..session("") };
+        assert!(!query_history(&target, None, None).content.contains("run COMMIT or ROLLBACK"));
+    }
+
+    #[test]
     fn the_renderers_view_after_a_write_is_read() {
         // As lib/agent-context.ts sends it with the write's outcome
         let live: Live = serde_json::from_value(json!({
@@ -908,8 +1095,9 @@ mod tests {
             "{history}"
         );
         assert!(history.contains("failed: no such table · you ran it in \"Agent\""));
-        assert!(history.contains("script of 2 statements · the user ran it in \"Script\"\n  1. CREATE TABLE done · 4 ms · CREATE TABLE a (id INTEGER)\n  2. 1 rows · 1 ms · SELECT 1"), "{history}");
+        assert!(history.contains("script of 2 statements · the user ran it in \"Script\"\n  1. CREATE TABLE done · 4 ms · CREATE TABLE a (id INTEGER)\n  2. 1 row · 1 ms · SELECT 1"), "{history}");
 
+        assert!(truncate_middle(&format!("{} The transaction the script began was rolled back.", "x".repeat(600))).ends_with("was rolled back."));
         let one = run(&db, "", "query_history", &json!({"limit": 1, "tab": null})).content;
         assert!(one.contains("SELECT * FROM big") && !one.contains("DELETE"), "{one}");
         let in_tab = run(&db, "", "query_history", &json!({"limit": null, "tab": "agent"})).content;
@@ -962,11 +1150,18 @@ mod tests {
         assert!(out.content.contains("Statement 1: 3 rows changed in 1.5 ms."));
         assert!(out.content.contains("Statement 2: CREATE INDEX done in 30 ms."));
         assert!(out.content.contains("Statement 3: 1 row in 0.25 ms."));
+        let plan = format_run(&json!({"ran": true, "columns": ["plan"], "rows": [["Update"]], "rowCount": 1, "time": 2, "plan": "write"}), "Q");
+        assert!(plan.content.contains("A plan of 1 line in 2 ms. EXPLAIN ANALYZE ran the write: the data changed."), "{}", plan.content);
         // Without a time, as before
         assert!(format_run(&json!({"ran": true, "changes": 2}), "Q").content.contains("2 rows changed."));
 
         let failed = format_run(&json!({"ran": true, "error": "column x not found"}), "Q");
         assert!(failed.content.contains("column x not found"));
+        let partway = format_run(
+            &json!({"ran": true, "error": "Statement 2 of 2: no such table", "statements": [{"changes": 1, "time": 0.5}]}),
+            "Q",
+        );
+        assert!(partway.content.contains("It failed: Statement 2 of 2: no such table\n\nStatement 1: 1 row changed in 0.5 ms."), "{}", partway.content);
         assert!(format_run(&json!({"ran": false}), "Q").content.contains("Not run"));
     }
 }

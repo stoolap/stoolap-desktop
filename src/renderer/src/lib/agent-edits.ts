@@ -1,6 +1,6 @@
 import * as agent from "@/lib/agent";
 import type { StatementOutcome, WriteOutcome } from "@/lib/agent";
-import { isSingleReadOnly } from "@/lib/sql-utils";
+import { explainKind, isSingleReadOnly } from "@/lib/sql-utils";
 import type { ApiResult, DdlResult, ExecResult, QueryResult, ScriptResult } from "@/lib/types";
 import { useAgentStore } from "@/stores/agent-store";
 import { useConnectionStore } from "@/stores/connection-store";
@@ -124,18 +124,26 @@ export function applyDraft(tabId: string, sql: string): void {
   editor.updateTabSql(id, sql);
 }
 
-function statementOutcome(r: QueryResult | ExecResult | DdlResult): StatementOutcome {
+function statementOutcome(r: QueryResult | ExecResult | DdlResult, sql: string): StatementOutcome {
   const { time } = r;
-  if ("columns" in r) return { columns: r.columns, rows: r.rows.slice(0, 50), rowCount: r.rows.length, time };
+  if ("columns" in r) {
+    // A plan's rows aren't data; EXPLAIN ANALYZE of a write changed data
+    const plan = explainKind(sql);
+    return { columns: r.columns, rows: r.rows.slice(0, 50), rowCount: r.rows.length, time, ...(plan ? { plan } : {}) };
+  }
   if ("changes" in r) return { changes: r.changes, time };
   return { ddl: r.ddl, time };
 }
 
-function outcomeOf(result: ApiResult | ScriptResult | undefined): WriteOutcome {
+function outcomeOf(result: ApiResult | ScriptResult | undefined, sql: string): WriteOutcome {
   if (!result) return { ran: false, reason: "the tab could not run it" };
+  // A script that failed partway: what ran before the failure, and the failure
+  if ("results" in result) {
+    const ran = { ran: true as const, statements: result.results.map((r) => statementOutcome(r, r.sql)), time: result.time };
+    return result.error ? { ...ran, error: result.error } : ran;
+  }
   if ("error" in result && result.error) return { ran: true, error: result.error };
-  if ("results" in result) return { ran: true, statements: result.results.map(statementOutcome), time: result.time };
-  return { ran: true, ...statementOutcome(result as QueryResult | ExecResult | DdlResult) };
+  return { ran: true, ...statementOutcome(result as QueryResult | ExecResult | DdlResult, sql) };
 }
 
 /**
@@ -196,7 +204,7 @@ export async function applyWrite(
         outcome = { ran: false, reason };
         useAgentStore.getState().setNotRun(conversationId, itemId);
       } else {
-        outcome = outcomeOf(await dispatchRun(id, w.sql, w.connId, "agent"));
+        outcome = outcomeOf(await dispatchRun(id, w.sql, w.connId, "agent"), w.sql);
         await pause(SEE_RESULT_MS);
       }
     }

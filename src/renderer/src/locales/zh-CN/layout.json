@@ -6,7 +6,9 @@
   "statusBar": {
     "inMemory": "内存",
     "noConnection": "未连接",
-    "inMemoryHint": "仅保存在内存中：关闭数据库或应用后更改会丢失。如需保留，请先备份。"
+    "inMemoryHint": "仅保存在内存中：关闭数据库或应用后更改会丢失。如需保留，请先备份。",
+    "transactionOpen": "事务未结束",
+    "transactionOpenHint": "当前会话处于事务中：执行的内容尚未提交，其他会话看不到。运行 COMMIT 保留更改，或运行 ROLLBACK 撤销。"
   },
   "dataTab": {
     "unavailable": "表“{{table}}”已不可用：{{error}}",

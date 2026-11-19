@@ -22,7 +22,7 @@ interface EditorState {
   updateTabTitle: (id: string, title: string) => void;
   setTabResult: (id: string, result: ApiResult | null) => void;
   /** A script's results; shows the first that returned rows */
-  setTabResults: (id: string, results: StatementResult[], time?: number) => void;
+  setTabResults: (id: string, results: StatementResult[], time?: number, error?: string) => void;
   selectTabResult: (id: string, index: number) => void;
   setTabRunning: (id: string, running: boolean) => void;
   setTabLastExecutedSql: (id: string, sql: string, db?: { key: string; name: string; at: number }) => void;
@@ -150,19 +150,19 @@ export const useEditorStore = create<EditorState>()(
         set((s) => ({
           tabs: s.tabs.map((t) =>
             t.id === id
-              ? { ...t, result, results: undefined, resultIndex: undefined, resultsTime: undefined, isRunning: false }
+              ? { ...t, result, results: undefined, resultIndex: undefined, resultsTime: undefined, resultsError: undefined, isRunning: false }
               : t,
           ),
         })),
 
-      setTabResults: (id, results, time) =>
+      setTabResults: (id, results, time, error) =>
         set((s) => {
           const firstRows = results.findIndex((r) => "columns" in r);
           const index = firstRows >= 0 ? firstRows : results.length - 1;
           return {
             tabs: s.tabs.map((t) =>
               t.id === id
-                ? { ...t, results, resultIndex: index, result: results[index] ?? null, resultsTime: time, isRunning: false }
+                ? { ...t, results, resultIndex: index, result: results[index] ?? null, resultsTime: time, resultsError: error, isRunning: false }
                 : t,
             ),
           };
@@ -218,6 +218,7 @@ export const useEditorStore = create<EditorState>()(
             results: undefined,
             resultIndex: undefined,
             resultsTime: undefined,
+            resultsError: undefined,
             isRunning: false,
           }));
         // Ensure at least one tab is persisted

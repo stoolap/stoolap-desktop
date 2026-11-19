@@ -47,6 +47,7 @@ fn main() {
             commands::query::db_query,
             commands::query::db_execute,
             commands::query::db_execute_query,
+            commands::query::db_transaction_open,
             // Schema
             commands::schema::db_tables,
             commands::schema::db_views,
@@ -117,7 +118,7 @@ fn main() {
 /// webview's first frame.
 fn match_background_to_theme(window: &tauri::WebviewWindow, theme: Option<tauri::Theme>) {
     let color = match theme {
-        Some(tauri::Theme::Dark) => tauri::window::Color(0x23, 0x23, 0x23, 0xff),
+        Some(tauri::Theme::Dark) => tauri::window::Color(0x18, 0x18, 0x18, 0xff),
         _ => tauri::window::Color(0xff, 0xff, 0xff, 0xff),
     };
     let _ = window.set_background_color(Some(color));

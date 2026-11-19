@@ -78,6 +78,7 @@ SELECT CAST('42' AS INTEGER) + 1 AS n, 7 * 1.0 / 2 AS f, POWER(2, 3) AS p, TIMES
 **Tables**
 - A one-column PK must be INTEGER. For a TEXT key, add `id INTEGER PRIMARY KEY AUTO_INCREMENT` plus `code TEXT NOT NULL UNIQUE`. A composite `PRIMARY KEY(a,b)` takes any types.
 - `AUTO_INCREMENT` works only on an INTEGER PK. On any other column it silently stores NULL.
+- A rolled-back INSERT still uses up its AUTO_INCREMENT id: after `BEGIN; INSERT … RETURNING id; ROLLBACK` the next insert gets the following id, as with sequences elsewhere. Gaps in ids are normal; never rely on them being consecutive.
 - CHECK works on columns and on the table. FK: `c INTEGER REFERENCES p(id) ON DELETE|ON UPDATE CASCADE|SET NULL|RESTRICT|NO ACTION`, or `FOREIGN KEY (c) REFERENCES p(id)`. The target must be the PK or UNIQUE. One column only.
 - Auto-created indexes: `unique_<t>_<col>`, `unique_<t>_0` (multi-column), `fk_<t>_<col>`.
 - ALTER takes one action: `ADD [COLUMN] c T [NOT NULL DEFAULT v]` | `DROP [COLUMN] c` | `RENAME COLUMN a TO b` | `MODIFY [COLUMN] c T [NOT NULL]` | `RENAME TO n` | `AUTO_INCREMENT = n` | `[DROP] CLUSTER BY`.

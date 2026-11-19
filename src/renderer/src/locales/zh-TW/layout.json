@@ -6,7 +6,9 @@
   "statusBar": {
     "inMemory": "記憶體",
     "noConnection": "未連線",
-    "inMemoryHint": "僅存在記憶體中：關閉資料庫或應用程式後變更會遺失。若要保留，請先備份。"
+    "inMemoryHint": "僅存在記憶體中：關閉資料庫或應用程式後變更會遺失。若要保留，請先備份。",
+    "transactionOpen": "交易進行中",
+    "transactionOpenHint": "目前工作階段位於交易中：執行的內容尚未認可，其他工作階段看不到。執行 COMMIT 保留變更，或執行 ROLLBACK 復原。"
   },
   "dataTab": {
     "unavailable": "資料表「{{table}}」已無法使用：{{error}}",

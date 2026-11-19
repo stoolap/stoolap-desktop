@@ -5,7 +5,7 @@ import { useConnectionStore } from "@/stores/connection-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { queryTimeoutLabel, useSettingsStore } from "@/stores/settings-store";
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
-import { isSingleReadOnly } from "@/lib/sql-utils";
+import { explainKind, hasReturning, isSingleReadOnly } from "@/lib/sql-utils";
 import * as api from "@/lib/api-client";
 import * as native from "@/lib/native";
 import type { ApiResult, RunEntry, ScriptResult } from "@/lib/types";
@@ -92,6 +92,19 @@ function dbKey(connId: string): string {
   return conn ? dbKeyOf(conn) : connId;
 }
 
+/**
+ * How the run touched the user's transaction, from whether one was open
+ * before and after it: the status bar shows an open one, and the run log
+ * marks the run (so the agent can tell what was never committed).
+ */
+async function settleTransaction(connId: string): Promise<RunEntry["transaction"]> {
+  const before = !!useConnectionStore.getState().openTransactions?.[connId];
+  const open = await api.transactionOpen(connId).catch(() => false);
+  useConnectionStore.getState().setTransactionOpen(connId, open);
+  if (open) return before ? "inside" : "opened";
+  return before ? "ended" : undefined;
+}
+
 /** A script's statements kept in the run log, each with its result */
 const MAX_STEPS = 30;
 
@@ -104,22 +117,50 @@ function logRun(
   ms: number,
   at: number,
   by?: "agent",
+  transaction?: RunEntry["transaction"],
 ) {
   const db = dbKey(connId);
   const tab = useEditorStore.getState().tabs.find((t) => t.id === tabId)?.title;
-  const run: RunEntry = { sql: sql.trim().slice(0, 4000), at, ms: Math.round(ms * 100) / 100, db, tab, by };
+  const run: RunEntry = {
+    sql: sql.trim().slice(0, 4000),
+    at,
+    ms: Math.round(ms * 100) / 100,
+    db,
+    tab,
+    by,
+    transaction,
+  };
+  // A script keeps its statements' results even when one failed
   if ("error" in result && result.error) run.error = result.error;
-  else if ("results" in result) {
-    run.statements = result.results.length;
-    run.steps = result.results.slice(0, MAX_STEPS).map((r) => ({
-      sql: r.sql.length > 200 ? `${r.sql.slice(0, 200)}…` : r.sql,
-      ms: r.time,
-      ...("rows" in r ? { rows: r.rows.length } : "changes" in r ? { changes: r.changes } : { ddl: r.ddl }),
-    }));
+  if ("results" in result) {
+    // All of the script: what ran, the one it failed on, and the rest
+    run.statements = result.results.length + (result.failed ? 1 : 0) + (result.notRun?.length ?? 0);
+    run.rolledBack = result.rolledBack || undefined;
+    const short = (sql: string) => (sql.length > 200 ? `${sql.slice(0, 200)}…` : sql);
+    run.steps = [
+      ...result.results.map((r) => ({
+        sql: short(r.sql),
+        ms: r.time,
+        ...("rows" in r
+          ? { rows: r.rows.length, writes: hasReturning(r.sql) || undefined, plan: explainKind(r.sql) }
+          : "changes" in r
+            ? { changes: r.changes }
+            : { ddl: r.ddl }),
+      })),
+      // The one it failed on, and those that never ran
+      ...(result.failed ? [{ sql: short(result.failed), status: "failed" as const }] : []),
+      ...(result.notRun ?? []).map((sql) => ({ sql: short(sql), status: "not run" as const })),
+    ].slice(0, MAX_STEPS);
+  } else if (!run.error) {
+    if ("rows" in result) {
+      run.rows = result.rows.length;
+      // A write's RETURNING rows: what it changed, not what it read
+      if (hasReturning(sql)) run.writes = true;
+      run.plan = explainKind(sql);
+    }
+    else if ("changes" in result) run.changes = result.changes;
+    else if ("ddl" in result) run.ddl = result.ddl;
   }
-  else if ("rows" in result) run.rows = result.rows.length;
-  else if ("changes" in result) run.changes = result.changes;
-  else if ("ddl" in result) run.ddl = result.ddl;
   useEditorStore.getState().addRun(run);
 }
 
@@ -158,19 +199,21 @@ export function useQueryExecution() {
         // the engine's own time leaves out sending a large result over
         if ("time" in result) result.time = Math.round((performance.now() - started) * 100) / 100;
         if ("results" in result) {
-          useEditorStore.getState().setTabResults(tabId, result.results, result.time);
+          useEditorStore.getState().setTabResults(tabId, result.results, result.time, result.error);
         } else {
           useEditorStore.getState().setTabResult(tabId, result);
         }
         notifyIfLong(tabId, result, performance.now() - started);
-        logRun(activeId, tabId, sql, result, performance.now() - started, startedAt, by);
+        const waited = performance.now() - started;
+        logRun(activeId, tabId, sql, result, waited, startedAt, by, await settleTransaction(activeId));
 
         return result;
       } catch (e) {
         if (controller.signal.aborted) return stopped(tabId, controller);
         const failed = { error: errorMessage(e) };
         useEditorStore.getState().setTabResult(tabId, failed);
-        logRun(activeId, tabId, sql, failed, performance.now() - started, startedAt, by);
+        const waited = performance.now() - started;
+        logRun(activeId, tabId, sql, failed, waited, startedAt, by, await settleTransaction(activeId));
         return failed;
       } finally {
         endRun(tabId, controller);

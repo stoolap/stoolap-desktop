@@ -11,11 +11,29 @@ export interface RunEntry {
   ddl?: string;
   /** Statements in a script, and each one's result and time */
   statements?: number;
-  steps?: { sql: string; ms: number; rows?: number; changes?: number; ddl?: string }[];
+  steps?: {
+    sql: string;
+    ms?: number;
+    rows?: number;
+    /** Its rows came from a write's RETURNING, or are a plan */
+    writes?: boolean;
+    plan?: "read" | "write";
+    changes?: number;
+    ddl?: string;
+    status?: "failed" | "not run";
+  }[];
+  /** A failed script's statements were rolled back with it */
+  rolledBack?: boolean;
+  /** Rows a write returned (RETURNING), not a read */
+  writes?: boolean;
+  /** Its rows are a plan; "write" when EXPLAIN ANALYZE ran a write to make it */
+  plan?: "read" | "write";
   error?: string;
   /** The tab it ran in, by title; and "agent" when the agent ran it */
   tab?: string;
   by?: "agent";
+  /** How it touched the user's transaction: began one, ran inside one, or ended one */
+  transaction?: "opened" | "inside" | "ended";
 }
 
 export interface ConnectionMeta {
@@ -59,7 +77,12 @@ export type StatementResult = (QueryResult | ExecResult | DdlResult) & { sql: st
 export interface ScriptResult {
   results: StatementResult[];
   time: number;
-  error?: undefined;
+  /** The statement that failed, after the ones in `results` ran, and those after it */
+  error?: string;
+  failed?: string;
+  notRun?: string[];
+  /** What ran before the failure was rolled back with it */
+  rolledBack?: boolean;
 }
 
 export interface ColumnInfo {
@@ -120,6 +143,8 @@ export interface EditorTab {
   resultIndex?: number;
   /** How long the user waited for the script (ms), request to parsed rows */
   resultsTime?: number;
+  /** The statement the script failed on, after `results` ran */
+  resultsError?: string;
   /** Not saved across launches (the example database's query tab) */
   transient?: boolean;
 }
