@@ -17,6 +17,7 @@ use std::time::Duration;
 use tauri::AppHandle;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::process::{Child, ChildStdin, ChildStdout};
+use crate::i18n::t;
 
 #[cfg(windows)]
 const NAMES: &[&str] = &["codex.exe", "codex.cmd"];
@@ -99,7 +100,7 @@ impl Server {
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .kill_on_drop(true);
-        let mut child = cmd.spawn().map_err(|e| format!("Could not start Codex: {e}"))?;
+        let mut child = cmd.spawn().map_err(|e| t("errors.startCodex", &[("error", &e)]))?;
         let stdin = child.stdin.take().ok_or("Codex has no stdin")?;
         let stdout = child.stdout.take().ok_or("Codex has no stdout")?;
         let mut server = Server { child, stdin, lines: BufReader::new(stdout).lines(), next_id: 0 };
@@ -123,7 +124,7 @@ impl Server {
         self.stdin
             .write_all(line.as_bytes())
             .await
-            .map_err(|e| format!("Codex stopped: {e}"))
+            .map_err(|e| t("errors.codexStopped", &[("error", &e)]))
     }
 
     /// The next message from Codex; None when it has exited
@@ -151,7 +152,7 @@ impl Server {
     async fn request(&mut self, method: &str, params: Value) -> Result<Value, String> {
         let id = self.send_request(method, params).await?;
         loop {
-            let message = self.next().await?.ok_or("Codex stopped unexpectedly.")?;
+            let message = self.next().await?.ok_or_else(|| t("errors.codexStoppedUnexpectedly", &[]))?;
             if message.get("method").is_some() {
                 if message.get("id").is_some() {
                     self.answer_other(&message, "").await?;
@@ -162,7 +163,7 @@ impl Server {
                 continue;
             }
             if let Some(error) = message.get("error") {
-                return Err(error["message"].as_str().unwrap_or("Codex refused the request").to_string());
+                return Err(error["message"].as_str().map(str::to_string).unwrap_or_else(|| t("errors.codexRefused", &[])));
             }
             return Ok(message["result"].clone());
         }
@@ -329,7 +330,7 @@ async fn run_turn(
             _ = tokio::time::sleep(Duration::from_millis(200)) => continue,
         };
         let Some(message) = message else {
-            return Err("Codex stopped unexpectedly.".into());
+            return Err(t("errors.codexStoppedUnexpectedly", &[]));
         };
         let method = message["method"].as_str().unwrap_or("");
         let params = &message["params"];
@@ -403,7 +404,7 @@ pub async fn login(codex: &Path, data_dir: &Path) -> Result<(), String> {
     open_in_browser(url)?;
     let wait = async {
         loop {
-            let message = server.next().await?.ok_or("Codex stopped during the sign-in.")?;
+            let message = server.next().await?.ok_or_else(|| t("errors.codexStoppedSignIn", &[]))?;
             if message["method"] == "account/login/completed" {
                 let p = &message["params"];
                 return if p["success"].as_bool().unwrap_or(false) {
@@ -465,7 +466,7 @@ pub(super) fn open_in_browser(url: &str) -> Result<(), String> {
         .stderr(Stdio::null())
         .spawn()
         .map(|_| ())
-        .map_err(|e| format!("Could not open the browser: {e}"))
+        .map_err(|e| t("errors.openBrowser", &[("error", &e)]))
 }
 
 #[cfg(test)]

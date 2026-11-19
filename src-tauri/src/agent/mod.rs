@@ -28,6 +28,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use mcp::McpSession;
 use tauri::{AppHandle, Emitter, Manager, State};
+use crate::i18n::t;
 
 const KEYCHAIN_SERVICE: &str = "com.stoolap.desktop";
 /// Keychain entries of the API keys, by provider
@@ -237,10 +238,10 @@ fn is_openai(backend: &str) -> bool {
 pub async fn agent_models(app: AppHandle, backend: String) -> Result<Vec<ModelInfo>, String> {
     let list: Vec<(String, String)> = match backend.as_str() {
         "codex" => {
-            let path = codex::find().ok_or("Codex was not found.")?;
+            let path = codex::find().ok_or_else(|| t("errors.codexNotFound", &[]))?;
             codex::models(&path, &data_dir(&app)?).await?
         }
-        "openai" => openai::models(&read_key("openai").ok_or("Add an OpenAI API key first.")?).await?,
+        "openai" => openai::models(&read_key("openai").ok_or_else(|| t("errors.addOpenaiKey", &[]))?).await?,
         _ => api::MODELS.iter().map(|(id, name)| (id.to_string(), name.to_string())).collect(),
     };
     Ok(list.into_iter().map(|(id, name)| ModelInfo { id, name }).collect())
@@ -284,13 +285,13 @@ pub async fn agent_backends(app: AppHandle) -> Backends {
 /// the user has approved it (or it failed or timed out).
 #[tauri::command]
 pub async fn agent_codex_login(app: AppHandle) -> Result<(), String> {
-    let path = codex::find().ok_or("Codex was not found.")?;
+    let path = codex::find().ok_or_else(|| t("errors.codexNotFound", &[]))?;
     codex::login(&path, &data_dir(&app)?).await
 }
 
 #[tauri::command]
 pub async fn agent_codex_logout(app: AppHandle) -> Result<(), String> {
-    let path = codex::find().ok_or("Codex was not found.")?;
+    let path = codex::find().ok_or_else(|| t("errors.codexNotFound", &[]))?;
     codex::logout(&path, &data_dir(&app)?).await
 }
 
@@ -298,7 +299,7 @@ pub async fn agent_codex_logout(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn agent_open_link(url: String) -> Result<(), String> {
     if !(url.starts_with("https://") || url.starts_with("http://")) {
-        return Err("Only web links can be opened.".into());
+        return Err(t("errors.onlyWebLinks", &[]));
     }
     codex::open_in_browser(&url)
 }
@@ -332,7 +333,7 @@ pub async fn agent_console_logout(app: AppHandle) -> Result<(), String> {
 pub fn agent_set_key(provider: String, key: String) -> Result<(), String> {
     let key = key.trim();
     if key.is_empty() {
-        return Err("The key is empty.".into());
+        return Err(t("errors.emptyKey", &[]));
     }
     keychain(&provider)?.set_password(key).map_err(|e| e.to_string())
 }
@@ -394,19 +395,19 @@ pub fn agent_send(
     }
     let via = match backend.as_str() {
         "claude-code" => Via::ClaudeCode(
-            claude_code::find().ok_or("Claude Code was not found. Install it, or use an API key.")?,
+            claude_code::find().ok_or_else(|| t("errors.claudeCodeNotFound", &[]))?,
         ),
-        "api" => Via::Api(api::Credential::ApiKey(read_key("anthropic").ok_or("Add an Anthropic API key first.")?)),
+        "api" => Via::Api(api::Credential::ApiKey(read_key("anthropic").ok_or_else(|| t("errors.addAnthropicKey", &[]))?)),
         "codex" => {
             if !codex::signed_in(&data_dir(&app)?) {
-                return Err("Sign in with ChatGPT first.".into());
+                return Err(t("errors.signInChatgpt", &[]));
             }
-            Via::Codex(codex::find().ok_or("Codex was not found. Install it, or use an OpenAI API key.")?)
+            Via::Codex(codex::find().ok_or_else(|| t("errors.codexNotFoundUseKey", &[]))?)
         }
-        "openai" => Via::OpenAi(read_key("openai").ok_or("Add an OpenAI API key first.")?),
+        "openai" => Via::OpenAi(read_key("openai").ok_or_else(|| t("errors.addOpenaiKey", &[]))?),
         "console" => Via::Api(api::Credential::Console(
             console::Ant::installed(&data_dir(&app)?)
-                .ok_or("Sign in with your Anthropic account first.")?,
+                .ok_or_else(|| t("errors.signInAnthropic", &[]))?,
         )),
         other => return Err(format!("Unknown agent backend {other}")),
     };
@@ -417,7 +418,7 @@ pub fn agent_send(
         let new_here = !convs.contains_key(&conversation_id);
         let conv = convs.entry(conversation_id.clone()).or_default();
         if conv.running {
-            return Err("The agent is still working on the previous request.".into());
+            return Err(t("errors.stillWorking", &[]));
         }
         let fresh = conv.start_on(&backend, new_here);
         conv.running = true;
@@ -593,10 +594,10 @@ async fn run_loop(
 
         match turn.stop_reason.as_str() {
             "refusal" => {
-                return Err("Claude declined this request.".into());
+                return Err(t("errors.claudeDeclined", &[]));
             }
             "max_tokens" => {
-                return Err("The answer ran past the output limit. Try a narrower request.".into());
+                return Err(t("errors.outputLimit", &[]));
             }
             _ => {}
         }
@@ -646,7 +647,7 @@ async fn run_loop(
         }
         messages.push(json!({"role": "user", "content": results}));
     }
-    Err("The agent took too many steps without finishing.".into())
+    Err(t("errors.tooManySteps", &[]))
 }
 
 /// Run one tool call for either backend (blocking).
@@ -715,7 +716,7 @@ fn write_query(app: &AppHandle, target: &McpSession, input: &Value) -> tools::Ou
         Err(_) => tools::Output {
             content: "Written into the tab; no result came back from running it.".into(),
             is_error: false,
-            summary: format!("Wrote SQL in {}", target.tab_title),
+            summary: t("steps.wroteSql", &[("tab", &target.tab_title)]),
         },
     }
 }

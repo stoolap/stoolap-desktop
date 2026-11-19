@@ -5,7 +5,8 @@
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::sync::OnceLock;
+use std::fmt::Display;
+use std::sync::{OnceLock, RwLock};
 use tauri::{AppHandle, Manager};
 
 /// The `native` translations of each language. English is the fallback.
@@ -40,13 +41,72 @@ fn catalogs() -> &'static HashMap<&'static str, Value> {
     })
 }
 
-/// `key` in `lang`, or in English when that language lacks it.
+/// `key` ("menu" or "errors.emptyKey") in `lang`, or in English when that
+/// language lacks it.
 pub fn text(lang: &str, key: &str) -> String {
     [lang, "en"]
         .iter()
-        .find_map(|l| catalogs().get(l)?.get(key)?.as_str())
+        .find_map(|l| key.split('.').try_fold(catalogs().get(l)?, |v, k| v.get(k))?.as_str())
         .unwrap_or(key)
         .to_string()
+}
+
+/// The language the app shows, for text written outside a command handler
+static CURRENT: RwLock<&str> = RwLock::new("en");
+
+fn lang() -> &'static str {
+    CURRENT.read().map(|l| *l).unwrap_or("en")
+}
+
+/// Show `language` from now on (at launch, and when the user changes it).
+fn set_current(language: &'static str) {
+    if let Ok(mut current) = CURRENT.write() {
+        *current = language;
+    }
+}
+
+pub fn init(app: &AppHandle) {
+    set_current(current(app));
+}
+
+/// `key` in the app's language, with each {{name}} filled in.
+pub fn t(key: &str, vars: &[(&str, &dyn Display)]) -> String {
+    vars.iter()
+        .fold(text(lang(), key), |s, (name, value)| s.replace(&format!("{{{{{name}}}}}"), &value.to_string()))
+}
+
+/// `key` for a count: `key_one`, `key_few`, … as the language's plural rules
+/// pick, with {{count}} and each {{name}} filled in.
+pub fn t_count(key: &str, count: i64, vars: &[(&str, &dyn Display)]) -> String {
+    let lang = lang();
+    let form = format!("{key}_{}", plural_category(lang, count));
+    let key = if text(lang, &form) != form { form } else { format!("{key}_other") };
+    let mut all: Vec<(&str, &dyn Display)> = vec![("count", &count)];
+    all.extend_from_slice(vars);
+    t(&key, &all)
+}
+
+/// CLDR plural categories for whole numbers in the app's languages.
+fn plural_category(lang: &str, n: i64) -> &'static str {
+    let n = n.unsigned_abs();
+    let (ten, hundred) = (n % 10, n % 100);
+    match lang {
+        "ja" | "ko" | "zh-CN" | "zh-TW" | "id" => "other",
+        "fr" | "pt-BR" if n <= 1 => "one",
+        "ru" | "uk" => match (ten, hundred) {
+            (1, h) if h != 11 => "one",
+            (2..=4, h) if !(12..=14).contains(&h) => "few",
+            _ => "many",
+        },
+        "pl" => match (n, ten, hundred) {
+            (1, _, _) => "one",
+            (_, 2..=4, h) if !(12..=14).contains(&h) => "few",
+            _ => "many",
+        },
+        _ if n == 1 => "one",
+        // es, it, fr and pt-BR have "many" for 1,000,000 and up; "other" serves too
+        _ => "other",
+    }
 }
 
 /// The language the app has for a BCP 47 tag such as "pt-PT" or "zh-Hant-HK".
@@ -130,6 +190,7 @@ pub fn set_language(app: AppHandle, preference: String) -> Result<LanguageInfo, 
     settings["language"] = Value::String(preference);
     std::fs::write(&file, serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;
+    set_current(current(&app));
     crate::build_menu(&app).map_err(|e| e.to_string())?;
     Ok(info(&app))
 }
@@ -150,15 +211,40 @@ mod tests {
         assert_eq!(match_tag("ar-SA"), None);
     }
 
+    /// "a.b" for every string, plural forms folded into their key
+    fn keys(v: &Value, prefix: &str, out: &mut Vec<String>) {
+        match v.as_object() {
+            Some(map) => map.iter().for_each(|(k, v)| keys(v, &format!("{prefix}{k}."), out)),
+            None => {
+                let key = prefix.trim_end_matches('.');
+                let base = ["_one", "_few", "_many", "_other"].iter().find_map(|s| key.strip_suffix(s));
+                out.push(base.unwrap_or(key).to_string());
+            }
+        }
+    }
+
     #[test]
-    fn every_language_has_every_menu_label() {
-        let en = catalogs()["en"].as_object().unwrap();
+    fn every_language_has_every_native_text() {
+        let mut english = vec![];
+        keys(&catalogs()["en"], "", &mut english);
         for (lang, catalog) in catalogs() {
-            for key in en.keys() {
-                assert!(catalog.get(key).and_then(Value::as_str).is_some(), "{lang} lacks native.{key}");
+            let mut have = vec![];
+            keys(catalog, "", &mut have);
+            for key in &english {
+                assert!(have.contains(key), "{lang} lacks native.{key}");
             }
         }
         assert_eq!(text("tr", "quit"), "Stoolap Desktop'tan Çık");
         assert_eq!(text("tr", "missing"), "missing");
+    }
+
+    #[test]
+    fn plurals_follow_each_language() {
+        let forms = |lang, ns: &[i64]| ns.iter().map(|n| plural_category(lang, *n)).collect::<Vec<_>>();
+        assert_eq!(forms("en", &[0, 1, 2]), ["other", "one", "other"]);
+        assert_eq!(forms("fr", &[0, 1, 2]), ["one", "one", "other"]);
+        assert_eq!(forms("ru", &[1, 2, 5, 11, 21, 22, 25]), ["one", "few", "many", "many", "one", "few", "many"]);
+        assert_eq!(forms("pl", &[1, 2, 5, 12, 21, 22]), ["one", "few", "many", "many", "many", "few"]);
+        assert_eq!(forms("ja", &[1, 2]), ["other", "other"]);
     }
 }

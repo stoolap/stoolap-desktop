@@ -13,6 +13,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
+use crate::i18n::t;
 
 /// The pinned release, at least two weeks old when chosen
 pub const VERSION: &str = "2.6.0";
@@ -113,7 +114,7 @@ impl Ant {
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .kill_on_drop(true);
-        let child = cmd.spawn().map_err(|e| format!("Could not start ant: {e}"))?;
+        let child = cmd.spawn().map_err(|e| t("errors.startSignInTool", &[("error", &e)]))?;
         let out = tokio::time::timeout(Duration::from_secs(6 * 60), child.wait_with_output())
             .await
             .map_err(|_| "The sign-in was not approved in time. Try again.".to_string())?
@@ -148,11 +149,11 @@ pub async fn install(data_dir: &Path) -> Result<Ant, String> {
         .send()
         .await
         .and_then(|r| r.error_for_status())
-        .map_err(|e| format!("Could not download the sign-in tool: {e}"))?;
+        .map_err(|e| t("errors.downloadSignInTool", &[("error", &e)]))?;
     let bytes = resp
         .bytes()
         .await
-        .map_err(|e| format!("Could not download the sign-in tool: {e}"))?;
+        .map_err(|e| t("errors.downloadSignInTool", &[("error", &e)]))?;
 
     let binary = verify_and_extract(&bytes, sha256, name)?;
     let ant = Ant::at(data_dir);
@@ -176,7 +177,7 @@ fn verify_and_extract(archive: &[u8], sha256: &str, name: &str) -> Result<Vec<u8
     let digest = Sha256::digest(archive);
     let hex: String = digest.iter().map(|b| format!("{b:02x}")).collect();
     if hex != sha256 {
-        return Err("The downloaded sign-in tool did not match its checksum, so it was not used.".into());
+        return Err(t("errors.signInToolChecksum", &[]));
     }
     let mut binary = Vec::new();
     if name.ends_with(".zip") {

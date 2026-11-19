@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tauri::AppHandle;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use crate::i18n::t;
 
 #[cfg(windows)]
 const NAMES: &[&str] = &["claude.exe", "claude.cmd"];
@@ -149,7 +150,7 @@ pub async fn run(
         .stderr(Stdio::piped())
         .kill_on_drop(true)
         .spawn()
-        .map_err(|e| format!("Could not start Claude Code: {e}"))?;
+        .map_err(|e| t("errors.startClaudeCode", &[("error", &e)]))?;
 
     // The prompt goes in on stdin: no length limit, no shell quoting
     let mut stdin = child.stdin.take().ok_or("Claude Code has no stdin")?;
@@ -253,9 +254,9 @@ pub async fn run(
         None => {
             let tail: String = stderr.lines().rev().take(5).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
             Err(if tail.is_empty() {
-                format!("Claude Code exited ({status}) without an answer.")
+                t("errors.claudeCodeExitedNoAnswer", &[("status", &status)])
             } else {
-                format!("Claude Code exited ({status}): {tail}")
+                t("errors.claudeCodeExited", &[("status", &status), ("output", &tail)])
             })
         }
     }

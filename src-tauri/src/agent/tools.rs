@@ -4,6 +4,7 @@
 
 use super::docs_index::PAGES;
 use crate::db::DbManager;
+use crate::i18n::{t, t_count};
 use serde_json::{json, Value};
 
 /// Rows of a run the model sees, and the longest cell it sees.
@@ -127,7 +128,7 @@ fn list_tables(db: &DbManager, conn_id: &str) -> Output {
     match (names("SHOW TABLES"), names("SHOW VIEWS")) {
         (Ok(tables), Ok(views)) => ok(
             json!({"tables": tables, "views": views}).to_string(),
-            format!("Listed {} tables and {} views", tables.len(), views.len()),
+            t("steps.listed", &[("tables", &tables.len()), ("views", &views.len())]),
         ),
         (Err(e), _) | (_, Err(e)) => err(e),
     }
@@ -146,11 +147,11 @@ fn describe_table(db: &DbManager, conn_id: &str, name: &str) -> Output {
             .unwrap_or_default();
         return ok(
             format!("{ddl}\n\nIndexes:\n{indexes}"),
-            format!("Read the schema of {name}"),
+            t("steps.readSchema", &[("name", &name)]),
         );
     }
     match ddl_of("VIEW") {
-        Some(ddl) => ok(ddl, format!("Read the view {name}")),
+        Some(ddl) => ok(ddl, t("steps.readView", &[("name", &name)])),
         None => err(format!("No table or view named {name}")),
     }
 }
@@ -165,13 +166,13 @@ pub fn format_run(outcome: &Value, tab: &str) -> Output {
         );
         return ok(
             format!("Written into the tab \"{tab}\". Not run: {why}."),
-            format!("Wrote SQL in {tab}"),
+            t("steps.wroteSql", &[("tab", &tab)]),
         );
     }
     if let Some(e) = outcome["error"].as_str() {
         return ok(
             format!("Written into \"{tab}\" and run. It failed: {e}"),
-            format!("Ran it in {tab}: {e}"),
+            t("steps.ranFailed", &[("tab", &tab), ("error", &e)]),
         );
     }
     let mut text = format!("Written into \"{tab}\" and run; the user sees the result.");
@@ -180,16 +181,27 @@ pub fn format_run(outcome: &Value, tab: &str) -> Output {
             for (i, st) in stmts.iter().enumerate() {
                 text.push_str(&format!("\n\nStatement {}: {}", i + 1, statement_text(st)));
             }
-            format!("Ran {} statements in {tab}", stmts.len())
+            t_count("steps.ranStatements", stmts.len() as i64, &[("tab", &tab)])
         }
         None => {
-            let line = statement_text(outcome);
             text.push(' ');
-            text.push_str(&line);
-            format!("Ran it in {tab} ({})", line.lines().next().unwrap_or("").trim_end_matches('.'))
+            text.push_str(&statement_text(outcome));
+            statement_summary(outcome, tab)
         }
     };
     ok(text, summary)
+}
+
+/// One statement's result for the panel, in the app's language.
+fn statement_summary(r: &Value, tab: &str) -> String {
+    if let Some(n) = r["changes"].as_i64() {
+        return t_count("steps.ranChanged", n, &[("tab", &tab)]);
+    }
+    if let Some(ddl) = r["ddl"].as_str() {
+        return t("steps.ranDdl", &[("tab", &tab), ("ddl", &ddl)]);
+    }
+    let total = r["rowCount"].as_i64().or_else(|| r["rows"].as_array().map(|r| r.len() as i64)).unwrap_or(0);
+    t_count("steps.ranRows", total, &[("tab", &tab)])
 }
 
 /// One statement's result: rows (up to MAX_ROWS), changed rows, or DDL done.
@@ -256,7 +268,7 @@ fn search_docs(query: &str) -> Output {
     if hits.is_empty() {
         return ok(
             format!("Nothing in the docs matches \"{query}\"."),
-            format!("Searched the Stoolap docs: {query}"),
+            t("steps.searchedDocs", &[("query", &query)]),
         );
     }
     let out = hits
@@ -271,7 +283,7 @@ fn search_docs(query: &str) -> Output {
         })
         .collect::<Vec<_>>()
         .join("\n\n");
-    ok(out, format!("Searched the Stoolap docs: {query}"))
+    ok(out, t("steps.searchedDocs", &[("query", &query)]))
 }
 
 /// A page's sections: (heading, text) at each markdown heading
@@ -304,7 +316,7 @@ fn sections(md: &str) -> Vec<(String, &str)> {
 fn read_docs(page: &str) -> Output {
     let page = page.trim().trim_end_matches(".md").trim_start_matches('/');
     match PAGES.iter().find(|(id, _, _)| *id == page) {
-        Some((id, title, body)) => ok(strip_front_matter(body).to_string(), format!("Read the Stoolap docs: {title} ({id})")),
+        Some((_, title, body)) => ok(strip_front_matter(body).to_string(), t("steps.readDocs", &[("title", &title)])),
         None => err(format!("No page {page}. Pages: {}", page_ids().join(", "))),
     }
 }

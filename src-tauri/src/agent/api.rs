@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 use std::time::Duration;
+use crate::i18n::t;
 
 const API_URL: &str = "https://api.anthropic.com/v1/messages";
 const API_VERSION: &str = "2026-10-21";
@@ -100,7 +101,7 @@ pub async fn stream_turn(
             let token = tauri::async_runtime::spawn_blocking(move || ant.access_token())
                 .await
                 .map_err(|e| e.to_string())?
-                .ok_or("You are signed out of your Anthropic account. Sign in again in the agent settings.")?;
+                .ok_or_else(|| t("errors.signedOutAnthropic", &[]))?;
             // OAuth tokens need this beta on /v1/messages
             betas.push("oauth-2025-04-20");
             req.header("authorization", format!("Bearer {token}"))
@@ -111,7 +112,7 @@ pub async fn stream_turn(
     }
     let resp = or_cancel(cancel, req.json(body).send())
         .await?
-        .map_err(|e| format!("Could not reach the Claude API: {e}"))?;
+        .map_err(|e| t("errors.reachClaude", &[("error", &e)]))?;
 
     let status = resp.status();
     if !status.is_success() {
@@ -122,18 +123,18 @@ pub async fn stream_turn(
             .unwrap_or(text);
         return Err(match status.as_u16() {
             401 => match credential {
-                Credential::ApiKey(_) => "The API key was rejected. Check it in the agent settings.".to_string(),
-                Credential::Console(_) => "Your Anthropic sign-in was rejected or has expired. Sign in again in the agent settings.".to_string(),
+                Credential::ApiKey(_) => t("errors.apiKeyRejected", &[]),
+                Credential::Console(_) => t("errors.anthropicSignInRejected", &[]),
             },
-            429 => format!("Rate limited by the Claude API: {message}"),
-            _ => format!("Claude API error {}: {message}", status.as_u16()),
+            429 => t("errors.claudeRateLimited", &[("message", &message)]),
+            _ => t("errors.claudeError", &[("status", &status.as_u16()), ("message", &message)]),
         });
     }
 
     let mut builder = TurnBuilder::default();
     let mut stream = resp.bytes_stream();
     while let Some(chunk) = or_cancel(cancel, stream.next()).await? {
-        let chunk = chunk.map_err(|e| format!("The response stream broke off: {e}"))?;
+        let chunk = chunk.map_err(|e| t("errors.streamBroke", &[("error", &e)]))?;
         builder.feed(&chunk, &mut on_event)?;
     }
     builder.finish()
@@ -230,7 +231,7 @@ impl TurnBuilder {
             }
             "error" => {
                 let msg = event["error"]["message"].as_str().unwrap_or("unknown error");
-                return Err(format!("Claude API error: {msg}"));
+                return Err(t("errors.claudeErrorShort", &[("message", &msg)]));
             }
             _ => {}
         }
@@ -256,7 +257,7 @@ impl TurnBuilder {
             }
         }
         if self.stop_reason.is_empty() {
-            return Err("The response stream ended early.".into());
+            return Err(t("errors.streamEnded", &[]));
         }
         Ok(Turn {
             content: self.blocks.into_iter().filter(|b| !b.is_null()).collect(),

@@ -6,6 +6,7 @@ use std::time::Instant;
 use serde::{Deserialize, Serialize};
 use stoolap::api::Database;
 use stoolap::core::Value;
+use crate::i18n::t;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectionMeta {
@@ -151,14 +152,14 @@ impl DbManager {
     /// the editor and running it, then running an `INSERT;` afterwards).
     pub fn get_db(&self, conn_id: &str) -> Result<Arc<Database>, String> {
         let conns = self.lock_conns()?;
-        let conn = conns.get(conn_id).ok_or("Connection not found")?;
+        let conn = conns.get(conn_id).ok_or_else(|| t("errors.connectionNotFound", &[]))?;
         Ok(Arc::clone(&conn.db))
     }
 
     /// Whether the user has a transaction open on the connection's handle.
     pub fn transaction_state(&self, conn_id: &str) -> Result<Arc<AtomicBool>, String> {
         let conns = self.lock_conns()?;
-        let conn = conns.get(conn_id).ok_or("Connection not found")?;
+        let conn = conns.get(conn_id).ok_or_else(|| t("errors.connectionNotFound", &[]))?;
         Ok(Arc::clone(&conn.in_transaction))
     }
 
