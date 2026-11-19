@@ -56,6 +56,7 @@ export function generateTableIndexes(
   indexes: {
     indexName: string;
     columnName: string;
+    columns: string[];
     indexType: string;
     isUnique: boolean;
     options?: string;
@@ -71,19 +72,8 @@ export function generateTableIndexes(
     if (seen.has(idx.indexName)) continue;
     seen.add(idx.indexName);
 
-    // Parse column list — stoolap returns "(a, b)" for multi-column
-    let columnList: string;
-    const colStr = idx.columnName.trim();
-    if (colStr.startsWith("(") && colStr.endsWith(")")) {
-      // Multi-column: "(a, b)" → quote each column
-      const cols = colStr
-        .slice(1, -1)
-        .split(",")
-        .map((c) => quoteId(c.trim()));
-      columnList = cols.join(", ");
-    } else {
-      columnList = quoteId(colStr);
-    }
+    // The indexed columns, as db_indexes parsed them (a name may hold a comma)
+    const columnList = idx.columns.map(quoteId).join(", ");
 
     const isHnsw = idx.indexType.toUpperCase() === "HNSW";
     if (isHnsw) {
