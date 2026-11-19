@@ -4,6 +4,21 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.6
+
+### Scripts and transactions
+- A script that starts its own transaction with BEGIN and then fails no longer leaves that transaction open. It is rolled back, and the error says so; before, every later run joined the half-finished transaction without warning. A transaction you opened yourself in an earlier run stays open, and the error reminds you to COMMIT or ROLLBACK.
+- When a script fails, the results of the statements that ran before it still show, under the error, and the error says which statements didn't run.
+- The status bar shows **Transaction open** while your session is inside a transaction.
+
+### Agent
+- The agent knows when your session is inside a transaction, and that its own checks don't see uncommitted changes.
+- Its history of your runs says what became of each transaction (committed, rolled back, still open), tells a query plan from data rows, and marks an EXPLAIN ANALYZE that ran a write.
+
+### Look and feel
+- A darker, higher-contrast dark mode with neutral greys, and crisper text in light mode.
+- Your messages in the agent panel stand apart from the agent's replies.
+
 ## v0.5.5
 
 ### Agent
