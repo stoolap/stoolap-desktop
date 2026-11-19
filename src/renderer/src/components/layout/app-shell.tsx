@@ -19,6 +19,7 @@ import { useTableColumns, useEditorSchema } from "@/hooks/use-schema";
 import { PanelLeftClose, PanelLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as native from "@/lib/native";
+import { Tip } from "@/components/ui/tip";
 
 const SIDEBAR_WIDTH_DEFAULT = 240;
 const EDITOR_HEIGHT_DEFAULT = 220;
@@ -237,20 +238,21 @@ export function AppShell() {
           ) : (
             <>
               <div className="flex items-center">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 shrink-0 rounded-none"
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                  title={sidebarOpen ? t("appShell.hideSidebar") : t("appShell.showSidebar")}
-                  aria-label={sidebarOpen ? t("appShell.hideSidebar") : t("appShell.showSidebar")}
-                >
-                  {sidebarOpen ? (
-                    <PanelLeftClose className="h-3 w-3" />
-                  ) : (
-                    <PanelLeft className="h-3 w-3" />
-                  )}
-                </Button>
+                <Tip label={sidebarOpen ? t("appShell.hideSidebar") : t("appShell.showSidebar")}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 rounded-none"
+                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                    aria-label={sidebarOpen ? t("appShell.hideSidebar") : t("appShell.showSidebar")}
+                  >
+                    {sidebarOpen ? (
+                      <PanelLeftClose className="h-3 w-3" />
+                    ) : (
+                      <PanelLeft className="h-3 w-3" />
+                    )}
+                  </Button>
+                </Tip>
                 <div className="flex-1 overflow-hidden">
                   <EditorTabs />
                 </div>
@@ -383,16 +385,17 @@ function AgentToggle() {
   const open = useAgentStore((s) => s.open);
   const toggle = useAgentStore((s) => s.toggle);
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className={cn("h-7 w-7 shrink-0 rounded-none", open && "text-primary")}
-      onClick={toggle}
-      title={t("agentToggle.title")}
-      aria-label={open ? t("agentToggle.hide") : t("agentToggle.show")}
-      aria-pressed={open}
-    >
-      <Sparkles className="h-3.5 w-3.5" />
-    </Button>
+    <Tip label={t("agentToggle.title")}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className={cn("h-7 w-7 shrink-0 rounded-none", open && "text-primary")}
+        onClick={toggle}
+        aria-label={open ? t("agentToggle.hide") : t("agentToggle.show")}
+        aria-pressed={open}
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+      </Button>
+    </Tip>
   );
 }

@@ -41,7 +41,7 @@
     "thisTab": "Bu sekme",
     "writesTitle": "Agent bu veritabanını değiştiren SQL'i (INSERT, UPDATE, DELETE, DDL) sormadan çalıştırabilsin. Okuma sorguları her zaman çalışır.",
     "allowWrites": "Agent'ın yazma işlemlerini çalıştırmasına izin ver",
-    "runWrites": "Yazma işlemlerini çalıştır",
+    "runWrites": "Yazmaya izin ver",
     "stop": "Durdur",
     "send": "Gönder",
     "anthropicAccount": "Anthropic hesabı",

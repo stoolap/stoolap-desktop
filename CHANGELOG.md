@@ -4,6 +4,14 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.4
+
+### Look and feel
+- Tooltips across the app now match its look and show quickly, like the engine version in About, instead of the system's slow plain tooltips. Over grid cells and table names they wait a little longer, so moving the mouse across a table doesn't flash a tooltip on every cell.
+- The About window no longer spills past its edge when the link labels are long, as in Turkish.
+- In a narrow Agent panel, the **Run writes** label now shortens instead of pushing the Send button out of sight.
+- Turkish: **Run writes** is now "Yazmaya izin ver".
+
 ## v0.5.3
 
 ### Languages

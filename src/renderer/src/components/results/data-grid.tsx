@@ -33,6 +33,7 @@ import {
   formatVectorExpanded,
 } from "@/lib/vector-utils";
 import type { ForeignKeyInfo } from "@/lib/types";
+import { Tip } from "@/components/ui/tip";
 
 interface DataGridProps {
   columns: string[];
@@ -332,29 +333,30 @@ export function DataGrid({
 
           if (fk && value !== null && onNavigateToFK) {
             return (
-              <span
-                className="flex items-center gap-1 truncate font-data text-blue-500 hover:text-blue-600 hover:underline cursor-pointer"
-                data-row={tableRow.index}
-                data-col={i}
-                title={t("grid.goTo", { table: fk.referencedTable, column: fk.referencedColumn, value: display })}
-                onClick={() =>
-                  onNavigateToFK(fk.referencedTable, fk.referencedColumn, value)
-                }
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  if (onCellEdit) {
-                    setEditingCell({ row: tableRow.index, col: i });
-                    setEditValue(value === null ? "" : String(value));
+              <Tip label={t("grid.goTo", { table: fk.referencedTable, column: fk.referencedColumn, value: display })} delay={700}>
+                <span
+                  className="flex items-center gap-1 truncate font-data text-blue-500 hover:text-blue-600 hover:underline cursor-pointer"
+                  data-row={tableRow.index}
+                  data-col={i}
+                  onClick={() =>
+                    onNavigateToFK(fk.referencedTable, fk.referencedColumn, value)
                   }
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  handleCopyCellValue(String(value));
-                }}
-              >
-                {display}
-                <Link2 className="h-2.5 w-2.5 shrink-0 opacity-50" />
-              </span>
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    if (onCellEdit) {
+                      setEditingCell({ row: tableRow.index, col: i });
+                      setEditValue(value === null ? "" : String(value));
+                    }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    handleCopyCellValue(String(value));
+                  }}
+                >
+                  {display}
+                  <Link2 className="h-2.5 w-2.5 shrink-0 opacity-50" />
+                </span>
+              </Tip>
             );
           }
 
@@ -367,26 +369,27 @@ export function DataGrid({
                 : (value - distRange.min) / (distRange.max - distRange.min);
             const hue = 120 - pct * 120; // green(120) → red(0)
             return (
-              <span
-                className="flex items-center gap-1.5 font-data tabular-nums text-right"
-                data-row={tableRow.index}
-                data-col={i}
-                title={t("grid.distance", { value: value.toFixed(6) })}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  handleCopyCellValue(String(value));
-                }}
-              >
-                <span className="flex-1 text-right">{value.toFixed(4)}</span>
-                <div
-                  className="h-2.5 rounded-full shrink-0"
-                  style={{
-                    width: `${Math.max(4, (1 - pct) * 40)}px`,
-                    backgroundColor: `hsl(${hue}, 75%, 45%)`,
-                    opacity: 0.8,
+              <Tip label={t("grid.distance", { value: value.toFixed(6) })} delay={700}>
+                <span
+                  className="flex items-center gap-1.5 font-data tabular-nums text-right"
+                  data-row={tableRow.index}
+                  data-col={i}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    handleCopyCellValue(String(value));
                   }}
-                />
-              </span>
+                >
+                  <span className="flex-1 text-right">{value.toFixed(4)}</span>
+                  <div
+                    className="h-2.5 rounded-full shrink-0"
+                    style={{
+                      width: `${Math.max(4, (1 - pct) * 40)}px`,
+                      backgroundColor: `hsl(${hue}, 75%, 45%)`,
+                      opacity: 0.8,
+                    }}
+                  />
+                </span>
+              </Tip>
             );
           }
 
@@ -400,118 +403,120 @@ export function DataGrid({
                     JSON.stringify(value))
                   : String(value);
             return (
+              <Tip label={display} delay={700}>
+                <span
+                  className="block truncate cursor-default font-data text-purple-500/70"
+                  data-row={tableRow.index}
+                  data-col={i}
+                  onClick={() => {
+                    if (clickTimerRef.current)
+                      clearTimeout(clickTimerRef.current);
+                    clickTimerRef.current = setTimeout(() => {
+                      clickTimerRef.current = null;
+                      setExpandedCell({
+                        row: tableRow.index,
+                        col: i,
+                        value: rawStr,
+                      });
+                    }, 250);
+                  }}
+                  onDoubleClick={() => {
+                    if (clickTimerRef.current) {
+                      clearTimeout(clickTimerRef.current);
+                      clickTimerRef.current = null;
+                    }
+                  }}
+                  onContextMenu={async (e) => {
+                    e.preventDefault();
+                    const menuItems: Array<{
+                      id: string;
+                      label: string;
+                      type?: "separator" | "normal";
+                    }> = [{ id: "copy", label: t("grid.copyValue") }];
+                    if (onFindSimilar && value !== null) {
+                      menuItems.push({
+                        id: "findSimilar",
+                        label: t("grid.findSimilar"),
+                      });
+                    }
+                    menuItems.push({
+                      id: "sep",
+                      label: "",
+                      type: "separator",
+                    });
+                    menuItems.push({ id: "expand", label: t("grid.expand") });
+
+                    const selected =
+                      await native.showContextMenu(menuItems);
+                    if (selected === "copy") handleCopyCellValue(rawStr);
+                    if (selected === "findSimilar")
+                      onFindSimilar?.(columns[i], rawStr);
+                    if (selected === "expand")
+                      setExpandedCell({
+                        row: tableRow.index,
+                        col: i,
+                        value: rawStr,
+                      });
+                  }}
+                >
+                  {display}
+                </span>
+              </Tip>
+            );
+          }
+
+          return (
+            <Tip label={isLong ? display : undefined} delay={700}>
               <span
-                className="block truncate cursor-default font-data text-purple-500/70"
+                className={cn(
+                  "block truncate cursor-default font-data",
+                  value === null && "text-muted-foreground/60 italic",
+                  typeof value === "number" && "text-right",
+                  typeof value === "boolean" && "text-center",
+                  onCellEdit && "cursor-text",
+                )}
                 data-row={tableRow.index}
                 data-col={i}
-                title={display}
-                onClick={() => {
-                  if (clickTimerRef.current)
-                    clearTimeout(clickTimerRef.current);
-                  clickTimerRef.current = setTimeout(() => {
-                    clickTimerRef.current = null;
-                    setExpandedCell({
-                      row: tableRow.index,
-                      col: i,
-                      value: rawStr,
-                    });
-                  }, 250);
-                }}
                 onDoubleClick={() => {
                   if (clickTimerRef.current) {
                     clearTimeout(clickTimerRef.current);
                     clickTimerRef.current = null;
                   }
-                }}
-                onContextMenu={async (e) => {
-                  e.preventDefault();
-                  const menuItems: Array<{
-                    id: string;
-                    label: string;
-                    type?: "separator" | "normal";
-                  }> = [{ id: "copy", label: t("grid.copyValue") }];
-                  if (onFindSimilar && value !== null) {
-                    menuItems.push({
-                      id: "findSimilar",
-                      label: t("grid.findSimilar"),
-                    });
+                  if (onCellEdit) {
+                    setEditingCell({ row: tableRow.index, col: i });
+                    setEditValue(value === null ? "" : String(value));
                   }
-                  menuItems.push({
-                    id: "sep",
-                    label: "",
-                    type: "separator",
-                  });
-                  menuItems.push({ id: "expand", label: t("grid.expand") });
-
-                  const selected =
-                    await native.showContextMenu(menuItems);
-                  if (selected === "copy") handleCopyCellValue(rawStr);
-                  if (selected === "findSimilar")
-                    onFindSimilar?.(columns[i], rawStr);
-                  if (selected === "expand")
-                    setExpandedCell({
-                      row: tableRow.index,
-                      col: i,
-                      value: rawStr,
-                    });
+                }}
+                onClick={() => {
+                  if (isLong) {
+                    if (clickTimerRef.current)
+                      clearTimeout(clickTimerRef.current);
+                    clickTimerRef.current = setTimeout(() => {
+                      clickTimerRef.current = null;
+                      const rawStr =
+                        value === null
+                          ? "NULL"
+                          : typeof value === "object"
+                            ? (objectToVectorString(
+                                value as Record<string, unknown>,
+                              ) ?? JSON.stringify(value))
+                            : String(value);
+                      setExpandedCell({
+                        row: tableRow.index,
+                        col: i,
+                        value: rawStr,
+                      });
+                    }, 250);
+                  }
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  handleCopyCellValue(value === null ? "" : String(value));
                 }}
               >
                 {display}
               </span>
-            );
-          }
-
-          return (
-            <span
-              className={cn(
-                "block truncate cursor-default font-data",
-                value === null && "text-muted-foreground/60 italic",
-                typeof value === "number" && "text-right",
-                typeof value === "boolean" && "text-center",
-                onCellEdit && "cursor-text",
-              )}
-              data-row={tableRow.index}
-              data-col={i}
-              title={isLong ? display : undefined}
-              onDoubleClick={() => {
-                if (clickTimerRef.current) {
-                  clearTimeout(clickTimerRef.current);
-                  clickTimerRef.current = null;
-                }
-                if (onCellEdit) {
-                  setEditingCell({ row: tableRow.index, col: i });
-                  setEditValue(value === null ? "" : String(value));
-                }
-              }}
-              onClick={() => {
-                if (isLong) {
-                  if (clickTimerRef.current)
-                    clearTimeout(clickTimerRef.current);
-                  clickTimerRef.current = setTimeout(() => {
-                    clickTimerRef.current = null;
-                    const rawStr =
-                      value === null
-                        ? "NULL"
-                        : typeof value === "object"
-                          ? (objectToVectorString(
-                              value as Record<string, unknown>,
-                            ) ?? JSON.stringify(value))
-                          : String(value);
-                    setExpandedCell({
-                      row: tableRow.index,
-                      col: i,
-                      value: rawStr,
-                    });
-                  }, 250);
-                }
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                handleCopyCellValue(value === null ? "" : String(value));
-              }}
-            >
-              {display}
-            </span>
+            </Tip>
           );
         },
         sortingFn: "auto",
@@ -783,14 +788,15 @@ export function DataGrid({
                       {/* Delete button */}
                       {onDeleteRow && (
                         <td className="w-8 text-center border-r border-border/20">
-                          <button
-                            className="opacity-0 group-hover/row:opacity-100 text-destructive/60 hover:text-destructive transition-opacity"
-                            onClick={() => onDeleteRow(row.index)}
-                            title={t("grid.deleteRow")}
-                            aria-label={t("grid.deleteRow")}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 mx-auto" />
-                          </button>
+                          <Tip label={t("grid.deleteRow")}>
+                            <button
+                              className="opacity-0 group-hover/row:opacity-100 text-destructive/60 hover:text-destructive transition-opacity"
+                              onClick={() => onDeleteRow(row.index)}
+                              aria-label={t("grid.deleteRow")}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mx-auto" />
+                            </button>
+                          </Tip>
                         </td>
                       )}
                       {/* Data cells */}
@@ -854,25 +860,27 @@ export function DataGrid({
             : t("grid.rows", { count: rows.length })}
         </span>
         <div className="flex-1" />
-        <button
-          className="flex items-center gap-1 hover:text-foreground transition-colors"
-          onClick={() => {
-            setSearchOpen(true);
-            requestAnimationFrame(() => searchInputRef.current?.focus());
-          }}
-          title={t("grid.searchTitle", { mod })}
-        >
-          <Search className="h-3 w-3" />
-          {t("grid.search")}
-        </button>
-        <button
-          className="flex items-center gap-1 hover:text-foreground transition-colors"
-          onClick={handleCopy}
-          title={t(globalFilter ? "grid.copyVisibleRowsTitle" : "grid.copyRowsTitle", { mod })}
-        >
-          <Copy className="h-3 w-3" />
-          {t("grid.copy")}
-        </button>
+        <Tip label={t("grid.searchTitle", { mod })}>
+          <button
+            className="flex items-center gap-1 hover:text-foreground transition-colors"
+            onClick={() => {
+              setSearchOpen(true);
+              requestAnimationFrame(() => searchInputRef.current?.focus());
+            }}
+          >
+            <Search className="h-3 w-3" />
+            {t("grid.search")}
+          </button>
+        </Tip>
+        <Tip label={t(globalFilter ? "grid.copyVisibleRowsTitle" : "grid.copyRowsTitle", { mod })}>
+          <button
+            className="flex items-center gap-1 hover:text-foreground transition-colors"
+            onClick={handleCopy}
+          >
+            <Copy className="h-3 w-3" />
+            {t("grid.copy")}
+          </button>
+        </Tip>
       </div>
 
       {/* Expanded cell overlay */}

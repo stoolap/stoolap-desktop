@@ -9,6 +9,7 @@ import { useAgentStore } from "@/stores/agent-store";
 import { useModKey } from "@/hooks/use-mod-key";
 import { cn } from "@/lib/utils";
 import { isExplain } from "@/lib/sql-utils";
+import { Tip } from "@/components/ui/tip";
 
 /**
  * A script's statements as tabs over the result, each labelled with what it
@@ -36,30 +37,30 @@ export function ResultsPanel() {
                 : [PenLine, t("results.changed", { count: r.changes })];
           const selected = i === tab.resultIndex;
           return (
-            <button
-              key={i}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              title={r.sql.replace(/\s+/g, " ").trim()}
-              onClick={() => selectTabResult(tab.id, i)}
-              className={cn(
-                "-mb-px flex shrink-0 items-center gap-1.5 rounded-t-md border px-3 py-1.5 text-xs",
-                selected
-                  ? "border-border border-b-background bg-background font-medium text-foreground"
-                  : "border-transparent text-muted-foreground hover:bg-background/60 hover:text-foreground",
-              )}
-            >
-              <Icon className={cn("h-3.5 w-3.5", selected ? "text-primary" : "opacity-60")} />
-              <span>
-                <Trans
-                  t={t}
-                  i18nKey="results.resultTab"
-                  values={{ n: i + 1, detail }}
-                  components={{ d: <span className="font-normal text-muted-foreground" /> }}
-                />
-              </span>
-            </button>
+            <Tip key={i} label={r.sql.replace(/\s+/g, " ").trim()} side="bottom">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => selectTabResult(tab.id, i)}
+                className={cn(
+                  "-mb-px flex shrink-0 items-center gap-1.5 rounded-t-md border px-3 py-1.5 text-xs",
+                  selected
+                    ? "border-border border-b-background bg-background font-medium text-foreground"
+                    : "border-transparent text-muted-foreground hover:bg-background/60 hover:text-foreground",
+                )}
+              >
+                <Icon className={cn("h-3.5 w-3.5", selected ? "text-primary" : "opacity-60")} />
+                <span>
+                  <Trans
+                    t={t}
+                    i18nKey="results.resultTab"
+                    values={{ n: i + 1, detail }}
+                    components={{ d: <span className="font-normal text-muted-foreground" /> }}
+                  />
+                </span>
+              </button>
+            </Tip>
           );
         })}
       </div>

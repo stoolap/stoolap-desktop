@@ -40,6 +40,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import * as api from "@/lib/api-client";
 import type { ColumnInfo, IndexInfo, ForeignKeyInfo } from "@/lib/types";
+import { Tip } from "@/components/ui/tip";
 
 /** Build a valid example vector string from a VECTOR(N) type. */
 function exampleVector(type: string): string {
@@ -458,9 +459,9 @@ function TableNode({
         ) : (
           <Eye className="h-3 w-3 text-purple-400 shrink-0" />
         )}
-        <span className="truncate" title={name}>
-          {name}
-        </span>
+        <Tip label={name} side="right" delay={700}>
+          <span className="truncate">{name}</span>
+        </Tip>
         {type === "table" && rowCount !== undefined && (
           <span className="ml-auto text-xs text-muted-foreground/40 tabular-nums shrink-0 pr-0.5">
             {rowCount.toLocaleString(locale())}
@@ -599,38 +600,41 @@ export function TableTree() {
           {t("tableTree.schema")}
         </span>
         <div className="flex gap-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() => setCreateTableOpen(true)}
-            title={t("tableTree.createTable")}
-            aria-label={t("tableTree.createTable")}
-          >
-            <Plus className="h-2.5 w-2.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() => setCreateViewOpen(true)}
-            title={t("tableTree.createView")}
-            aria-label={t("tableTree.createView")}
-          >
-            <Eye className="h-2.5 w-2.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={refresh}
-            title={t("tableTree.refresh")}
-            aria-label={t("tableTree.refreshSchema")}
-          >
-            <RefreshCw
-              className={cn("h-2.5 w-2.5", isRefreshing && "animate-spin")}
-            />
-          </Button>
+          <Tip label={t("tableTree.createTable")}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => setCreateTableOpen(true)}
+              aria-label={t("tableTree.createTable")}
+            >
+              <Plus className="h-2.5 w-2.5" />
+            </Button>
+          </Tip>
+          <Tip label={t("tableTree.createView")}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => setCreateViewOpen(true)}
+              aria-label={t("tableTree.createView")}
+            >
+              <Eye className="h-2.5 w-2.5" />
+            </Button>
+          </Tip>
+          <Tip label={t("tableTree.refresh")}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={refresh}
+              aria-label={t("tableTree.refreshSchema")}
+            >
+              <RefreshCw
+                className={cn("h-2.5 w-2.5", isRefreshing && "animate-spin")}
+              />
+            </Button>
+          </Tip>
         </div>
       </div>
 
