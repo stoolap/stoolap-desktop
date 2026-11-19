@@ -251,7 +251,7 @@ fn read_key(provider: &str) -> Option<String> {
     keychain(provider).ok()?.get_password().ok().filter(|k| !k.is_empty())
 }
 
-/// Whether a backend talks to Claude (fixed model list) or to OpenAI
+/// Whether a backend talks to Claude or to OpenAI
 fn is_openai(backend: &str) -> bool {
     matches!(backend, "codex" | "openai")
 }
@@ -265,7 +265,26 @@ pub async fn agent_models(app: AppHandle, backend: String) -> Result<Vec<ModelIn
             codex::models(&path, &data_dir(&app)?).await?
         }
         "openai" => openai::models(&read_key("openai").ok_or_else(|| t("errors.addOpenaiKey", &[]))?).await?,
-        _ => api::MODELS.iter().map(|(id, name)| (id.to_string(), name.to_string())).collect(),
+        // Claude's come from the account; Claude Code has no list to ask
+        backend => {
+            let credential = match backend {
+                "api" => read_key("anthropic").map(api::Credential::ApiKey),
+                "console" => console::Ant::installed(&data_dir(&app)?).map(api::Credential::Console),
+                _ => None,
+            };
+            let listed = match credential {
+                Some(c) => api::models(&c).await.unwrap_or_else(|e| {
+                    eprintln!("Couldn't list Claude models, offering the built-in ones: {e}");
+                    Vec::new()
+                }),
+                None => Vec::new(),
+            };
+            if listed.is_empty() {
+                api::MODELS.iter().map(|(id, name)| (id.to_string(), name.to_string())).collect()
+            } else {
+                listed
+            }
+        }
     };
     Ok(list.into_iter().map(|(id, name)| ModelInfo { id, name }).collect())
 }
