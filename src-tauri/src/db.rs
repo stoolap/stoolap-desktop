@@ -24,6 +24,15 @@ pub struct QueryResult {
     pub time: f64,
 }
 
+/// A query's result for the renderer: like QueryResult, without a
+/// serde_json::Value per cell.
+#[derive(Serialize)]
+pub struct QueryRows {
+    pub columns: Vec<String>,
+    pub rows: ResultRows,
+    pub time: f64,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExecResult {
     pub changes: i64,
@@ -171,29 +180,37 @@ impl DbManager {
         params: Option<Vec<serde_json::Value>>,
     ) -> Result<QueryResult, String> {
         let start = Instant::now();
-        let rows = if let Some(p) = params {
-            let param_vec = json_to_params(&p);
-            db.query(sql, param_vec).map_err(|e| e.to_string())?
-        } else {
-            db.query(sql, ()).map_err(|e| e.to_string())?
-        };
-        let columns: Vec<String> = rows.columns().iter().map(|c| c.to_string()).collect();
-        let mut result_rows = Vec::new();
-        for row in rows {
-            let row = row.map_err(|e| e.to_string())?;
-            let mut values = Vec::with_capacity(columns.len());
-            for i in 0..columns.len() {
-                values.push(value_to_json(row.get_value(i)));
-            }
-            result_rows.push(values);
-        }
+        let QueryRows { columns, rows, .. } = Self::query_rows_on(db, sql, params)?;
+        let rows = rows
+            .0
+            .iter()
+            .map(|row| (0..row.len()).map(|i| value_to_json(row.get(i))).collect())
+            .collect();
         let time = start.elapsed().as_secs_f64() * 1000.0;
         let time = (time * 100.0).round() / 100.0;
-        Ok(QueryResult {
-            columns,
-            rows: result_rows,
-            time,
-        })
+        Ok(QueryResult { columns, rows, time })
+    }
+
+    /// Run a query, keeping the rows as the engine's values: they serialize
+    /// straight to JSON for the renderer, without a serde_json::Value per cell.
+    pub fn query_rows_on(
+        db: &Database,
+        sql: &str,
+        params: Option<Vec<serde_json::Value>>,
+    ) -> Result<QueryRows, String> {
+        let start = Instant::now();
+        let rows = match params {
+            Some(p) => db.query(sql, json_to_params(&p)),
+            None => db.query(sql, ()),
+        }
+        .map_err(|e| e.to_string())?;
+        let columns: Vec<String> = rows.columns().iter().map(|c| c.to_string()).collect();
+        let rows = rows
+            .map(|row| row.map(|r| r.into_inner()).map_err(|e| e.to_string()))
+            .collect::<Result<Vec<_>, _>>()?;
+        let time = start.elapsed().as_secs_f64() * 1000.0;
+        let time = (time * 100.0).round() / 100.0;
+        Ok(QueryRows { columns, rows: ResultRows(rows), time })
     }
 
     /// Run an execute against an already-cloned Database handle.
@@ -359,28 +376,56 @@ fn json_to_params(values: &[serde_json::Value]) -> stoolap::api::ParamVec {
 const MAX_SAFE_INTEGER: u64 = (1 << 53) - 1;
 
 fn value_to_json(val: Option<&Value>) -> serde_json::Value {
-    match val {
-        None | Some(Value::Null(_)) => serde_json::Value::Null,
-        // JavaScript numbers hold integers exactly only up to 2^53; beyond
-        // that the grid would show, edit and delete a rounded key, so those
-        // travel as text (the engine reads text back into INTEGER columns)
-        Some(Value::Integer(i)) if i.unsigned_abs() > MAX_SAFE_INTEGER => serde_json::json!(i.to_string()),
-        Some(Value::Integer(i)) => serde_json::json!(*i),
-        Some(Value::Float(f)) => serde_json::json!(*f),
-        Some(Value::Boolean(b)) => serde_json::json!(*b),
-        Some(Value::Text(s)) => serde_json::json!(s.as_str()),
-        Some(Value::Timestamp(ts)) => serde_json::json!(ts.to_rfc3339()),
-        Some(v @ Value::Extension(_)) => {
-            // JSON extension: use as_json()
-            if let Some(json_str) = v.as_json() {
-                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(json_str) {
-                    return parsed;
-                }
-                return serde_json::json!(json_str);
-            }
-            // Vector or other extension: format as display string
-            serde_json::json!(format!("{}", v))
+    serde_json::to_value(Cell(val)).unwrap_or(serde_json::Value::Null)
+}
+
+/// A cell as the renderer reads it.
+pub struct Cell<'a>(pub Option<&'a Value>);
+
+impl Serialize for Cell<'_> {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        match self.0 {
+            None | Some(Value::Null(_)) => s.serialize_unit(),
+            // JavaScript numbers hold integers exactly only up to 2^53; beyond
+            // that the grid would show, edit and delete a rounded key, so those
+            // travel as text (the engine reads text back into INTEGER columns)
+            Some(Value::Integer(i)) if i.unsigned_abs() > MAX_SAFE_INTEGER => s.collect_str(i),
+            Some(Value::Integer(i)) => s.serialize_i64(*i),
+            // serde_json writes NaN and infinities as null
+            Some(Value::Float(f)) => s.serialize_f64(*f),
+            Some(Value::Boolean(b)) => s.serialize_bool(*b),
+            Some(Value::Text(t)) => s.serialize_str(t.as_str()),
+            Some(Value::Timestamp(ts)) => s.serialize_str(&ts.to_rfc3339()),
+            Some(v @ Value::Extension(_)) => match v.as_json() {
+                // A JSON value goes as itself; unparsable JSON text as text
+                Some(json) => match serde_json::from_str::<serde_json::Value>(json) {
+                    Ok(parsed) => parsed.serialize(s),
+                    Err(_) => s.serialize_str(json),
+                },
+                // A vector or another extension as its display text
+                None => s.collect_str(v),
+            },
         }
+    }
+}
+
+/// A query's rows, in the engine's own values.
+pub struct ResultRows(pub Vec<stoolap::core::Row>);
+
+impl Serialize for ResultRows {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeSeq;
+        struct Cells<'a>(&'a stoolap::core::Row);
+        impl Serialize for Cells<'_> {
+            fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+                s.collect_seq((0..self.0.len()).map(|i| Cell(self.0.get(i))))
+            }
+        }
+        let mut seq = s.serialize_seq(Some(self.0.len()))?;
+        for row in &self.0 {
+            seq.serialize_element(&Cells(row))?;
+        }
+        seq.end()
     }
 }
 
@@ -551,5 +596,36 @@ mod tests {
             let rows = DbManager::query_on(&db, &format!("SELECT {}", sql_string(s)), None).unwrap().rows;
             assert_eq!(rows, vec![vec![json!(s)]], "{s}");
         }
+    }
+
+    #[test]
+    fn rows_serialize_as_the_renderer_reads_them() {
+        let db = Database::open_in_memory().unwrap();
+        db.execute(
+            "CREATE TABLE t (id INTEGER PRIMARY KEY, big INTEGER, f FLOAT, b BOOLEAN, s TEXT, ts TIMESTAMP, j JSON, v VECTOR(2), n TEXT)",
+            (),
+        )
+        .unwrap();
+        db.execute(
+            r#"INSERT INTO t VALUES (1, 9007199254740993, 1.5, true, 'a"\b', '2026-01-02 03:04:05', '{"k": [1, null]}', '[0.5, 1]', NULL)"#,
+            (),
+        )
+        .unwrap();
+        let sql = "SELECT * FROM t";
+        let fast = serde_json::to_value(DbManager::query_rows_on(&db, sql, None).unwrap().rows).unwrap();
+        let expected = serde_json::json!([[
+            1,
+            "9007199254740993",
+            1.5,
+            true,
+            "a\"\\b",
+            "2026-01-02T03:04:05+00:00",
+            {"k": [1, null]},
+            "[0.5, 1.0]",
+            null
+        ]]);
+        assert_eq!(fast, expected);
+        // The other commands' path gives the same cells
+        assert_eq!(serde_json::json!(DbManager::query_on(&db, sql, None).unwrap().rows), expected);
     }
 }

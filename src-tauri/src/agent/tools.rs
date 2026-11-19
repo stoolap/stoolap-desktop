@@ -178,6 +178,9 @@ pub fn format_run(outcome: &Value, tab: &str) -> Output {
     let mut text = format!("Written into \"{tab}\" and run; the user sees the result.");
     let summary = match outcome["statements"].as_array() {
         Some(stmts) => {
+            if let Some(ms) = outcome["time"].as_f64() {
+                text.push_str(&format!(" The script took {ms} ms."));
+            }
             for (i, st) in stmts.iter().enumerate() {
                 text.push_str(&format!("\n\nStatement {}: {}", i + 1, statement_text(st)));
             }
@@ -204,13 +207,15 @@ fn statement_summary(r: &Value, tab: &str) -> String {
     t_count("steps.ranRows", total, &[("tab", &tab)])
 }
 
-/// One statement's result: rows (up to MAX_ROWS), changed rows, or DDL done.
+/// One statement's result: rows (up to MAX_ROWS), changed rows, or DDL
+/// done, and how long it took.
 fn statement_text(r: &Value) -> String {
+    let took = r["time"].as_f64().map(|ms| format!(" in {ms} ms")).unwrap_or_default();
     if let Some(n) = r["changes"].as_i64() {
-        return format!("{n} row{} changed.", if n == 1 { "" } else { "s" });
+        return format!("{n} row{} changed{took}.", if n == 1 { "" } else { "s" });
     }
     if let Some(ddl) = r["ddl"].as_str() {
-        return format!("{ddl} done.");
+        return format!("{ddl} done{took}.");
     }
     let columns: Vec<String> = r["columns"]
         .as_array()
@@ -222,7 +227,7 @@ fn statement_text(r: &Value) -> String {
         .unwrap_or_default();
     let total = r["rowCount"].as_u64().unwrap_or(rows.len() as u64);
     let shown = &rows[..rows.len().min(MAX_ROWS)];
-    let mut text = format!("{total} row{}.\n{}", if total == 1 { "" } else { "s" }, table_text(&columns, shown));
+    let mut text = format!("{total} row{}{took}.\n{}", if total == 1 { "" } else { "s" }, table_text(&columns, shown));
     if total as usize > shown.len() {
         text.push_str(&format!("\n(first {} of {total} rows)", shown.len()));
     }
@@ -400,16 +405,23 @@ mod tests {
 
     #[test]
     fn describes_runs_for_the_model() {
-        let rows = json!({"ran": true, "columns": ["name"], "rows": [["Alice"], ["Bob"]], "rowCount": 2});
+        let rows = json!({"ran": true, "columns": ["name"], "rows": [["Alice"], ["Bob"]], "rowCount": 2, "time": 12.5});
         let out = format_run(&rows, "Agent");
-        assert!(out.content.contains("Alice") && out.content.contains("2 rows"));
+        assert!(out.content.contains("Alice") && out.content.contains("2 rows in 12.5 ms."), "{}", out.content);
         assert_eq!(out.summary, "Ran it in Agent (2 rows)");
 
-        let script = json!({"ran": true, "statements": [{"changes": 3}, {"ddl": "CREATE INDEX"}, {"columns": ["n"], "rows": [[3]], "rowCount": 1}]});
+        let script = json!({"ran": true, "time": 40.2, "statements": [
+            {"changes": 3, "time": 1.5},
+            {"ddl": "CREATE INDEX", "time": 30},
+            {"columns": ["n"], "rows": [[3]], "rowCount": 1, "time": 0.25},
+        ]});
         let out = format_run(&script, "Q");
-        assert!(out.content.contains("Statement 1: 3 rows changed."));
-        assert!(out.content.contains("Statement 2: CREATE INDEX done."));
-        assert!(out.content.contains("Statement 3: 1 row."));
+        assert!(out.content.contains("The script took 40.2 ms."), "{}", out.content);
+        assert!(out.content.contains("Statement 1: 3 rows changed in 1.5 ms."));
+        assert!(out.content.contains("Statement 2: CREATE INDEX done in 30 ms."));
+        assert!(out.content.contains("Statement 3: 1 row in 0.25 ms."));
+        // Without a time, as before
+        assert!(format_run(&json!({"ran": true, "changes": 2}), "Q").content.contains("2 rows changed."));
 
         let failed = format_run(&json!({"ran": true, "error": "column x not found"}), "Q");
         assert!(failed.content.contains("column x not found"));

@@ -114,15 +114,16 @@ export function applyDraft(tabId: string, sql: string): void {
 }
 
 function statementOutcome(r: QueryResult | ExecResult | DdlResult): StatementOutcome {
-  if ("columns" in r) return { columns: r.columns, rows: r.rows.slice(0, 50), rowCount: r.rows.length };
-  if ("changes" in r) return { changes: r.changes };
-  return { ddl: r.ddl };
+  const { time } = r;
+  if ("columns" in r) return { columns: r.columns, rows: r.rows.slice(0, 50), rowCount: r.rows.length, time };
+  if ("changes" in r) return { changes: r.changes, time };
+  return { ddl: r.ddl, time };
 }
 
 function outcomeOf(result: ApiResult | ScriptResult | undefined): WriteOutcome {
   if (!result) return { ran: false, reason: "the tab could not run it" };
   if ("error" in result && result.error) return { ran: true, error: result.error };
-  if ("results" in result) return { ran: true, statements: result.results.map(statementOutcome) };
+  if ("results" in result) return { ran: true, statements: result.results.map(statementOutcome), time: result.time };
   return { ran: true, ...statementOutcome(result as QueryResult | ExecResult | DdlResult) };
 }
 

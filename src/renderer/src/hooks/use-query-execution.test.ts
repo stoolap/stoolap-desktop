@@ -83,4 +83,15 @@ describe("query runs", () => {
     expect(await ran("INSERT INTO t VALUES (1)")).toBe(true);
     expect(await ran("-- the agent's note\nCREATE VIEW v AS SELECT 1")).toBe(true);
   });
+
+  it("shows the time the user waited, not only the engine's", async () => {
+    const tabId = useEditorStore.getState().addTab("Query", "");
+    const done = executeQuery()(tabId, "SELECT 1");
+    // The rows take a while to arrive after the engine's 1 ms
+    await new Promise((r) => setTimeout(r, 30));
+    pending[pending.length - 1]({ columns: ["a"], rows: [[1]], time: 1 });
+    await done;
+    const shown = useEditorStore.getState().tabs.find((t) => t.id === tabId)!.result as { time: number };
+    expect(shown.time).toBeGreaterThanOrEqual(25);
+  });
 });
