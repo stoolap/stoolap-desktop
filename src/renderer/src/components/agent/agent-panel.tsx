@@ -127,7 +127,10 @@ export function AgentPanel() {
   const needsSetup =
     editingKey !== null ||
     (info !== null &&
-      ((backend === "api" && !info.hasApiKey) ||
+      // The user picks a backend once, even when Claude Code is there: it
+      // signs in with their account and plan, so it shouldn't start unasked
+      (chosenBackend === null ||
+        (backend === "api" && !info.hasApiKey) ||
         (backend === "claude-code" && !info.claudeCode) ||
         (backend === "console" && !info.console?.signedIn) ||
         (backend === "codex" && !info.codex?.signedIn) ||
@@ -283,10 +286,11 @@ export function AgentPanel() {
   const askRef = useRef(ask);
   askRef.current = ask;
   useEffect(() => {
-    if (pendingAsk === null) return;
+    // Held while the user is still choosing how the agent runs; sent once they have
+    if (pendingAsk === null || needsSetup) return;
     const text = useAgentStore.getState().takePendingAsk();
     if (text) askRef.current(text);
-  }, [pendingAsk]);
+  }, [pendingAsk, needsSetup]);
 
   /** Leave the shown conversation: the backend lets go of it unless it is still working */
   const leave = () => {
