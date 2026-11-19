@@ -10,7 +10,7 @@ before tagging; the release fails without one.
 - A thin line now separates the title bar from the content, and the status bar's line matches the side panels'.
 
 ### Under the hood
-- Updated to Tauri 2.12 and its plugins (the updater, notifications, dialogs, files and windows among them), and to the latest compatible versions of React, the editor and the other libraries the app is built on.
+- Updated to Tauri 2.12 and its plugins (the updater, notifications, dialogs, files and windows among them), and every library the app is built on to its latest stable version: React 19.3, TypeScript 7, Vite 8, the table behind the result grid, the translations and the icons among them.
 
 ## v0.5.7
 
