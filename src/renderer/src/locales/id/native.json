@@ -90,6 +90,11 @@
     "ranChanged_other": "Menjalankannya di {{tab}} ({{count}} baris diubah)",
     "ranDdl": "Menjalankannya di {{tab}} ({{ddl}} selesai)",
     "searchedDocs": "Mencari di dokumentasi Stoolap: {{query}}",
-    "readDocs": "Membaca dokumentasi Stoolap: {{title}}"
+    "readDocs": "Membaca dokumentasi Stoolap: {{title}}",
+    "checked_other": "Memeriksa: {{count}} baris",
+    "checkFailed": "Pemeriksaan gagal: {{error}}",
+    "listedTabs_other": "Menampilkan daftar {{count}} tab",
+    "readTab": "Membaca tab {{tab}}",
+    "readHistory_other": "Membaca {{count}} eksekusi terbaru"
   }
 }

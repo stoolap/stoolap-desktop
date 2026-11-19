@@ -124,5 +124,17 @@
     "summarize": "Resuma a tabela {{table}}",
     "related": "Como {{a}} e {{b}} se relacionam?",
     "sampleTable": "Crie uma tabela de exemplo com alguns dados"
+  },
+  "check": {
+    "summary_one": "{{count, number}} linha · {{time}} ms",
+    "summary_other": "{{count, number}} linhas · {{time}} ms",
+    "summary_many": "{{count, number}} linhas · {{time}} ms",
+    "firstShown": "primeiras {{shown}} exibidas",
+    "rolledBack": "Revertido; sua aba não foi alterada.",
+    "toggle": "Mostrar o que o agente verificou",
+    "median": "mediana de {{runs}} execuções"
+  },
+  "reply": {
+    "copy": "Copiar resposta"
   }
 }

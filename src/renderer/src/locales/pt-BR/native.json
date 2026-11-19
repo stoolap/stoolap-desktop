@@ -93,6 +93,14 @@
     "ranChanged_other": "Executou em {{tab}} ({{count}} linhas alteradas)",
     "ranDdl": "Executou em {{tab}} ({{ddl}} concluído)",
     "searchedDocs": "Pesquisou na documentação do Stoolap: {{query}}",
-    "readDocs": "Leu a documentação do Stoolap: {{title}}"
+    "readDocs": "Leu a documentação do Stoolap: {{title}}",
+    "checked_one": "Verificou: {{count}} linha",
+    "checked_other": "Verificou: {{count}} linhas",
+    "checkFailed": "A verificação falhou: {{error}}",
+    "listedTabs_one": "Listou {{count}} aba",
+    "listedTabs_other": "Listou {{count}} abas",
+    "readTab": "Leu a aba {{tab}}",
+    "readHistory_one": "Leu {{count}} execução recente",
+    "readHistory_other": "Leu {{count}} execuções recentes"
   }
 }

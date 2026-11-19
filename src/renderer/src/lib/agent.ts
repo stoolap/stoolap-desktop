@@ -5,6 +5,7 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import type { RunSnapshot, TabSnapshot } from "@/lib/agent-context";
 
 export interface AgentModel {
   id: string;
@@ -20,12 +21,33 @@ export interface EditorContext {
   /** The tab the agent writes into */
   targetTabId: string;
   targetTabTitle: string;
+  /** The open database: in memory, or the folder at `path` */
+  storage: "memory" | "file";
+  path?: string;
+  /** When an in-memory database opened (its history starts there) */
+  openedAt?: string;
+  /** The query tabs, read only through the agent's list_tabs / read_tab */
+  tabs: TabSnapshot[];
+  /** This database's recent runs, newest first, for its query_history */
+  runs: RunSnapshot[];
+}
+
+/** What a step shows when opened: a check_query's SQL and what it returned */
+export interface ToolDetail {
+  sql: string;
+  columns?: string[];
+  rows?: unknown[][];
+  rowCount?: number;
+  /** ms; the median when it ran more than once */
+  time?: number;
+  runs?: number;
+  error?: string;
 }
 
 export type AgentEvent =
   | { kind: "text"; delta: string }
   | { kind: "thinking"; delta: string }
-  | { kind: "tool"; id: string; name: string; summary: string; isError: boolean }
+  | { kind: "tool"; id: string; name: string; summary: string; isError: boolean; detail?: ToolDetail }
   /** write_query's SQL so far, while it streams in */
   | { kind: "draft"; tabId: string; sql: string }
   /** write_query's complete SQL; answer with writeResult */
@@ -37,6 +59,8 @@ export type AgentEvent =
       tabId: string;
       sql: string;
       explanation: string;
+      /** A name for the agent's own tab */
+      title: string;
       /** The user lets the agent run SQL that can change data */
       allowWrites: boolean;
     }
@@ -143,7 +167,13 @@ export type WriteOutcome =
   | ({ ran: true } & StatementOutcome)
   | { ran: true; statements: StatementOutcome[]; time: number };
 
-export function writeResult(requestId: string, outcome: WriteOutcome): Promise<void> {
+/** A write's outcome, with the tab's name now and the editor as it is now */
+export type WriteReport = WriteOutcome & {
+  tabTitle?: string;
+  context?: { tabs: TabSnapshot[]; runs: RunSnapshot[] };
+};
+
+export function writeResult(requestId: string, outcome: WriteReport): Promise<void> {
   return invoke("agent_write_result", { requestId, outcome });
 }
 

@@ -245,6 +245,7 @@ pub async fn run_loop(
                     content: json!({"INVALID_JSON": call["arguments"]}).to_string(),
                     is_error: true,
                     summary: format!("{name}: invalid input"),
+                    detail: None,
                 },
             };
             emit_tool(app, conversation_id, &name, &output);

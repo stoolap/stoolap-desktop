@@ -5,7 +5,8 @@
   },
   "statusBar": {
     "inMemory": "内存",
-    "noConnection": "未连接"
+    "noConnection": "未连接",
+    "inMemoryHint": "仅保存在内存中：关闭数据库或应用后更改会丢失。如需保留，请先备份。"
   },
   "dataTab": {
     "unavailable": "表“{{table}}”已不可用：{{error}}",

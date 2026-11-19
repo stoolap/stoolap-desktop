@@ -63,6 +63,29 @@ const write = (tabId: string, sql: string) => ({
 });
 
 describe("applyWrite", () => {
+  it("names the agent's own tab, and leaves the user's tab its name", async () => {
+    const { chat, tabId } = setup(true);
+    const title = (id: string) => useEditorStore.getState().tabs.find((t) => t.id === id)?.title;
+
+    let done = applyWrite(chat, { ...write(tabId, "SELECT 1"), title: "Sales by month" });
+    await vi.runAllTimersAsync();
+    await done;
+    expect(title(tabId)).toBe("Query");
+
+    useAgentStore.getState().setConversationTab(chat, tabId);
+    done = applyWrite(chat, { ...write(tabId, "SELECT 2"), title: "Sales by month" });
+    await vi.runAllTimersAsync();
+    await done;
+    expect(title(tabId)).toBe("Sales by month");
+    // The agent hears the tab's new name, and gets the editor as it is now
+    const report = (writeResult.mock.calls.at(-1) as unknown[])[1] as {
+      tabTitle: string;
+      context: { tabs: { title: string }[] };
+    };
+    expect(report.tabTitle).toBe("Sales by month");
+    expect(report.context.tabs.some((t) => t.title === "Sales by month")).toBe(true);
+  });
+
   it("runs a write on the request's database when allowed", async () => {
     const { chat, tabId } = setup(true);
     const done = applyWrite(chat, write(tabId, "DELETE FROM t"));
@@ -79,7 +102,7 @@ describe("applyWrite", () => {
     await vi.runAllTimersAsync();
     await done;
     expect(ran).toEqual([]);
-    expect(writeResult).toHaveBeenCalledWith("r1", { ran: false, reason: "the user stopped the request" });
+    expect(writeResult).toHaveBeenCalledWith("r1", expect.objectContaining({ ran: false, reason: "the user stopped the request" }));
     const item = useAgentStore.getState().conversations[chat].items.at(-1);
     expect(item).toMatchObject({ kind: "proposal", autoRan: false });
   });

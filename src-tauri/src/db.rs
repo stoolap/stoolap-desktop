@@ -132,6 +132,11 @@ impl DbManager {
         Ok(session)
     }
 
+    /// The query timeout in ms; 0 when off
+    pub fn query_timeout_ms(&self) -> u64 {
+        self.query_timeout_ms.load(Ordering::Relaxed)
+    }
+
     /// Change the query timeout for every open connection and the ones
     /// opened later.
     pub fn set_query_timeout(&self, ms: u64) -> Result<(), String> {

@@ -116,5 +116,15 @@
     "summarize": "{{table}} 테이블을 요약해 줘",
     "related": "{{a}}와(과) {{b}}은(는) 어떻게 연관되어 있어?",
     "sampleTable": "데이터가 있는 샘플 테이블을 만들어 줘"
+  },
+  "check": {
+    "summary_other": "{{count, number}}행 · {{time}} ms",
+    "firstShown": "처음 {{shown}}행 표시",
+    "rolledBack": "롤백되었습니다. 탭은 변경되지 않았습니다.",
+    "toggle": "에이전트가 확인한 내용 표시",
+    "median": "{{runs}}회 실행의 중앙값"
+  },
+  "reply": {
+    "copy": "답변 복사"
   }
 }

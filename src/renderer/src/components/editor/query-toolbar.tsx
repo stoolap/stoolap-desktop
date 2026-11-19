@@ -92,7 +92,7 @@ export function QueryToolbar() {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<RunTabRequest>).detail;
       detail.handled = true;
-      executeRef.current(detail.tabId, detail.sql, detail.connId).then(detail.done);
+      executeRef.current(detail.tabId, detail.sql, detail.connId, detail.by).then(detail.done);
     };
     window.addEventListener("stoolap:run-tab", handler);
     return () => window.removeEventListener("stoolap:run-tab", handler);

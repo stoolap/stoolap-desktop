@@ -1,3 +1,23 @@
+/** One run of the editor's SQL, kept so the agent can compare runs */
+export interface RunEntry {
+  sql: string;
+  /** When it ran (epoch ms) and how long the user waited (ms) */
+  at: number;
+  ms: number;
+  /** The database: its path, or the connection id for an in-memory one */
+  db: string;
+  rows?: number;
+  changes?: number;
+  ddl?: string;
+  /** Statements in a script, and each one's result and time */
+  statements?: number;
+  steps?: { sql: string; ms: number; rows?: number; changes?: number; ddl?: string }[];
+  error?: string;
+  /** The tab it ran in, by title; and "agent" when the agent ran it */
+  tab?: string;
+  by?: "agent";
+}
+
 export interface ConnectionMeta {
   id: string;
   name: string;
@@ -89,6 +109,11 @@ export interface EditorTab {
   mode: "query" | "data";
   tableName?: string;
   lastExecutedSql?: string;
+  /** The database it last ran on (path, or id when in memory), and when (epoch ms) */
+  lastDb?: string;
+  /** That database's name then (it stays known once the database is closed) */
+  lastDbName?: string;
+  lastRunAt?: number;
   initialFilter?: { column: string; value: string };
   /** Every statement's result when a script ran; `result` is the one shown */
   results?: StatementResult[];

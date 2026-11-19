@@ -5,7 +5,8 @@
   },
   "statusBar": {
     "inMemory": "Bellek İçi",
-    "noConnection": "Bağlantı yok"
+    "noConnection": "Bağlantı yok",
+    "inMemoryHint": "Yalnızca bellekte tutulur: veritabanını ya da uygulamayı kapattığınızda değişiklikler kaybolur. Saklamak için yedekleyin."
   },
   "dataTab": {
     "unavailable": "\"{{table}}\" tablosu artık kullanılamıyor: {{error}}",

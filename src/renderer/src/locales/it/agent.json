@@ -124,5 +124,17 @@
     "summarize": "Riassumi la tabella {{table}}",
     "related": "Come sono collegate {{a}} e {{b}}?",
     "sampleTable": "Crea una tabella di esempio con alcuni dati"
+  },
+  "check": {
+    "summary_one": "{{count, number}} riga · {{time}} ms",
+    "summary_other": "{{count, number}} righe · {{time}} ms",
+    "summary_many": "{{count, number}} righe · {{time}} ms",
+    "firstShown": "prime {{shown}} mostrate",
+    "rolledBack": "Rollback eseguito; la tua scheda non è cambiata.",
+    "toggle": "Mostra cosa ha verificato l'agente",
+    "median": "mediana su {{runs}} esecuzioni"
+  },
+  "reply": {
+    "copy": "Copia risposta"
   }
 }

@@ -5,6 +5,7 @@ import type { ApiResult, DdlResult, ExecResult, QueryResult, ScriptResult } from
 import { useAgentStore } from "@/stores/agent-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useEditorStore } from "@/stores/editor-store";
+import { editorSnapshot } from "@/lib/agent-context";
 
 /** A request to run SQL in a tab, served by that tab's QueryToolbar. */
 export interface RunTabRequest {
@@ -12,6 +13,8 @@ export interface RunTabRequest {
   sql: string;
   /** Run only while this connection is the active one */
   connId?: string;
+  /** "agent" when the agent asked for it (the user's own Run again leaves it out) */
+  by?: "agent";
   /** Set by the toolbar when it takes the request */
   handled?: boolean;
   done: (result: ApiResult | ScriptResult | undefined) => void;
@@ -31,13 +34,21 @@ export function runInTab(tabId: string, sql: string): Promise<ApiResult | Script
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
 /** Hand `sql` to the (mounted) tab's toolbar, which starts it at once. */
-function dispatchRun(tabId: string, sql: string, connId?: string): Promise<ApiResult | ScriptResult | undefined> {
+function dispatchRun(
+  tabId: string,
+  sql: string,
+  connId?: string,
+  by?: "agent",
+): Promise<ApiResult | ScriptResult | undefined> {
   return new Promise((resolve) => {
-    const detail: RunTabRequest = { tabId, sql, connId, done: resolve };
+    const detail: RunTabRequest = { tabId, sql, connId, by, done: resolve };
     window.dispatchEvent(new CustomEvent("stoolap:run-tab", { detail }));
     if (!detail.handled) resolve(undefined);
   });
 }
+
+/** Longest tab title the agent can give */
+const MAX_TITLE = 40;
 
 /** How long the SQL shows before it runs, and the result before the agent goes on */
 const READ_SQL_MS = 700;
@@ -135,7 +146,15 @@ function outcomeOf(result: ApiResult | ScriptResult | undefined): WriteOutcome {
  */
 export async function applyWrite(
   conversationId: string,
-  w: { requestId: string; connId: string; tabId: string; sql: string; explanation: string; allowWrites: boolean },
+  w: {
+    requestId: string;
+    connId: string;
+    tabId: string;
+    sql: string;
+    explanation: string;
+    title?: string;
+    allowWrites: boolean;
+  },
 ): Promise<void> {
   const request = requestOf(conversationId).n;
   const id = resolveTab(w.tabId);
@@ -145,6 +164,11 @@ export async function applyWrite(
   tabFor.delete(w.tabId);
   editor.updateTabSql(id, w.sql);
   editor.setActiveTab(id);
+  // The agent names its own tab; the user's tabs keep their names
+  const title = w.title?.trim().slice(0, MAX_TITLE);
+  if (title && useAgentStore.getState().conversations[conversationId]?.tabId === id) {
+    editor.updateTabTitle(id, title);
+  }
 
   // Reads always run; anything else only with the user's permission
   const runs = isSingleReadOnly(w.sql) || w.allowWrites;
@@ -172,12 +196,17 @@ export async function applyWrite(
         outcome = { ran: false, reason };
         useAgentStore.getState().setNotRun(conversationId, itemId);
       } else {
-        outcome = outcomeOf(await dispatchRun(id, w.sql, w.connId));
+        outcome = outcomeOf(await dispatchRun(id, w.sql, w.connId, "agent"));
         await pause(SEE_RESULT_MS);
       }
     }
   } finally {
-    // The agent waits for this
-    agent.writeResult(w.requestId, outcome).catch(() => {});
+    // The agent waits for this. Its tab and runs have changed since the
+    // request started, so its view of them comes along, with the tab's name
+    const db = useAgentStore.getState().conversations[conversationId]?.dbKey;
+    const tabTitle = useEditorStore.getState().tabs.find((t) => t.id === id)?.title;
+    agent
+      .writeResult(w.requestId, { ...outcome, tabTitle, context: db ? editorSnapshot(db) : undefined })
+      .catch(() => {});
   }
 }

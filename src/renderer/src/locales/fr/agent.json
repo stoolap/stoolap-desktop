@@ -120,5 +120,16 @@
     "summarize": "Résume la table {{table}}",
     "related": "Quel est le lien entre {{a}} et {{b}} ?",
     "sampleTable": "Crée une table d'exemple avec quelques données"
+  },
+  "check": {
+    "summary_one": "{{count, number}} ligne · {{time}} ms",
+    "summary_other": "{{count, number}} lignes · {{time}} ms",
+    "firstShown": "{{shown}} premières affichées",
+    "rolledBack": "Annulé ; votre onglet est inchangé.",
+    "toggle": "Afficher ce que l'agent a vérifié",
+    "median": "médiane sur {{runs}} exécutions"
+  },
+  "reply": {
+    "copy": "Copier la réponse"
   }
 }

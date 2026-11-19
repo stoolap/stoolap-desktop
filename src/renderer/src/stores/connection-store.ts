@@ -17,7 +17,8 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
   setActiveId: (activeId) => set({ activeId }),
   addConnection: (meta) =>
     set((s) => ({
-      connections: [...s.connections, meta],
+      // When it opened: an in-memory database's history starts there
+      connections: [...s.connections, { ...meta, createdAt: meta.createdAt ?? Date.now() }],
       activeId: meta.id,
     })),
   removeConnection: (id) =>

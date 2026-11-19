@@ -54,9 +54,17 @@ import { useEditorStore } from "@/stores/editor-store";
 import { useModKey } from "@/hooks/use-mod-key";
 import { useEditorSchema } from "@/hooks/use-schema";
 import { contextPrompts } from "@/lib/agent-prompts";
-import { MessageText } from "./message-text";
+import { highlightSql, MessageText } from "./message-text";
+import { resources } from "@/lib/i18n";
 import { Composer, type ComposerHandle } from "./composer";
 import { Tip } from "@/components/ui/tip";
+import { editorSnapshot, localTime } from "@/lib/agent-context";
+
+/** Titles an agent tab starts with: in every language, and from before the rename */
+const AGENT_TAB_TITLES = new Set([
+  "Assistant",
+  ...Object.values(resources).map((r) => String((r.agent as { tabTitle?: string } | undefined)?.tabTitle ?? "")),
+]);
 
 /** "5 min ago", "yesterday", or the date */
 function ago(ms: number): string {
@@ -231,7 +239,13 @@ export function AgentPanel() {
         targetTab = own;
         editor.setActiveTab(own.id);
       } else {
-        const tabId = editor.addTab(t("tabTitle"), "");
+        // An empty agent tab left from an earlier conversation is reused
+        // rather than piling up another one
+        const idle = editor.tabs.find(
+          (tab) => tab.mode === "query" && !tab.sql.trim() && AGENT_TAB_TITLES.has(tab.title),
+        );
+        const tabId = idle?.id ?? editor.addTab(t("tabTitle"), "");
+        if (idle) editor.setActiveTab(idle.id);
         store.setConversationTab(id, tabId);
         targetTab = useEditorStore.getState().tabs.find((t) => t.id === tabId) ?? null;
       }
@@ -257,6 +271,10 @@ export function AgentPanel() {
           lastError,
           targetTabId: targetTab.id,
           targetTabTitle: targetTab.title,
+          storage: conn.type,
+          path: conn.type === "file" ? conn.path : undefined,
+          openedAt: conn.type === "memory" && conn.createdAt ? localTime(conn.createdAt) : undefined,
+          ...editorSnapshot(accessKey, looking?.id),
         },
         earlier: earlier || undefined,
       });
@@ -796,16 +814,11 @@ function ItemView({ item, conversationId }: { item: AgentItem; conversationId: s
         </div>
       );
     case "text":
-      return <MessageText text={item.text} />;
+      return <Reply text={item.text} />;
     case "thinking":
       return <Thinking text={item.text} />;
     case "tool":
-      return (
-        <div className={cn("flex items-start gap-1.5 text-xs", item.isError ? "text-destructive" : "text-muted-foreground")}>
-          <Wrench className="mt-0.5 h-3 w-3 shrink-0" />
-          <span>{item.summary}</span>
-        </div>
-      );
+      return <ToolStep item={item} />;
     case "proposal":
       return <Proposal item={item} conversationId={conversationId} />;
     case "error":
@@ -818,6 +831,108 @@ function ItemView({ item, conversationId }: { item: AgentItem; conversationId: s
     case "note":
       return <div className="text-xs text-muted-foreground">{item.text}</div>;
   }
+}
+
+/** An agent reply, with a Copy button (its Markdown) that shows on hover */
+function Reply({ text }: { text: string }) {
+  const { t } = useTranslation("agent");
+  const copy = () =>
+    navigator.clipboard.writeText(text).then(
+      () => toast.success(t("code.copied")),
+      () => toast.error(t("code.copyFailed")),
+    );
+  return (
+    <div className="group/reply">
+      <MessageText text={text} />
+      <div className="mt-0.5 flex justify-end opacity-0 transition-opacity group-hover/reply:opacity-100 focus-within:opacity-100">
+        <Tip label={t("reply.copy")}>
+          <button
+            type="button"
+            onClick={copy}
+            aria-label={t("reply.copy")}
+            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <Copy className="h-3 w-3" />
+          </button>
+        </Tip>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A tool step. A check_query opens to show what the agent ran and got back,
+ * so a check that left the tab alone is still in front of the user.
+ */
+function ToolStep({ item }: { item: Extract<AgentItem, { kind: "tool" }> }) {
+  const { t } = useTranslation("agent");
+  const [open, setOpen] = useState(false);
+  const tone = item.isError ? "text-destructive" : "text-muted-foreground";
+  const d = item.detail;
+  if (!d) {
+    return (
+      <div className={cn("flex items-start gap-1.5 text-xs", tone)}>
+        <Wrench className="mt-0.5 h-3 w-3 shrink-0" />
+        <span>{item.summary}</span>
+      </div>
+    );
+  }
+  const shown = d.rows?.length ?? 0;
+  return (
+    <div className="text-xs">
+      <button
+        type="button"
+        className={cn("flex items-start gap-1.5 text-left hover:text-foreground", tone)}
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-label={t("check.toggle")}
+      >
+        <ChevronRight className={cn("mt-0.5 h-3 w-3 shrink-0 transition-transform", open && "rotate-90")} />
+        <span>{item.summary}</span>
+      </button>
+      {open && (
+        <div className="agent-md mt-1 ml-[18px] overflow-hidden rounded-md border border-border/60">
+          <pre className="font-data max-h-40 overflow-auto whitespace-pre-wrap bg-muted px-2 py-1.5">{highlightSql(d.sql)}</pre>
+          {d.error ? (
+            <div className="px-2 py-1.5 text-destructive">{d.error}</div>
+          ) : (
+            d.columns && (
+              <div className="max-h-48 overflow-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr>
+                      {d.columns.map((c) => (
+                        <th key={c}>{c}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {d.rows?.map((row, i) => (
+                      <tr key={i}>
+                        {row.map((v, j) => (
+                          <td key={j} className={cn("font-data", v === null && "italic text-muted-foreground")}>
+                            {v === null ? "NULL" : typeof v === "object" ? JSON.stringify(v) : String(v)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          )}
+          <div className="border-t border-border/60 px-2 py-1 text-muted-foreground">
+            {d.rowCount !== undefined &&
+              t("check.summary", { count: d.rowCount, time: d.time }) +
+                ((d.runs ?? 1) > 1 ? ` (${t("check.median", { runs: d.runs })})` : "") +
+                (d.rowCount > shown ? ` (${t("check.firstShown", { shown })})` : "") +
+                " · "}
+            {t("check.rolledBack")}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Thinking({ text }: { text: string }) {

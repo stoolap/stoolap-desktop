@@ -93,6 +93,14 @@
     "ranChanged_other": "Çalıştırıldı: {{tab}} ({{count}} satır değişti)",
     "ranDdl": "Çalıştırıldı: {{tab}} ({{ddl}} tamamlandı)",
     "searchedDocs": "Stoolap belgelerinde arandı: {{query}}",
-    "readDocs": "Stoolap belgesi okundu: {{title}}"
+    "readDocs": "Stoolap belgesi okundu: {{title}}",
+    "checked_one": "Kontrol edildi: {{count}} satır",
+    "checked_other": "Kontrol edildi: {{count}} satır",
+    "checkFailed": "Kontrol başarısız: {{error}}",
+    "listedTabs_one": "{{count}} sekme listelendi",
+    "listedTabs_other": "{{count}} sekme listelendi",
+    "readTab": "Sekme okundu: {{tab}}",
+    "readHistory_one": "Son {{count}} çalıştırma okundu",
+    "readHistory_other": "Son {{count}} çalıştırma okundu"
   }
 }

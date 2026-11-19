@@ -93,6 +93,14 @@
     "ranChanged_other": "Se ejecutó en {{tab}} ({{count}} filas modificadas)",
     "ranDdl": "Se ejecutó en {{tab}} ({{ddl}} completado)",
     "searchedDocs": "Se buscó en la documentación de Stoolap: {{query}}",
-    "readDocs": "Se leyó la documentación de Stoolap: {{title}}"
+    "readDocs": "Se leyó la documentación de Stoolap: {{title}}",
+    "checked_one": "Se comprobó: {{count}} fila",
+    "checked_other": "Se comprobó: {{count}} filas",
+    "checkFailed": "La comprobación falló: {{error}}",
+    "listedTabs_one": "Se listó {{count}} pestaña",
+    "listedTabs_other": "Se listaron {{count}} pestañas",
+    "readTab": "Se leyó la pestaña {{tab}}",
+    "readHistory_one": "Se leyó {{count}} ejecución reciente",
+    "readHistory_other": "Se leyeron {{count}} ejecuciones recientes"
   }
 }

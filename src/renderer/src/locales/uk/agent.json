@@ -128,5 +128,18 @@
     "summarize": "Опиши таблицю {{table}}",
     "related": "Як пов’язані {{a}} і {{b}}?",
     "sampleTable": "Створи приклад таблиці з даними"
+  },
+  "check": {
+    "summary_one": "{{count, number}} рядок · {{time}} мс",
+    "summary_few": "{{count, number}} рядки · {{time}} мс",
+    "summary_many": "{{count, number}} рядків · {{time}} мс",
+    "summary_other": "{{count, number}} рядка · {{time}} мс",
+    "firstShown": "показано перші {{shown}}",
+    "rolledBack": "Зміни відкочено; ваша вкладка не змінилася.",
+    "toggle": "Показати, що перевірив агент",
+    "median": "медіана, запусків: {{runs}}"
+  },
+  "reply": {
+    "copy": "Копіювати відповідь"
   }
 }

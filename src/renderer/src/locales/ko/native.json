@@ -90,6 +90,11 @@
     "ranChanged_other": "{{tab}}에서 실행함({{count}}행 변경됨)",
     "ranDdl": "{{tab}}에서 실행함({{ddl}} 완료)",
     "searchedDocs": "Stoolap 문서를 검색함: {{query}}",
-    "readDocs": "Stoolap 문서를 읽음: {{title}}"
+    "readDocs": "Stoolap 문서를 읽음: {{title}}",
+    "checked_other": "확인함({{count}}행)",
+    "checkFailed": "확인에 실패함: {{error}}",
+    "listedTabs_other": "탭 {{count}}개의 목록을 확인함",
+    "readTab": "탭 {{tab}}을(를) 읽음",
+    "readHistory_other": "최근 실행 {{count}}건을 읽음"
   }
 }
