@@ -189,7 +189,7 @@ async fn stream_response(
         .map_err(|e| format!("Could not reach the OpenAI API: {e}"))?;
     let status = resp.status().as_u16();
     if status != 200 {
-        let text = resp.text().await.unwrap_or_default();
+        let text = or_cancel(cancel, resp.text()).await?.unwrap_or_default();
         return Err(error_message(status, &text));
     }
     let mut builder = ResponseBuilder::default();

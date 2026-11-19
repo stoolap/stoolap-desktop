@@ -115,7 +115,7 @@ pub async fn stream_turn(
 
     let status = resp.status();
     if !status.is_success() {
-        let text = resp.text().await.unwrap_or_default();
+        let text = or_cancel(cancel, resp.text()).await?.unwrap_or_default();
         let message = serde_json::from_str::<Value>(&text)
             .ok()
             .and_then(|v| v["error"]["message"].as_str().map(str::to_string))

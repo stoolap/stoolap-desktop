@@ -84,11 +84,10 @@ export function splitStatements(sql: string): string[] {
 export function isSingleReadOnly(sql: string): boolean {
   const stmts = splitStatements(sql).filter((s) => stripComments(s).trim());
   if (stmts.length !== 1) return false;
-  // Keywords inside strings and quoted names don't count
-  const code = stripComments(stmts[0])
-    .replace(/'(?:[^'\\]|\\[\s\S]|'')*'/g, "''")
-    .replace(/"(?:[^"]|"")*"/g, '""')
-    .replace(/`(?:[^`]|``)*`/g, "``")
+  // Keywords inside strings, quoted names and comments don't count. One
+  // pass, so a quote inside a name is never taken for a string's start
+  const code = stmts[0]
+    .replace(QUOTED_OR_COMMENT, (_, quoted?: string) => (quoted ? quoted[0].repeat(2) : " "))
     .trim()
     .toUpperCase();
   const first = code.split(/\s+/)[0];
@@ -115,8 +114,9 @@ export function explainAll(sql: string): string {
 
 /** Drop --, # and block comments, keeping strings and quoted names intact. */
 function stripComments(sql: string): string {
-  return sql.replace(
-    /('(?:[^'\\]|\\[\s\S]|'')*'|"(?:[^"]|"")*"|`(?:[^`]|``)*`)|(?:--|#)[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/g,
-    (m, quoted) => quoted ?? " ",
-  );
+  return sql.replace(QUOTED_OR_COMMENT, (_, quoted?: string) => quoted ?? " ");
 }
+
+/** A string, quoted name (group 1) or comment, read as the engine reads them */
+const QUOTED_OR_COMMENT =
+  /('(?:[^'\\]|\\[\s\S]|'')*'|"(?:[^"]|"")*"|`(?:[^`]|``)*`)|(?:--|#)[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/g;

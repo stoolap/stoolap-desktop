@@ -421,20 +421,7 @@ pub async fn db_import_file(
     format: String,
     has_header: bool,
 ) -> Result<ImportResult, String> {
-    let path = crate::db::sql_string(&file_path);
-    let fmt = format.to_uppercase();
-    if fmt != "CSV" && fmt != "JSON" {
-        return Err(format!("Unsupported format '{}', use CSV or JSON", format));
-    }
-
-    let sql = format!(
-        "COPY {} FROM {} WITH (FORMAT {}, HEADER {})",
-        quote_id(&table),
-        path,
-        fmt,
-        if has_header { "true" } else { "false" },
-    );
-
+    let sql = copy_sql(&table, &file_path, &format, has_header)?;
     let start = std::time::Instant::now();
     let result = state.execute(&conn_id, &sql, None)?;
     let time = start.elapsed().as_secs_f64() * 1000.0;
@@ -444,6 +431,27 @@ pub async fn db_import_file(
         rows: result.changes,
         time,
     })
+}
+
+/// The COPY statement for an import. The engine's COPY takes the path
+/// between the quotes as written, with no escapes, so a path holding a quote
+/// (or ending in a backslash, which would escape the closing quote) can't be
+/// written at all.
+fn copy_sql(table: &str, file_path: &str, format: &str, has_header: bool) -> Result<String, String> {
+    let fmt = format.to_uppercase();
+    if fmt != "CSV" && fmt != "JSON" {
+        return Err(format!("Unsupported format '{}', use CSV or JSON", format));
+    }
+    if file_path.contains('\'') || file_path.ends_with('\\') {
+        return Err("Can't import from a path that contains ' or ends with \\. Rename or move the file.".into());
+    }
+    Ok(format!(
+        "COPY {} FROM '{}' WITH (FORMAT {}, HEADER {})",
+        quote_id(table),
+        file_path,
+        fmt,
+        if has_header { "true" } else { "false" },
+    ))
 }
 
 #[cfg(test)]
@@ -463,5 +471,19 @@ mod tests {
         let (clause, params) = build_where(Some(&filters)).unwrap();
         let rows = DbManager::query_on(&db, &format!("SELECT id FROM t{clause}"), Some(params)).unwrap().rows;
         assert_eq!(rows, vec![vec![serde_json::json!(1)]]);
+    }
+
+    #[test]
+    fn copy_reads_a_path_with_backslashes() {
+        let dir = std::env::temp_dir().join(format!("stoolap-copy-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join(if cfg!(windows) { "a b.csv" } else { r"a\b.csv" });
+        std::fs::write(&file, "id,name\n1,x\n").unwrap();
+        let db = stoolap::api::Database::open_in_memory().unwrap();
+        DbManager::execute_on(&db, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)", None).unwrap();
+        let sql = copy_sql("t", file.to_str().unwrap(), "csv", true).unwrap();
+        assert_eq!(DbManager::execute_on(&db, &sql, None).unwrap().changes, 1);
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert!(copy_sql("t", "/tmp/it's.csv", "csv", true).is_err());
     }
 }

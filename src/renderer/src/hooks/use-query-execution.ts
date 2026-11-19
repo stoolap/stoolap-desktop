@@ -77,6 +77,17 @@ export function stopRuns(tabId?: string): void {
   else for (const controller of runs.values()) controller.abort();
 }
 
+/**
+ * A run the user stopped, or one a newer run in the tab replaced. Only the
+ * tab's current run shows it: a replaced one leaves the newer run's
+ * spinner and Stop alone.
+ */
+function stopped(tabId: string, controller: AbortController): ApiResult {
+  const result = { error: stoppedMessage() };
+  if (runs.get(tabId) === controller) useEditorStore.getState().setTabResult(tabId, result);
+  return result;
+}
+
 export function useQueryExecution() {
   const activeId = useConnectionStore((s) => s.activeId);
   const queryClient = useQueryClient();
@@ -102,11 +113,7 @@ export function useQueryExecution() {
       const started = Date.now();
       try {
         const result = await api.executeQuery(activeId, sql, controller.signal);
-        if (controller.signal.aborted) {
-          const stopped = { error: stoppedMessage() };
-          useEditorStore.getState().setTabResult(tabId, stopped);
-          return stopped;
-        }
+        if (controller.signal.aborted) return stopped(tabId, controller);
         if ("results" in result) {
           useEditorStore.getState().setTabResults(tabId, result.results);
         } else {
@@ -129,11 +136,7 @@ export function useQueryExecution() {
         }
         return result;
       } catch (e) {
-        if (controller.signal.aborted) {
-          const stopped = { error: stoppedMessage() };
-          useEditorStore.getState().setTabResult(tabId, stopped);
-          return stopped;
-        }
+        if (controller.signal.aborted) return stopped(tabId, controller);
         const failed = { error: errorMessage(e) };
         useEditorStore.getState().setTabResult(tabId, failed);
         return failed;

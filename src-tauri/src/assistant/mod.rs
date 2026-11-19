@@ -60,6 +60,9 @@ struct Conversation {
     codex: Option<codex::Session>,
     /// Which kind of history the fields above hold (history_kind)
     history_kind: &'static str,
+    /// The backend has none of what was said yet: the panel's transcript
+    /// goes with each request until one completes
+    needs_transcript: bool,
     cancel: Arc<AtomicBool>,
     running: bool,
 }
@@ -81,7 +84,9 @@ impl Conversation {
     /// must come with the message: a conversation new here (the app
     /// restarted), or one that was on another backend until now, whose
     /// history that backend can't read (and which would miss the turns in
-    /// between if it were picked up again later).
+    /// between if it were picked up again later). Stays true until a
+    /// request completes, so a failed or stopped first request doesn't
+    /// lose the transcript.
     fn start_on(&mut self, backend: &str, new_here: bool) -> bool {
         let kind = history_kind(backend);
         let switched = !new_here && self.history_kind != kind;
@@ -92,7 +97,8 @@ impl Conversation {
             self.codex = None;
         }
         self.history_kind = kind;
-        new_here || switched
+        self.needs_transcript |= new_here || switched;
+        self.needs_transcript
     }
 }
 
@@ -475,6 +481,7 @@ pub fn assistant_send(
         let result = result.map(|outcome| {
             if let Ok(mut convs) = state.conversations.lock() {
                 if let Some(conv) = convs.get_mut(&conversation_id) {
+                    conv.needs_transcript = false;
                     match outcome {
                         Outcome::Messages(m) => conv.messages = m,
                         Outcome::ClaudeSession(id) => conv.claude_session = Some(id),
@@ -778,14 +785,19 @@ mod tests {
     fn a_backend_taking_over_a_conversation_gets_the_transcript() {
         let mut c = Conversation::default();
         assert!(c.start_on("claude-code", true), "new here");
+        assert!(c.start_on("claude-code", false), "until a request completes");
+        c.needs_transcript = false;
         c.claude_session = Some("s".into());
         assert!(!c.start_on("claude-code", false), "same backend continues");
         assert!(c.start_on("openai", false), "OpenAI can't read Claude Code's history");
         assert_eq!(c.claude_session, None, "dropped, so a switch back starts from the transcript too");
+        assert!(c.start_on("openai", false), "the first request on OpenAI failed: send it again");
+        c.needs_transcript = false;
         c.openai_items.push(json!({"role": "user"}));
         assert!(c.start_on("claude-code", false));
         assert!(c.openai_items.is_empty());
         assert!(c.start_on("api", false));
+        c.needs_transcript = false;
         c.messages.push(json!({"role": "user"}));
         assert!(!c.start_on("console", false), "API key and Anthropic account share messages");
         assert_eq!(c.messages.len(), 1);

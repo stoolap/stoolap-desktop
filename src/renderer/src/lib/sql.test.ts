@@ -37,6 +37,9 @@ describe("reading SQL like the engine", () => {
     }
     expect(isSingleReadOnly("SELECT 'a\\'' -- '")).toBe(true);
     expect(isSingleReadOnly("SELECT 1 # DELETE")).toBe(true);
+    // A quote inside a quoted name isn't a string's start
+    expect(isSingleReadOnly(`WITH "a'\\'" AS (SELECT 1) DELETE FROM t WHERE 'x'='x'`)).toBe(false);
+    expect(isSingleReadOnly("SELECT `it's` FROM t -- '")).toBe(true);
   });
 });
 
