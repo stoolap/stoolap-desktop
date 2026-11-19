@@ -13,7 +13,7 @@ import { clearActiveEditorView, setActiveEditorView } from "@/lib/editor-registr
 import { useQueryExecution } from "@/hooks/use-query-execution";
 
 // Stoolap SQL dialect with Stoolap-specific keywords and functions
-const StoolapDialect = SQLDialect.define({
+export const StoolapDialect = SQLDialect.define({
   keywords:
     // Standard SQL
     "select from where and or not in between like is null true false as on " +

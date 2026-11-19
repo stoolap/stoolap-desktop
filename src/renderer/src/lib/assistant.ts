@@ -98,6 +98,11 @@ export function codexLogout(): Promise<void> {
   return invoke("assistant_codex_logout");
 }
 
+/** Open an http(s) link from a reply in the browser. */
+export function openLink(url: string): Promise<void> {
+  return invoke("assistant_open_link", { url });
+}
+
 /** Saved in the OS credential store; the renderer never reads it back. */
 export function setKey(provider: KeyProvider, key: string): Promise<void> {
   return invoke("assistant_set_key", { provider, key });

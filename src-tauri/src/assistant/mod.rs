@@ -246,6 +246,15 @@ pub async fn assistant_codex_logout(app: AppHandle) -> Result<(), String> {
     codex::logout(&path, &data_dir(&app)?).await
 }
 
+/// Open a link from a reply in the browser; only web links.
+#[tauri::command]
+pub fn assistant_open_link(url: String) -> Result<(), String> {
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err("Only web links can be opened.".into());
+    }
+    codex::open_in_browser(&url)
+}
+
 /// Fetch the app's copy of `ant` (once; checked against its pinned SHA-256).
 #[tauri::command]
 pub async fn assistant_console_install(app: AppHandle) -> Result<(), String> {
@@ -708,7 +717,7 @@ When a run fails, read the error and fix the SQL rather than guessing again.\n\
 - Reads always run. SQL that can change data (INSERT, UPDATE, DELETE, DDL) or several statements runs only when run_writes=\"allowed\"; \
 otherwise it is written into the tab and waits for the user to press Run, so say what it will do. Even when allowed, change only what the user asked for.\n\
 - A message may start with an <earlier_conversation> block: what was said before the app restarted. Treat it as the conversation so far.\n\
-- Replies are shown as plain text with fenced code blocks (each gets a Copy button) and `inline code`. \
+- Replies render as GitHub-flavoured Markdown; fenced code blocks get a Copy button and ```sql blocks are highlighted. \
 A code block that itself contains a fenced block (a gh command with a Markdown body, say) is fenced with four backticks.\n\
 - Keep replies short. Answer in the language the user writes in. Don't repeat SQL you wrote into the tab.\n\n\
 {SQL_GUIDE}\n\n\

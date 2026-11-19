@@ -74,6 +74,7 @@ fn main() {
             assistant::assistant_console_logout,
             assistant::assistant_codex_login,
             assistant::assistant_codex_logout,
+            assistant::assistant_open_link,
             assistant::assistant_set_key,
             assistant::assistant_delete_key,
             assistant::assistant_send,
