@@ -27,7 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { useQueryExecution } from "@/hooks/use-query-execution";
-import type { RunTabRequest } from "@/lib/assistant-edits";
+import type { RunTabRequest } from "@/lib/agent-edits";
 import { useEditorStore } from "@/stores/editor-store";
 import { useBookmarkStore } from "@/stores/bookmark-store";
 import type { ApiResult, QueryResult } from "@/lib/types";
@@ -79,7 +79,7 @@ function exportJSON(result: QueryResult, name: string) {
 export function QueryToolbar() {
   const { executeQuery, cancelQuery, isConnected } = useQueryExecution();
 
-  // The assistant asks to run SQL in a tab (lib/assistant-edits.ts)
+  // The agent asks to run SQL in a tab (lib/agent-edits.ts)
   const executeRef = useRef(executeQuery);
   executeRef.current = executeQuery;
   useEffect(() => {

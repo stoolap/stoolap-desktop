@@ -83,7 +83,7 @@ export interface ComposerHandle {
 }
 
 /**
- * The assistant's message box: Enter sends; ↑/↓ on the first or last line
+ * The agent's message box: Enter sends; ↑/↓ on the first or last line
  * step through earlier requests; a faint completion is taken with Tab (or →
  * at the end); @ lists tables and columns to insert.
  */
@@ -248,7 +248,7 @@ export const Composer = forwardRef<
         onFocus={() => setMentionClosed(false)}
         rows={3}
         placeholder={placeholder}
-        aria-label="Message the assistant"
+        aria-label="Message the agent"
         className={cn(TEXT, "relative resize-none bg-transparent outline-none placeholder:text-muted-foreground")}
       />
     </div>

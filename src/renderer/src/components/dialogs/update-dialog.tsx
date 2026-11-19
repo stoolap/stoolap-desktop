@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Download, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { MessageText } from "@/components/agent/message-text";
 import * as native from "@/lib/native";
 import { errorMessage } from "@/lib/utils";
 
@@ -69,7 +70,8 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      {/* Nothing focused on open: the X would show selected */}
+      <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5" />
@@ -101,9 +103,9 @@ export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
                 is available (you have {status.info.currentVersion}).
               </p>
               {status.info.body && (
-                <pre className="text-xs text-muted-foreground whitespace-pre-wrap max-h-48 overflow-auto bg-muted/30 rounded p-2">
-                  {status.info.body}
-                </pre>
+                <div className="max-h-64 overflow-auto rounded bg-muted/30 p-3">
+                  <MessageText text={status.info.body} />
+                </div>
               )}
             </div>
           )}

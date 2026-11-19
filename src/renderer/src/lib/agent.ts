@@ -1,12 +1,12 @@
 /**
- * SQL assistant: runs in Rust (src-tauri/src/assistant), through the local
+ * SQL agent: runs in Rust (src-tauri/src/agent), through the local
  * Claude Code or Codex, or the Claude or OpenAI API; this is the renderer's
  * side of its commands and events.
  */
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-export interface AssistantModel {
+export interface AgentModel {
   id: string;
   name: string;
 }
@@ -17,12 +17,12 @@ export interface EditorContext {
   sql: string;
   selection?: string;
   lastError?: string;
-  /** The tab the assistant writes into */
+  /** The tab the agent writes into */
   targetTabId: string;
   targetTabTitle: string;
 }
 
-export type AssistantEvent =
+export type AgentEvent =
   | { kind: "text"; delta: string }
   | { kind: "thinking"; delta: string }
   | { kind: "tool"; id: string; name: string; summary: string; isError: boolean }
@@ -37,7 +37,7 @@ export type AssistantEvent =
       tabId: string;
       sql: string;
       explanation: string;
-      /** The user lets the assistant run SQL that can change data */
+      /** The user lets the agent run SQL that can change data */
       allowWrites: boolean;
     }
   | { kind: "done" }
@@ -45,8 +45,8 @@ export type AssistantEvent =
   | { kind: "cancelled" };
 
 /** The models a backend offers; the first is the default. */
-export function listModels(backend: Backend): Promise<AssistantModel[]> {
-  return invoke("assistant_models", { backend });
+export function listModels(backend: Backend): Promise<AgentModel[]> {
+  return invoke("agent_models", { backend });
 }
 
 /**
@@ -74,44 +74,44 @@ export interface Backends {
 }
 
 export function backends(): Promise<Backends> {
-  return invoke("assistant_backends");
+  return invoke("agent_backends");
 }
 
 /** One-time setup of browser sign-in (downloads Anthropic's ant CLI). */
 export function consoleInstall(): Promise<void> {
-  return invoke("assistant_console_install");
+  return invoke("agent_console_install");
 }
 
 /** Sign in with the browser; resolves once the user approves. */
 export function consoleLogin(): Promise<void> {
-  return invoke("assistant_console_login");
+  return invoke("agent_console_login");
 }
 
 export function consoleLogout(): Promise<void> {
-  return invoke("assistant_console_logout");
+  return invoke("agent_console_logout");
 }
 
 /** Sign Codex in to ChatGPT in the browser; resolves once the user approves. */
 export function codexLogin(): Promise<void> {
-  return invoke("assistant_codex_login");
+  return invoke("agent_codex_login");
 }
 
 export function codexLogout(): Promise<void> {
-  return invoke("assistant_codex_logout");
+  return invoke("agent_codex_logout");
 }
 
 /** Open an http(s) link from a reply in the browser. */
 export function openLink(url: string): Promise<void> {
-  return invoke("assistant_open_link", { url });
+  return invoke("agent_open_link", { url });
 }
 
 /** Saved in the OS credential store; the renderer never reads it back. */
 export function setKey(provider: KeyProvider, key: string): Promise<void> {
-  return invoke("assistant_set_key", { provider, key });
+  return invoke("agent_set_key", { provider, key });
 }
 
 export function deleteKey(provider: KeyProvider): Promise<void> {
-  return invoke("assistant_delete_key", { provider });
+  return invoke("agent_delete_key", { provider });
 }
 
 export function send(args: {
@@ -126,7 +126,7 @@ export function send(args: {
   /** The conversation so far, used when the backend no longer holds it (after a restart) */
   earlier?: string;
 }): Promise<void> {
-  return invoke("assistant_send", args);
+  return invoke("agent_send", args);
 }
 
 /** What running a write_query in the tab gave; the Rust side decides what the model sees. */
@@ -142,24 +142,24 @@ export type WriteOutcome =
   | { ran: true; statements: StatementOutcome[] };
 
 export function writeResult(requestId: string, outcome: WriteOutcome): Promise<void> {
-  return invoke("assistant_write_result", { requestId, outcome });
+  return invoke("agent_write_result", { requestId, outcome });
 }
 
 export function cancel(conversationId: string): Promise<void> {
-  return invoke("assistant_cancel", { conversationId });
+  return invoke("agent_cancel", { conversationId });
 }
 
 export function reset(conversationId: string): Promise<void> {
-  return invoke("assistant_reset", { conversationId });
+  return invoke("agent_reset", { conversationId });
 }
 
-/** Subscribe to assistant progress; same disposal guard as native.subscribe. */
+/** Subscribe to agent progress; same disposal guard as native.subscribe. */
 export function onEvent(
-  handler: (conversationId: string, event: AssistantEvent) => void,
+  handler: (conversationId: string, event: AgentEvent) => void,
 ): () => void {
   let disposed = false;
   let unlisten: (() => void) | null = null;
-  listen<{ conversationId: string; event: AssistantEvent }>("assistant:event", (e) =>
+  listen<{ conversationId: string; event: AgentEvent }>("agent:event", (e) =>
     handler(e.payload.conversationId, e.payload.event),
   ).then((fn) => {
     if (disposed) fn();

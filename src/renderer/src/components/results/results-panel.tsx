@@ -4,7 +4,7 @@ import { DataGrid } from "./data-grid";
 import { ExplainView } from "@/components/explain/explain-view";
 import { AlertCircle, CheckCircle2, PenLine, Sparkles, Table2, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAssistantStore } from "@/stores/assistant-store";
+import { useAgentStore } from "@/stores/agent-store";
 import { useModKey } from "@/hooks/use-mod-key";
 import { cn } from "@/lib/utils";
 import { isExplain } from "@/lib/sql-utils";
@@ -99,9 +99,9 @@ function ResultView() {
             variant="outline"
             size="sm"
             className="h-7 text-xs"
-            onClick={() => useAssistantStore.getState().ask("Fix the error in this query")}
+            onClick={() => useAgentStore.getState().ask("Fix the error in this query")}
           >
-            <Sparkles className="h-3.5 w-3.5" /> Fix with assistant
+            <Sparkles className="h-3.5 w-3.5" /> Fix with agent
           </Button>
         </div>
       </div>

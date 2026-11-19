@@ -7,7 +7,7 @@ import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { StoolapDialect } from "@/components/editor/sql-editor";
-import * as assistant from "@/lib/assistant";
+import * as agent from "@/lib/agent";
 
 const sqlParser = sql({ dialect: StoolapDialect }).language.parser;
 
@@ -73,7 +73,7 @@ const components: Components = {
         title={href}
         onClick={(e) => {
           e.preventDefault();
-          if (href) assistant.openLink(href).catch((err) => toast.error(String(err)));
+          if (href) agent.openLink(href).catch((err) => toast.error(String(err)));
         }}
       >
         {children}
@@ -89,10 +89,10 @@ const components: Components = {
   },
 };
 
-/** An assistant reply, rendered as GitHub-flavoured Markdown. */
+/** GitHub-flavoured Markdown: an agent reply, or an update's release notes. */
 export function MessageText({ text }: { text: string }) {
   return (
-    <div className="assistant-md text-sm leading-relaxed">
+    <div className="agent-md text-sm leading-relaxed">
       <Markdown remarkPlugins={[remarkGfm]} components={components}>
         {text}
       </Markdown>

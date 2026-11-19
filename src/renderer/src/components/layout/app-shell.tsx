@@ -3,8 +3,8 @@ import { cn, errorMessage } from "@/lib/utils";
 import { Toolbar } from "./toolbar";
 import { QueryTimeoutSelect } from "./query-timeout-select";
 import { Welcome } from "./welcome";
-import { AssistantDock } from "@/components/assistant/assistant-dock";
-import { useAssistantStore } from "@/stores/assistant-store";
+import { AgentDock } from "@/components/agent/agent-dock";
+import { useAgentStore } from "@/stores/agent-store";
 import { Sidebar } from "./sidebar";
 import { EditorTabs } from "@/components/editor/editor-tabs";
 import { SqlEditor } from "@/components/editor/sql-editor";
@@ -252,7 +252,7 @@ export function AppShell() {
                 <div className="flex-1 overflow-hidden">
                   <EditorTabs />
                 </div>
-                <AssistantToggle />
+                <AgentToggle />
               </div>
 
               {isDataTab ? (
@@ -297,7 +297,7 @@ export function AppShell() {
           )}
         </div>
 
-        <AssistantDock />
+        <AgentDock />
       </div>
 
       {/* Status bar */}
@@ -376,17 +376,17 @@ function DataTabContent({
   );
 }
 
-function AssistantToggle() {
-  const open = useAssistantStore((s) => s.open);
-  const toggle = useAssistantStore((s) => s.toggle);
+function AgentToggle() {
+  const open = useAgentStore((s) => s.open);
+  const toggle = useAgentStore((s) => s.toggle);
   return (
     <Button
       variant="ghost"
       size="icon"
       className={cn("h-7 w-7 shrink-0 rounded-none", open && "text-primary")}
       onClick={toggle}
-      title="Assistant"
-      aria-label={open ? "Hide assistant" : "Show assistant"}
+      title="Agent"
+      aria-label={open ? "Hide agent" : "Show agent"}
       aria-pressed={open}
     >
       <Sparkles className="h-3.5 w-3.5" />

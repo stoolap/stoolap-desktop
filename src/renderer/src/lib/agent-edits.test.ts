@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const writeResult = vi.fn(async () => {});
-vi.mock("@/lib/assistant", () => ({ writeResult }));
+vi.mock("@/lib/agent", () => ({ writeResult }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => undefined) }));
 
@@ -39,16 +39,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const { applyWrite, startWrites, stopWrites } = await import("./assistant-edits");
-const { useAssistantStore } = await import("@/stores/assistant-store");
+const { applyWrite, startWrites, stopWrites } = await import("./agent-edits");
+const { useAgentStore } = await import("@/stores/agent-store");
 const { useConnectionStore } = await import("@/stores/connection-store");
 const { useEditorStore } = await import("@/stores/editor-store");
 
 function setup(allow: boolean) {
   const tabId = useEditorStore.getState().addTab("Query", "");
   useConnectionStore.setState({ activeId: "conn-a" });
-  const chat = useAssistantStore.getState().newChat("/db/a");
-  useAssistantStore.getState().setWriteAccess("/db/a", allow);
+  const chat = useAgentStore.getState().newChat("/db/a");
+  useAgentStore.getState().setWriteAccess("/db/a", allow);
   startWrites(chat);
   return { chat, tabId };
 }
@@ -80,7 +80,7 @@ describe("applyWrite", () => {
     await done;
     expect(ran).toEqual([]);
     expect(writeResult).toHaveBeenCalledWith("r1", { ran: false, reason: "the user stopped the request" });
-    const item = useAssistantStore.getState().conversations[chat].items.at(-1);
+    const item = useAgentStore.getState().conversations[chat].items.at(-1);
     expect(item).toMatchObject({ kind: "proposal", autoRan: false });
   });
 
@@ -140,7 +140,7 @@ describe("applyWrite", () => {
   it("doesn't run a write once Run writes is turned off", async () => {
     const { chat, tabId } = setup(true);
     const done = applyWrite(chat, write(tabId, "UPDATE t SET a = 1"));
-    useAssistantStore.getState().setWriteAccess("/db/a", false);
+    useAgentStore.getState().setWriteAccess("/db/a", false);
     await vi.runAllTimersAsync();
     await done;
     expect(ran).toEqual([]);
@@ -149,7 +149,7 @@ describe("applyWrite", () => {
   it("doesn't run for a deleted conversation", async () => {
     const { chat, tabId } = setup(true);
     const done = applyWrite(chat, write(tabId, "SELECT 1"));
-    useAssistantStore.getState().deleteChat(chat);
+    useAgentStore.getState().deleteChat(chat);
     await vi.runAllTimersAsync();
     await done;
     expect(ran).toEqual([]);

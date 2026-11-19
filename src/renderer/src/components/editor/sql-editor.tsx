@@ -87,7 +87,7 @@ export function SqlEditor({ tabId, value, isDark, schema }: SqlEditorProps) {
     tabIdRef.current = tabId;
   }, [tabId]);
 
-  // The assistant reads the selection through the registry
+  // The agent reads the selection through the registry
   useEffect(() => {
     const view = editorRef.current?.view;
     return () => clearActiveEditorView(view);

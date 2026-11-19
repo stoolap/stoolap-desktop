@@ -1,30 +1,30 @@
 import { useEffect, useState } from "react";
-import * as assistant from "@/lib/assistant";
+import * as agent from "@/lib/agent";
 import * as native from "@/lib/native";
-import { applyDraft, applyWrite } from "@/lib/assistant-edits";
-import { useAssistantStore } from "@/stores/assistant-store";
-import { AssistantPanel } from "./assistant-panel";
+import { applyDraft, applyWrite } from "@/lib/agent-edits";
+import { useAgentStore } from "@/stores/agent-store";
+import { AgentPanel } from "./agent-panel";
 
 const MIN_WIDTH = 300;
 const MAX_WIDTH = 720;
 
 /**
- * Right-hand dock for the assistant. Stays mounted while closed so a running
+ * Right-hand dock for the agent. Stays mounted while closed so a running
  * request keeps streaming into its conversation.
  */
-export function AssistantDock() {
-  const open = useAssistantStore((s) => s.open);
-  const width = useAssistantStore((s) => s.width);
+export function AgentDock() {
+  const open = useAgentStore((s) => s.open);
+  const width = useAgentStore((s) => s.width);
   const [resizing, setResizing] = useState(false);
 
   useEffect(() => {
     const cleanups = [
-      assistant.onEvent((id, event) => {
+      agent.onEvent((id, event) => {
         if (event.kind === "draft") applyDraft(event.tabId, event.sql);
         else if (event.kind === "write") applyWrite(id, event);
-        else useAssistantStore.getState().handleEvent(id, event);
+        else useAgentStore.getState().handleEvent(id, event);
       }),
-      native.onMenuToggleAssistant(() => useAssistantStore.getState().toggle()),
+      native.onMenuToggleAgent(() => useAgentStore.getState().toggle()),
     ];
     return () => cleanups.forEach((c) => c());
   }, []);
@@ -35,7 +35,7 @@ export function AssistantDock() {
     document.body.style.cursor = "col-resize";
     const move = (e: MouseEvent) => {
       const w = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, window.innerWidth - e.clientX));
-      useAssistantStore.getState().setWidth(w);
+      useAgentStore.getState().setWidth(w);
     };
     const up = () => setResizing(false);
     document.addEventListener("mousemove", move);
@@ -54,12 +54,12 @@ export function AssistantDock() {
       <div
         role="separator"
         aria-orientation="vertical"
-        aria-label="Resize assistant"
+        aria-label="Resize agent"
         className="w-px shrink-0 cursor-col-resize bg-border/40 hover:w-0.5 hover:bg-primary/30 active:bg-primary/50"
         onMouseDown={() => setResizing(true)}
       />
       <div style={{ width }} className="shrink-0 overflow-hidden">
-        <AssistantPanel />
+        <AgentPanel />
       </div>
     </>
   );

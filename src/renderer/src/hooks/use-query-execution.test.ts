@@ -25,13 +25,13 @@ const { endRun, startRun, stopRuns, useQueryExecution } = await import("./use-qu
 const { useEditorStore } = await import("@/stores/editor-store");
 
 /** The hook's executeQuery, taken from one render */
-function executeQuery() {
+function executeQuery(client = new QueryClient()) {
   let run!: ReturnType<typeof useQueryExecution>["executeQuery"];
   const Probe = () => {
     run = useQueryExecution().executeQuery;
     return null;
   };
-  renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(Probe)));
+  renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(Probe)));
   return run;
 }
 
@@ -65,5 +65,22 @@ describe("query runs", () => {
     await second;
     expect(tab().isRunning).toBe(false);
     expect(tab().result).toMatchObject({ rows: [[2]] });
+  });
+
+  it("anything but a plain read refreshes the sidebar", async () => {
+    const tabId = useEditorStore.getState().addTab("Query", "");
+    const client = new QueryClient();
+    const refreshed = vi.spyOn(client, "invalidateQueries");
+    const run = executeQuery(client);
+    const ran = async (sql: string) => {
+      refreshed.mockClear();
+      const done = run(tabId, sql);
+      pending[pending.length - 1]({ changes: 1, time: 1 });
+      await done;
+      return refreshed.mock.calls.some(([f]) => f?.queryKey?.[0] === "tables");
+    };
+    expect(await ran("SELECT * FROM t")).toBe(false);
+    expect(await ran("INSERT INTO t VALUES (1)")).toBe(true);
+    expect(await ran("-- the agent's note\nCREATE VIEW v AS SELECT 1")).toBe(true);
   });
 });
