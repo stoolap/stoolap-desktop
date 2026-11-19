@@ -128,5 +128,18 @@
     "summarize": "Опиши таблицу {{table}}",
     "related": "Как связаны {{a}} и {{b}}?",
     "sampleTable": "Создай пример таблицы с данными"
+  },
+  "check": {
+    "summary_one": "{{count, number}} строка · {{time}} мс",
+    "summary_few": "{{count, number}} строки · {{time}} мс",
+    "summary_many": "{{count, number}} строк · {{time}} мс",
+    "summary_other": "{{count, number}} строки · {{time}} мс",
+    "firstShown": "показаны первые {{shown}}",
+    "rolledBack": "Изменения откачены; ваша вкладка не изменилась.",
+    "toggle": "Показать, что проверил агент",
+    "median": "медиана, запусков: {{runs}}"
+  },
+  "reply": {
+    "copy": "Копировать ответ"
   }
 }

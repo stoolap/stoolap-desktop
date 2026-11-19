@@ -120,5 +120,16 @@
     "summarize": "{{table}} tablosunu özetle",
     "related": "{{a}} ile {{b}} nasıl ilişkili?",
     "sampleTable": "Biraz veri içeren örnek bir tablo oluştur"
+  },
+  "check": {
+    "summary_one": "{{count, number}} satır · {{time}} ms",
+    "summary_other": "{{count, number}} satır · {{time}} ms",
+    "firstShown": "ilk {{shown}} satır gösteriliyor",
+    "rolledBack": "Geri alındı; sekmeniz değişmedi.",
+    "toggle": "Agent'ın neyi kontrol ettiğini göster",
+    "median": "{{runs}} çalıştırmanın ortancası"
+  },
+  "reply": {
+    "copy": "Cevabı kopyala"
   }
 }

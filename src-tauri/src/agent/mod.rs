@@ -166,6 +166,18 @@ pub struct EditorContext {
     /// The tab the agent writes into: this one, or one of its own
     target_tab_id: String,
     target_tab_title: String,
+    /// "memory" or "file"; a file database's folder
+    #[serde(default)]
+    storage: String,
+    #[serde(default)]
+    path: Option<String>,
+    /// When an in-memory database opened (its history starts there)
+    #[serde(default)]
+    opened_at: Option<String>,
+    #[serde(default)]
+    tabs: Vec<tools::TabSnapshot>,
+    #[serde(default)]
+    runs: Vec<Value>,
 }
 
 #[derive(Serialize, Clone)]
@@ -181,7 +193,15 @@ pub struct ModelInfo {
 enum Event {
     Text { delta: String },
     Thinking { delta: String },
-    Tool { id: String, name: String, summary: String, is_error: bool },
+    Tool {
+        id: String,
+        name: String,
+        summary: String,
+        is_error: bool,
+        /// What the step shows when opened (check_query's SQL and rows)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        detail: Option<Value>,
+    },
     /// write_query's SQL so far, while it streams in
     Draft { tab_id: String, sql: String },
     /// write_query's complete SQL: write it into the tab, maybe run it, and
@@ -193,6 +213,8 @@ enum Event {
         tab_id: String,
         sql: String,
         explanation: String,
+        /// A name for the agent's own tab
+        title: String,
         allow_writes: bool,
     },
     Done,
@@ -216,6 +238,7 @@ fn emit_tool(app: &AppHandle, conversation_id: &str, name: &str, output: &tools:
             name: name.to_string(),
             summary: output.summary.clone(),
             is_error: output.is_error,
+            detail: output.detail.clone(),
         },
     );
 }
@@ -436,6 +459,7 @@ pub fn agent_send(
         allow_writes,
         tab_id: context.target_tab_id.clone(),
         tab_title: context.target_tab_title.clone(),
+        live: Arc::new(Mutex::new(tools::Live { tabs: context.tabs.clone(), runs: context.runs.clone() })),
     };
 
     tauri::async_runtime::spawn(async move {
@@ -626,6 +650,7 @@ async fn run_loop(
                     content: json!({"INVALID_JSON": raw}).to_string(),
                     is_error: true,
                     summary: format!("{name}: invalid input"),
+                    detail: None,
                 }
             } else {
                 // Both kinds block: database reads, or waiting on the tab
@@ -656,7 +681,7 @@ pub(super) fn run_tool(app: &AppHandle, target: &McpSession, name: &str, input: 
         write_query(app, target, input)
     } else {
         let db = app.state::<DbManager>();
-        tools::run(&db, &target.conn_id, name, input)
+        tools::run(&db, target, name, input)
     }
 }
 
@@ -687,6 +712,7 @@ fn write_query(app: &AppHandle, target: &McpSession, input: &Value) -> tools::Ou
             content: "write_query needs the complete new SQL".into(),
             is_error: true,
             summary: "Empty SQL".into(),
+            detail: None,
         };
     }
     let request_id = uuid::Uuid::new_v4().to_string();
@@ -704,6 +730,8 @@ fn write_query(app: &AppHandle, target: &McpSession, input: &Value) -> tools::Ou
             tab_id: target.tab_id.clone(),
             sql: sql.to_string(),
             explanation: explanation.to_string(),
+            // null keeps the tab's name
+            title: input["title"].as_str().unwrap_or_default().trim().to_string(),
             allow_writes: target.allow_writes,
         },
     );
@@ -712,11 +740,22 @@ fn write_query(app: &AppHandle, target: &McpSession, input: &Value) -> tools::Ou
         pending.remove(&request_id);
     }
     match outcome {
-        Ok(outcome) => tools::format_run(&outcome, &target.tab_title),
+        Ok(outcome) => {
+            // The renderer's view of the tabs and runs after this write
+            if let Some(ctx) = outcome.get("context") {
+                if let (Ok(live), Ok(mut shared)) = (serde_json::from_value::<tools::Live>(ctx.clone()), target.live.lock()) {
+                    *shared = live;
+                }
+            }
+            // The tab's name now: the agent may have just named it
+            let tab = outcome["tabTitle"].as_str().unwrap_or(&target.tab_title);
+            tools::format_run(&outcome, tab)
+        }
         Err(_) => tools::Output {
             content: "Written into the tab; no result came back from running it.".into(),
             is_error: false,
             summary: t("steps.wroteSql", &[("tab", &target.tab_title)]),
+            detail: None,
         },
     }
 }
@@ -732,8 +771,17 @@ pub fn agent_write_result(state: State<'_, AgentState>, request_id: String, outc
 }
 
 fn user_text(text: &str, connection: &str, allow_writes: bool, ctx: &EditorContext) -> String {
+    // Where the database lives: COPY paths and AS OF depend on it
+    let storage = match (ctx.storage.as_str(), ctx.path.as_deref()) {
+        ("memory", _) => match ctx.opened_at.as_deref() {
+            Some(at) => format!(" storage=\"memory\" opened=\"{at}\""),
+            None => " storage=\"memory\"".to_string(),
+        },
+        (_, Some(path)) => format!(" storage=\"file\" path=\"{path}\""),
+        _ => String::new(),
+    };
     let mut s = format!(
-        "{text}\n\n<editor tab=\"{}\" connection=\"{connection}\" write_into=\"{}\" run_writes=\"{}\">\n<sql>\n{}\n</sql>\n",
+        "{text}\n\n<editor tab=\"{}\" connection=\"{connection}\"{storage} write_into=\"{}\" run_writes=\"{}\">\n<sql>\n{}\n</sql>\n",
         ctx.tab_title,
         ctx.target_tab_title,
         if allow_writes { "allowed" } else { "ask" },
@@ -756,10 +804,16 @@ You help the user write, fix, explain and speed up SQL for the database they hav
 How to work:\n\
 - Each user message ends with an <editor> block: the SQL in the tab the user is looking at, their selection if any, and the last error that tab showed. \
 \"This query\" means that SQL; a selection narrows what they are asking about. write_into names the tab your write_query calls go to: \
-that same tab, or a tab of your own (then start from the SQL above when the user asks about it).\n\
+that same tab, or a tab of your own (then start from the SQL above when the user asks about it). storage says whether the database is in memory \
+or a folder on disk (path), which matters for COPY file paths and for what survives a restart. Other tabs: list_tabs, then read_tab. \
+What the user ran before on this database, with timings: query_history.\n\
 - You work in that tab, in front of the user. write_query replaces its SQL with what you pass (they watch it appear) and runs it there, \
-so the result grid shows it; you get the outcome back, rows included. To try a query, check a plan (write EXPLAIN ...), or show data, use write_query; \
-there is no hidden place to run SQL.\n\
+so the result grid shows it; you get the outcome back, rows included. Use it for the query the user asked for and for anything they should see.\n\
+- To verify something for yourself (a count, whether a value exists, the distinct values of a column, a quick plan) use check_query: \
+one read-only statement, run in a transaction that is rolled back, without touching the tab. The user still sees each check in the panel. \
+Check instead of guessing when an answer depends on the data, but keep checks few and small (aggregates, LIMIT). \
+When the user asks to see a plan or a result, that goes in the tab (write_query); a plan you only need for your own diagnosis is a check. \
+After a write the user allowed (INSERT, UPDATE, DELETE, DDL), confirm it took effect with a check before saying it did.\n\
 - Look at the real schema with list_tables and describe_table before writing SQL against it; don't guess table or column names.\n\
 - Stoolap is not PostgreSQL, MySQL or SQLite. Write SQL by the guide below; it lists every type and function that exists and what fails. \
 For anything it doesn't cover, use search_stoolap_docs (and read_stoolap_docs for a whole page) before relying on it. \
@@ -805,22 +859,46 @@ mod tests {
     }
 
     #[test]
+    fn the_editor_block_says_where_the_database_lives() {
+        let ctx = |storage: &str, path: Option<&str>| EditorContext {
+            tab_title: "Query 1".into(),
+            sql: "SELECT 1".into(),
+            selection: None,
+            last_error: None,
+            target_tab_id: "t".into(),
+            target_tab_title: "Agent".into(),
+            storage: storage.into(),
+            path: path.map(str::to_string),
+            opened_at: None,
+            tabs: vec![],
+            runs: vec![],
+        };
+        let file = user_text("hi", "Shop", false, &ctx("file", Some("/data/shop")));
+        assert!(file.contains(r#"connection="Shop" storage="file" path="/data/shop""#), "{file}");
+        let memory = user_text("hi", "Scratch", false, &ctx("memory", None));
+        assert!(memory.contains(r#"connection="Scratch" storage="memory" write_into"#), "{memory}");
+    }
+
+    #[test]
     fn events_use_the_renderers_field_names() {
         let tool = serde_json::to_value(Event::Tool {
             id: "t".into(),
             name: "list_tables".into(),
             summary: "s".into(),
             is_error: true,
+            detail: None,
         })
         .unwrap();
         assert_eq!(tool["kind"], "tool");
         assert_eq!(tool["isError"], true);
+        assert!(tool.get("detail").is_none(), "left out when there is none");
         let write = serde_json::to_value(Event::Write {
             request_id: "r".into(),
             conn_id: "c".into(),
             tab_id: "tab".into(),
             sql: "SELECT 1".into(),
             explanation: "e".into(),
+            title: "Totals".into(),
             allow_writes: false,
         })
         .unwrap();

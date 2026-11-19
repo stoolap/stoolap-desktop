@@ -93,6 +93,14 @@
     "ranChanged_other": "Eseguito in {{tab}} ({{count}} righe modificate)",
     "ranDdl": "Eseguito in {{tab}} ({{ddl}} completato)",
     "searchedDocs": "Cercato nella documentazione di Stoolap: {{query}}",
-    "readDocs": "Letta la documentazione di Stoolap: {{title}}"
+    "readDocs": "Letta la documentazione di Stoolap: {{title}}",
+    "checked_one": "Verificato: {{count}} riga",
+    "checked_other": "Verificato: {{count}} righe",
+    "checkFailed": "Verifica non riuscita: {{error}}",
+    "listedTabs_one": "Elencata {{count}} scheda",
+    "listedTabs_other": "Elencate {{count}} schede",
+    "readTab": "Letta la scheda {{tab}}",
+    "readHistory_one": "Letta {{count}} esecuzione recente",
+    "readHistory_other": "Lette {{count}} esecuzioni recenti"
   }
 }

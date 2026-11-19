@@ -96,6 +96,17 @@
     "ranChanged_many": "Uruchomiono w karcie {{tab}} (zmieniono {{count}} wierszy)",
     "ranDdl": "Uruchomiono w karcie {{tab}} (wykonano {{ddl}})",
     "searchedDocs": "Przeszukano dokumentację Stoolap: {{query}}",
-    "readDocs": "Przeczytano dokumentację Stoolap: {{title}}"
+    "readDocs": "Przeczytano dokumentację Stoolap: {{title}}",
+    "checked_one": "Sprawdzono: {{count}} wiersz",
+    "checked_few": "Sprawdzono: {{count}} wiersze",
+    "checked_many": "Sprawdzono: {{count}} wierszy",
+    "checkFailed": "Sprawdzanie nie powiodło się: {{error}}",
+    "listedTabs_one": "Pobrano listę kart ({{count}})",
+    "listedTabs_few": "Pobrano listę kart ({{count}})",
+    "listedTabs_many": "Pobrano listę kart ({{count}})",
+    "readTab": "Odczytano kartę: {{tab}}",
+    "readHistory_one": "Odczytano {{count}} ostatnie uruchomienie",
+    "readHistory_few": "Odczytano {{count}} ostatnie uruchomienia",
+    "readHistory_many": "Odczytano {{count}} ostatnich uruchomień"
   }
 }

@@ -116,5 +116,15 @@
     "summarize": "概述 {{table}} 表",
     "related": "{{a}} 和 {{b}} 有什么关系？",
     "sampleTable": "创建一个包含一些数据的示例表"
+  },
+  "check": {
+    "summary_other": "{{count, number}} 行 · {{time}} ms",
+    "firstShown": "显示前 {{shown}} 行",
+    "rolledBack": "已回滚；你的标签页未更改。",
+    "toggle": "显示智能体检查的内容",
+    "median": "{{runs}} 次运行的中位数"
+  },
+  "reply": {
+    "copy": "复制回复"
   }
 }

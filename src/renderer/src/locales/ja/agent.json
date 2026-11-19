@@ -116,5 +116,15 @@
     "summarize": "{{table}}テーブルの概要を教えて",
     "related": "{{a}}と{{b}}はどのように関連していますか？",
     "sampleTable": "データ入りのサンプルテーブルを作成して"
+  },
+  "check": {
+    "summary_other": "{{count, number}}行 · {{time}} ms",
+    "firstShown": "最初の{{shown}}行を表示",
+    "rolledBack": "ロールバックしました。タブは変更されていません。",
+    "toggle": "エージェントが確認した内容を表示",
+    "median": "{{runs}} 回実行の中央値"
+  },
+  "reply": {
+    "copy": "返答をコピー"
   }
 }

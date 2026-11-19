@@ -5,7 +5,8 @@
   },
   "statusBar": {
     "inMemory": "In memoria",
-    "noConnection": "Nessuna connessione"
+    "noConnection": "Nessuna connessione",
+    "inMemoryHint": "Solo in memoria: le modifiche vanno perse alla chiusura del database o dell'app. Esegui un backup per conservarlo."
   },
   "dataTab": {
     "unavailable": "La tabella \"{{table}}\" non è più disponibile: {{error}}",

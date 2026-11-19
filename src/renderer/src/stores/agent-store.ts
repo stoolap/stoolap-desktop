@@ -1,12 +1,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AgentEvent, Backend } from "@/lib/agent";
+import type { AgentEvent, Backend, ToolDetail } from "@/lib/agent";
 
 export type AgentItem =
   | { id: number; kind: "user"; text: string }
   | { id: number; kind: "text"; text: string }
   | { id: number; kind: "thinking"; text: string }
-  | { id: number; kind: "tool"; name: string; summary: string; isError: boolean }
+  | { id: number; kind: "tool"; name: string; summary: string; isError: boolean; detail?: ToolDetail }
   | {
       id: number;
       kind: "proposal";
@@ -222,6 +222,7 @@ export const useAgentStore = create<AgentState>()(
                       name: event.name,
                       summary: event.summary,
                       isError: event.isError,
+                      detail: event.detail,
                     },
                   ],
                 };

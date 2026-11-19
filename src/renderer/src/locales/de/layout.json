@@ -5,7 +5,8 @@
   },
   "statusBar": {
     "inMemory": "In-Memory",
-    "noConnection": "Keine Verbindung"
+    "noConnection": "Keine Verbindung",
+    "inMemoryHint": "Nur im Arbeitsspeicher: Änderungen gehen verloren, wenn Sie die Datenbank oder die App schließen. Erstellen Sie ein Backup, um sie zu behalten."
   },
   "dataTab": {
     "unavailable": "Tabelle „{{table}}“ ist nicht mehr verfügbar: {{error}}",

@@ -93,6 +93,14 @@
     "ranChanged_other": "In {{tab}} ausgeführt ({{count}} Zeilen geändert)",
     "ranDdl": "In {{tab}} ausgeführt ({{ddl}} erledigt)",
     "searchedDocs": "Stoolap-Dokumentation durchsucht: {{query}}",
-    "readDocs": "Stoolap-Dokumentation gelesen: {{title}}"
+    "readDocs": "Stoolap-Dokumentation gelesen: {{title}}",
+    "checked_one": "Geprüft: {{count}} Zeile",
+    "checked_other": "Geprüft: {{count}} Zeilen",
+    "checkFailed": "Prüfung fehlgeschlagen: {{error}}",
+    "listedTabs_one": "{{count}} Tab aufgelistet",
+    "listedTabs_other": "{{count}} Tabs aufgelistet",
+    "readTab": "Tab {{tab}} gelesen",
+    "readHistory_one": "{{count}} letzte Ausführung gelesen",
+    "readHistory_other": "{{count}} letzte Ausführungen gelesen"
   }
 }

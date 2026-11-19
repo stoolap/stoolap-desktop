@@ -8,7 +8,8 @@ import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { isSingleReadOnly } from "@/lib/sql-utils";
 import * as api from "@/lib/api-client";
 import * as native from "@/lib/native";
-import type { ApiResult, ScriptResult } from "@/lib/types";
+import type { ApiResult, RunEntry, ScriptResult } from "@/lib/types";
+import { dbKeyOf } from "@/lib/agent-context";
 
 /** Reload the sidebar and open data tabs of the connection. */
 function refreshSchema(queryClient: QueryClient, connId: string) {
@@ -85,6 +86,43 @@ function stopped(tabId: string, controller: AbortController): ApiResult {
   return result;
 }
 
+/** The database a connection is: its path, or its id when in memory */
+function dbKey(connId: string): string {
+  const conn = useConnectionStore.getState().connections?.find((c) => c.id === connId);
+  return conn ? dbKeyOf(conn) : connId;
+}
+
+/** A script's statements kept in the run log, each with its result */
+const MAX_STEPS = 30;
+
+/** Keep the run in the log the agent reads (its query_history tool). */
+function logRun(
+  connId: string,
+  tabId: string,
+  sql: string,
+  result: ApiResult | ScriptResult,
+  ms: number,
+  at: number,
+  by?: "agent",
+) {
+  const db = dbKey(connId);
+  const tab = useEditorStore.getState().tabs.find((t) => t.id === tabId)?.title;
+  const run: RunEntry = { sql: sql.trim().slice(0, 4000), at, ms: Math.round(ms * 100) / 100, db, tab, by };
+  if ("error" in result && result.error) run.error = result.error;
+  else if ("results" in result) {
+    run.statements = result.results.length;
+    run.steps = result.results.slice(0, MAX_STEPS).map((r) => ({
+      sql: r.sql.length > 200 ? `${r.sql.slice(0, 200)}…` : r.sql,
+      ms: r.time,
+      ...("rows" in r ? { rows: r.rows.length } : "changes" in r ? { changes: r.changes } : { ddl: r.ddl }),
+    }));
+  }
+  else if ("rows" in result) run.rows = result.rows.length;
+  else if ("changes" in result) run.changes = result.changes;
+  else if ("ddl" in result) run.ddl = result.ddl;
+  useEditorStore.getState().addRun(run);
+}
+
 export function useQueryExecution() {
   const activeId = useConnectionStore((s) => s.activeId);
   const queryClient = useQueryClient();
@@ -93,8 +131,9 @@ export function useQueryExecution() {
     /**
      * Run `sql` in the tab; resolves to what the tab ended up showing.
      * With `onlyOn`, it runs only while that connection is the active one.
+     * `by` marks a run the agent asked for, in the run log.
      */
-    async (tabId: string, sql: string, onlyOn?: string): Promise<ApiResult | ScriptResult | undefined> => {
+    async (tabId: string, sql: string, onlyOn?: string, by?: "agent"): Promise<ApiResult | ScriptResult | undefined> => {
       if (!activeId || !sql.trim()) return undefined;
       if (onlyOn && onlyOn !== useConnectionStore.getState().activeId) return undefined;
 
@@ -104,7 +143,11 @@ export function useQueryExecution() {
       const controller = startRun(tabId);
 
       setTabRunning(tabId, true);
-      setTabLastExecutedSql(tabId, sql.trim());
+      // The run's start: the tab's last run and the log entry share it, and
+      // it is the moment AS OF needs for "before this ran"
+      const startedAt = Date.now();
+      const conn = useConnectionStore.getState().connections?.find((c) => c.id === activeId);
+      setTabLastExecutedSql(tabId, sql.trim(), { key: dbKey(activeId), name: conn?.name ?? activeId, at: startedAt });
       addToHistory(sql.trim());
 
       const started = performance.now();
@@ -120,12 +163,14 @@ export function useQueryExecution() {
           useEditorStore.getState().setTabResult(tabId, result);
         }
         notifyIfLong(tabId, result, performance.now() - started);
+        logRun(activeId, tabId, sql, result, performance.now() - started, startedAt, by);
 
         return result;
       } catch (e) {
         if (controller.signal.aborted) return stopped(tabId, controller);
         const failed = { error: errorMessage(e) };
         useEditorStore.getState().setTabResult(tabId, failed);
+        logRun(activeId, tabId, sql, failed, performance.now() - started, startedAt, by);
         return failed;
       } finally {
         endRun(tabId, controller);

@@ -93,6 +93,9 @@ describe("query runs", () => {
     await done;
     const shown = useEditorStore.getState().tabs.find((t) => t.id === tabId)!.result as { time: number };
     expect(shown.time).toBeGreaterThanOrEqual(25);
+    // Kept for the agent's query_history, with the same wait
+    expect(useEditorStore.getState().runLog[0]).toMatchObject({ sql: "SELECT 1", rows: 1, db: "conn" });
+    expect(useEditorStore.getState().runLog[0].ms).toBeGreaterThanOrEqual(25);
   });
 
   it("keeps a script's wait for the toolbar, and each statement's own time", async () => {

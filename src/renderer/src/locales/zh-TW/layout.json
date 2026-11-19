@@ -5,7 +5,8 @@
   },
   "statusBar": {
     "inMemory": "記憶體",
-    "noConnection": "未連線"
+    "noConnection": "未連線",
+    "inMemoryHint": "僅存在記憶體中：關閉資料庫或應用程式後變更會遺失。若要保留，請先備份。"
   },
   "dataTab": {
     "unavailable": "資料表「{{table}}」已無法使用：{{error}}",

@@ -5,7 +5,8 @@
   },
   "statusBar": {
     "inMemory": "인메모리",
-    "noConnection": "연결 없음"
+    "noConnection": "연결 없음",
+    "inMemoryHint": "메모리에만 있음: 데이터베이스나 앱을 닫으면 변경 내용이 사라집니다. 보관하려면 백업하세요."
   },
   "dataTab": {
     "unavailable": "테이블 \"{{table}}\"을(를) 더 이상 사용할 수 없습니다: {{error}}",

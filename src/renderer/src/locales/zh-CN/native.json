@@ -90,6 +90,11 @@
     "ranChanged_other": "已在 {{tab}} 中运行（{{count}} 行已更改）",
     "ranDdl": "已在 {{tab}} 中运行（{{ddl}} 已完成）",
     "searchedDocs": "已搜索 Stoolap 文档：{{query}}",
-    "readDocs": "已阅读 Stoolap 文档：{{title}}"
+    "readDocs": "已阅读 Stoolap 文档：{{title}}",
+    "checked_other": "已检查：{{count}} 行",
+    "checkFailed": "检查失败：{{error}}",
+    "listedTabs_other": "已列出 {{count}} 个标签页",
+    "readTab": "已读取标签页 {{tab}}",
+    "readHistory_other": "已读取最近 {{count}} 次运行"
   }
 }

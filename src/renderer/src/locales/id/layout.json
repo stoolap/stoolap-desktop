@@ -5,7 +5,8 @@
   },
   "statusBar": {
     "inMemory": "Dalam Memori",
-    "noConnection": "Tidak ada koneksi"
+    "noConnection": "Tidak ada koneksi",
+    "inMemoryHint": "Hanya di memori: perubahan hilang saat basis data atau aplikasi ditutup. Buat cadangan untuk menyimpannya."
   },
   "dataTab": {
     "unavailable": "Tabel \"{{table}}\" tidak lagi tersedia: {{error}}",

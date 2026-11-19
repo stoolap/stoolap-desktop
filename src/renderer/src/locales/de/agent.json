@@ -120,5 +120,16 @@
     "summarize": "Fasse die Tabelle {{table}} zusammen",
     "related": "Wie hängen {{a}} und {{b}} zusammen?",
     "sampleTable": "Erstelle eine Beispieltabelle mit ein paar Daten"
+  },
+  "check": {
+    "summary_one": "{{count, number}} Zeile · {{time}} ms",
+    "summary_other": "{{count, number}} Zeilen · {{time}} ms",
+    "firstShown": "erste {{shown}} angezeigt",
+    "rolledBack": "Zurückgerollt; Ihr Tab ist unverändert.",
+    "toggle": "Anzeigen, was der Agent geprüft hat",
+    "median": "Median aus {{runs}} Läufen"
+  },
+  "reply": {
+    "copy": "Antwort kopieren"
   }
 }

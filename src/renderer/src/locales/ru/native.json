@@ -96,6 +96,17 @@
     "ranChanged_many": "Выполнено во вкладке {{tab}} (изменено {{count}} строк)",
     "ranDdl": "Выполнено во вкладке {{tab}} ({{ddl}}: готово)",
     "searchedDocs": "Поиск в документации Stoolap: {{query}}",
-    "readDocs": "Прочитана документация Stoolap: {{title}}"
+    "readDocs": "Прочитана документация Stoolap: {{title}}",
+    "checked_one": "Проверено: {{count}} строка",
+    "checked_few": "Проверено: {{count}} строки",
+    "checked_many": "Проверено: {{count}} строк",
+    "checkFailed": "Проверка не удалась: {{error}}",
+    "listedTabs_one": "Получен список вкладок ({{count}})",
+    "listedTabs_few": "Получен список вкладок ({{count}})",
+    "listedTabs_many": "Получен список вкладок ({{count}})",
+    "readTab": "Прочитана вкладка: {{tab}}",
+    "readHistory_one": "Прочитан {{count}} последний запуск",
+    "readHistory_few": "Прочитаны {{count}} последних запуска",
+    "readHistory_many": "Прочитано {{count}} последних запусков"
   }
 }

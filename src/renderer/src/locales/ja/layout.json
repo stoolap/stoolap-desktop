@@ -5,7 +5,8 @@
   },
   "statusBar": {
     "inMemory": "インメモリ",
-    "noConnection": "未接続"
+    "noConnection": "未接続",
+    "inMemoryHint": "メモリ上のみ：データベースまたはアプリを閉じると変更は失われます。残すにはバックアップしてください。"
   },
   "dataTab": {
     "unavailable": "テーブル「{{table}}」は使用できなくなりました: {{error}}",

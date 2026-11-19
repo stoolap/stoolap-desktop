@@ -90,6 +90,11 @@
     "ranChanged_other": "{{tab}}で実行しました（{{count}}行を変更）",
     "ranDdl": "{{tab}}で実行しました（{{ddl}}完了）",
     "searchedDocs": "Stoolapのドキュメントを検索しました: {{query}}",
-    "readDocs": "Stoolapのドキュメントを読みました: {{title}}"
+    "readDocs": "Stoolapのドキュメントを読みました: {{title}}",
+    "checked_other": "確認しました（{{count}}行）",
+    "checkFailed": "確認に失敗しました: {{error}}",
+    "listedTabs_other": "{{count}}個のタブを一覧表示しました",
+    "readTab": "タブ{{tab}}を読み取りました",
+    "readHistory_other": "最近の実行{{count}}件を読み取りました"
   }
 }

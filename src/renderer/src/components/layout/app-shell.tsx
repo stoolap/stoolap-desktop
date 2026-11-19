@@ -311,9 +311,13 @@ export function AppShell() {
             <>
               <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
               <span className="text-foreground/80">{activeConn.name}</span>
-              <span className="text-muted-foreground">
-                — {activeConn.type === "memory" ? t("statusBar.inMemory") : activeConn.path}
-              </span>
+              {activeConn.type === "memory" ? (
+                <Tip label={t("statusBar.inMemoryHint")} side="top">
+                  <span className="cursor-help text-muted-foreground">— {t("statusBar.inMemory")}</span>
+                </Tip>
+              ) : (
+                <span className="text-muted-foreground">— {activeConn.path}</span>
+              )}
             </>
           ) : (
             <>

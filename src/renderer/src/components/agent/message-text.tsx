@@ -14,7 +14,7 @@ import { Tip } from "@/components/ui/tip";
 const sqlParser = sql({ dialect: StoolapDialect }).language.parser;
 
 /** SQL coloured like the editor, through the tok-* classes in globals.css */
-function highlightSql(code: string): ReactNode[] {
+export function highlightSql(code: string): ReactNode[] {
   const out: ReactNode[] = [];
   highlightCode(
     code,

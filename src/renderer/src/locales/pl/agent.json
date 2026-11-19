@@ -128,5 +128,18 @@
     "summarize": "Podsumuj tabelę {{table}}",
     "related": "Jak powiązane są {{a}} i {{b}}?",
     "sampleTable": "Utwórz przykładową tabelę z danymi"
+  },
+  "check": {
+    "summary_one": "{{count, number}} wiersz · {{time}} ms",
+    "summary_few": "{{count, number}} wiersze · {{time}} ms",
+    "summary_many": "{{count, number}} wierszy · {{time}} ms",
+    "summary_other": "{{count, number}} wiersza · {{time}} ms",
+    "firstShown": "pokazano pierwsze {{shown}}",
+    "rolledBack": "Wycofano; Twoja karta pozostała bez zmian.",
+    "toggle": "Pokaż, co sprawdził agent",
+    "median": "mediana, uruchomienia: {{runs}}"
+  },
+  "reply": {
+    "copy": "Kopiuj odpowiedź"
   }
 }

@@ -5,7 +5,8 @@
   },
   "statusBar": {
     "inMemory": "W pamięci",
-    "noConnection": "Brak połączenia"
+    "noConnection": "Brak połączenia",
+    "inMemoryHint": "Tylko w pamięci: zmiany przepadną po zamknięciu bazy lub aplikacji. Utwórz kopię zapasową, aby je zachować."
   },
   "dataTab": {
     "unavailable": "Tabela \"{{table}}\" nie jest już dostępna: {{error}}",

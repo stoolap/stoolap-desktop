@@ -116,5 +116,15 @@
     "summarize": "Ringkas tabel {{table}}",
     "related": "Bagaimana hubungan {{a}} dan {{b}}?",
     "sampleTable": "Buat tabel contoh dengan beberapa data"
+  },
+  "check": {
+    "summary_other": "{{count, number}} baris · {{time}} ms",
+    "firstShown": "{{shown}} baris pertama ditampilkan",
+    "rolledBack": "Dibatalkan; tab Anda tidak berubah.",
+    "toggle": "Tampilkan yang diperiksa agen",
+    "median": "median dari {{runs}} kali jalan"
+  },
+  "reply": {
+    "copy": "Salin balasan"
   }
 }

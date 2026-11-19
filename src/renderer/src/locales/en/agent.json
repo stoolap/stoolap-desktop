@@ -120,5 +120,16 @@
     "summarize": "Summarize the {{table}} table",
     "related": "How are {{a}} and {{b}} related?",
     "sampleTable": "Create a sample table with some data"
+  },
+  "check": {
+    "summary_one": "{{count, number}} row · {{time}} ms",
+    "summary_other": "{{count, number}} rows · {{time}} ms",
+    "firstShown": "first {{shown}} shown",
+    "rolledBack": "Rolled back; your tab is unchanged.",
+    "toggle": "Show what the agent checked",
+    "median": "median of {{runs}} runs"
+  },
+  "reply": {
+    "copy": "Copy reply"
   }
 }

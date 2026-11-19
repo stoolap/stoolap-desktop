@@ -5,7 +5,8 @@
   },
   "statusBar": {
     "inMemory": "Em memória",
-    "noConnection": "Sem conexão"
+    "noConnection": "Sem conexão",
+    "inMemoryHint": "Somente na memória: as alterações se perdem ao fechar o banco de dados ou o app. Faça um backup para mantê-lo."
   },
   "dataTab": {
     "unavailable": "A tabela \"{{table}}\" não está mais disponível: {{error}}",

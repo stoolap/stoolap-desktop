@@ -1,13 +1,15 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { v4 as uuidv4 } from "uuid";
-import type { ApiResult, EditorTab, StatementResult } from "@/lib/types";
+import type { ApiResult, EditorTab, RunEntry, StatementResult } from "@/lib/types";
 import i18n from "@/lib/i18n";
 
 interface EditorState {
   tabs: EditorTab[];
   activeTabId: string | null;
   queryHistory: string[];
+  /** Recent runs, newest first, with how long they took */
+  runLog: RunEntry[];
   _tabCounter: number;
   addTab: (title?: string, sql?: string, options?: { transient?: boolean }) => string;
   addDataTab: (
@@ -23,9 +25,13 @@ interface EditorState {
   setTabResults: (id: string, results: StatementResult[], time?: number) => void;
   selectTabResult: (id: string, index: number) => void;
   setTabRunning: (id: string, running: boolean) => void;
-  setTabLastExecutedSql: (id: string, sql: string) => void;
+  setTabLastExecutedSql: (id: string, sql: string, db?: { key: string; name: string; at: number }) => void;
   addToHistory: (sql: string) => void;
+  addRun: (run: RunEntry) => void;
 }
+
+/** Runs kept in the log */
+const MAX_RUNS = 200;
 
 /** How the example database's query tab starts (see Toolbar) */
 export const EXAMPLES_SQL_START = "-- Try these queries:";
@@ -63,6 +69,7 @@ export const useEditorStore = create<EditorState>()(
       tabs: [initialTab],
       activeTabId: initialTab.id,
       queryHistory: [],
+      runLog: [],
       _tabCounter: 1,
 
       addTab: (title, sql, options) => {
@@ -175,10 +182,14 @@ export const useEditorStore = create<EditorState>()(
           tabs: s.tabs.map((t) => (t.id === id ? { ...t, isRunning } : t)),
         })),
 
-      setTabLastExecutedSql: (id, sql) =>
+      setTabLastExecutedSql: (id, sql, db) =>
         set((s) => ({
           tabs: s.tabs.map((t) =>
-            t.id === id ? { ...t, lastExecutedSql: sql } : t,
+            t.id === id
+              ? db
+                ? { ...t, lastExecutedSql: sql, lastDb: db.key, lastDbName: db.name, lastRunAt: db.at }
+                : { ...t, lastExecutedSql: sql }
+              : t,
           ),
         })),
 
@@ -189,6 +200,8 @@ export const useEditorStore = create<EditorState>()(
             100,
           ),
         })),
+
+      addRun: (run) => set((s) => ({ runLog: [run, ...s.runLog].slice(0, MAX_RUNS) })),
     }),
     {
       name: "stoolap-editor",
@@ -204,6 +217,7 @@ export const useEditorStore = create<EditorState>()(
             result: null,
             results: undefined,
             resultIndex: undefined,
+            resultsTime: undefined,
             isRunning: false,
           }));
         // Ensure at least one tab is persisted
@@ -220,6 +234,7 @@ export const useEditorStore = create<EditorState>()(
           tabs: persistedTabs,
           activeTabId: activeValid ? state.activeTabId : persistedTabs[0].id,
           queryHistory: state.queryHistory,
+          runLog: state.runLog,
           _tabCounter: state._tabCounter,
         };
       },

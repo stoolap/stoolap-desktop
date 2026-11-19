@@ -116,5 +116,15 @@
     "summarize": "摘要說明 {{table}} 資料表",
     "related": "{{a}} 與 {{b}} 有什麼關聯？",
     "sampleTable": "建立一個含有一些資料的範例資料表"
+  },
+  "check": {
+    "summary_other": "{{count, number}} 列 · {{time}} ms",
+    "firstShown": "顯示前 {{shown}} 列",
+    "rolledBack": "已復原；您的分頁未變更。",
+    "toggle": "顯示代理程式檢查的內容",
+    "median": "{{runs}} 次執行的中位數"
+  },
+  "reply": {
+    "copy": "拷貝回覆"
   }
 }

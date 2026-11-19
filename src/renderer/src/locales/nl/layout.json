@@ -5,7 +5,8 @@
   },
   "statusBar": {
     "inMemory": "In-memory",
-    "noConnection": "Geen verbinding"
+    "noConnection": "Geen verbinding",
+    "inMemoryHint": "Alleen in het geheugen: wijzigingen gaan verloren als je de database of de app sluit. Maak een back-up om ze te bewaren."
   },
   "dataTab": {
     "unavailable": "Tabel \"{{table}}\" is niet meer beschikbaar: {{error}}",

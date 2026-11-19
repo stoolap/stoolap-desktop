@@ -93,6 +93,14 @@
     "ranChanged_other": "Uitgevoerd in {{tab}} ({{count}} rijen gewijzigd)",
     "ranDdl": "Uitgevoerd in {{tab}} ({{ddl}} voltooid)",
     "searchedDocs": "Gezocht in de Stoolap-documentatie: {{query}}",
-    "readDocs": "Stoolap-documentatie gelezen: {{title}}"
+    "readDocs": "Stoolap-documentatie gelezen: {{title}}",
+    "checked_one": "Gecontroleerd: {{count}} rij",
+    "checked_other": "Gecontroleerd: {{count}} rijen",
+    "checkFailed": "Controle mislukt: {{error}}",
+    "listedTabs_one": "{{count}} tabblad opgesomd",
+    "listedTabs_other": "{{count}} tabbladen opgesomd",
+    "readTab": "Tabblad {{tab}} gelezen",
+    "readHistory_one": "{{count}} recente uitvoering gelezen",
+    "readHistory_other": "{{count}} recente uitvoeringen gelezen"
   }
 }

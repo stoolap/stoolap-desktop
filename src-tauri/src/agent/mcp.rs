@@ -16,6 +16,9 @@ pub struct McpSession {
     /// The tab the agent writes into
     pub tab_id: String,
     pub tab_title: String,
+    /// The user's tabs and runs as the renderer last reported them: when the
+    /// request started, and after each write_query (shared by the clones)
+    pub live: std::sync::Arc<std::sync::Mutex<super::tools::Live>>,
 }
 
 pub const SERVER_NAME: &str = "stoolap";

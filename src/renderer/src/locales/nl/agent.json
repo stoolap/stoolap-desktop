@@ -120,5 +120,16 @@
     "summarize": "Vat de tabel {{table}} samen",
     "related": "Hoe zijn {{a}} en {{b}} aan elkaar gerelateerd?",
     "sampleTable": "Maak een voorbeeldtabel met wat gegevens"
+  },
+  "check": {
+    "summary_one": "{{count, number}} rij · {{time}} ms",
+    "summary_other": "{{count, number}} rijen · {{time}} ms",
+    "firstShown": "eerste {{shown}} getoond",
+    "rolledBack": "Teruggedraaid; je tabblad is ongewijzigd.",
+    "toggle": "Tonen wat de agent heeft gecontroleerd",
+    "median": "mediaan van {{runs}} runs"
+  },
+  "reply": {
+    "copy": "Antwoord kopiëren"
   }
 }

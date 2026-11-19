@@ -93,6 +93,14 @@
     "ranChanged_other": "Ran it in {{tab}} ({{count}} rows changed)",
     "ranDdl": "Ran it in {{tab}} ({{ddl}} done)",
     "searchedDocs": "Searched the Stoolap docs: {{query}}",
-    "readDocs": "Read the Stoolap docs: {{title}}"
+    "readDocs": "Read the Stoolap docs: {{title}}",
+    "checked_one": "Checked: {{count}} row",
+    "checked_other": "Checked: {{count}} rows",
+    "checkFailed": "Check failed: {{error}}",
+    "listedTabs_one": "Listed {{count}} tab",
+    "listedTabs_other": "Listed {{count}} tabs",
+    "readTab": "Read the tab {{tab}}",
+    "readHistory_one": "Read {{count}} recent run",
+    "readHistory_other": "Read {{count}} recent runs"
   }
 }
