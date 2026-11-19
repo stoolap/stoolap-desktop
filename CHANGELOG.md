@@ -4,6 +4,20 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.5
+
+### Agent
+- The agent can now check things for itself without touching your tab: a count, the values in a column, whether a row exists, a query plan with real timings. Each check runs in a transaction that is rolled back, so nothing it does stays, and it shows in the panel as a step you can open to see the SQL and the rows it got back.
+- For timing questions it can run a query several times and compare the slowest, the fastest and the typical run, instead of trusting a single measurement.
+- It can read your other query tabs (with the last error each one showed) and your recent runs on the database, with when they ran and how long they took, so it can answer questions like "why is this slower than yesterday?".
+- It knows whether the database is in memory or a folder on disk, which matters for COPY file paths and time-travel queries.
+- The agent names the tab it works in after what the query does, and reuses an empty agent tab instead of opening another.
+- Each reply has a Copy button.
+
+### Queries and results
+- Every run is now kept, with how long it took and what it returned, for the agent's history.
+- Hovering **In-Memory** in the status bar explains that its changes are lost when the database or the app closes.
+
 ## v0.5.4
 
 ### Look and feel
