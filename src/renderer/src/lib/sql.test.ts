@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import splitCases from "./sql-split-cases.json";
 import { explainAll, formatDefaultValue, isExplain, isSingleReadOnly, quoteId, splitStatements } from "./sql-utils";
 
 describe("isExplain", () => {
@@ -20,6 +21,22 @@ describe("explainAll", () => {
 
   it("keeps an EXPLAIN that is there and drops empty statements", () => {
     expect(explainAll("explain analyze select 1;\n-- done\n;")).toBe("explain analyze select 1");
+  });
+});
+
+describe("reading SQL like the engine", () => {
+  // The same cases are checked against Stoolap's parser in sql_utils.rs
+  it.each(splitCases)("$why", ({ sql, statements }) => {
+    expect(splitStatements(sql)).toEqual(statements);
+  });
+
+  it("never takes a hidden write for a single read", () => {
+    for (const { sql } of splitCases.filter((c) => c.sql.includes("DELETE"))) {
+      expect(isSingleReadOnly(sql)).toBe(false);
+      expect(explainAll(sql)).not.toMatch(/(^|;\n)DELETE/);
+    }
+    expect(isSingleReadOnly("SELECT 'a\\'' -- '")).toBe(true);
+    expect(isSingleReadOnly("SELECT 1 # DELETE")).toBe(true);
   });
 });
 
@@ -52,6 +69,7 @@ describe("quoting", () => {
     expect(formatDefaultValue("current_timestamp")).toBe("current_timestamp");
     expect(formatDefaultValue("pending")).toBe("'pending'");
     expect(formatDefaultValue("it's")).toBe("'it''s'");
+    expect(formatDefaultValue("C:\\new")).toBe("'C:\\\\new'");
   });
 });
 

@@ -118,7 +118,11 @@ fn build_where(
                     "ip" => "VEC_DISTANCE_IP",
                     _ => unreachable!(),
                 };
-                clauses.push(format!("{}({}, {}) < {}", fn_name, col, vec_lit, threshold));
+                // As parameters: the engine reads a vector from its text
+                // ('[1, 2]'); a bare [1, 2] doesn't parse
+                clauses.push(format!("{}({}, ?) < ?", fn_name, col));
+                params.push(serde_json::Value::String(vec_lit));
+                params.push(serde_json::json!(threshold));
             }
             other => return Err(format!("Unsupported filter operator: {}", other)),
         }
@@ -417,16 +421,16 @@ pub async fn db_import_file(
     format: String,
     has_header: bool,
 ) -> Result<ImportResult, String> {
-    let escaped_path = file_path.replace('\'', "''");
+    let path = crate::db::sql_string(&file_path);
     let fmt = format.to_uppercase();
     if fmt != "CSV" && fmt != "JSON" {
         return Err(format!("Unsupported format '{}', use CSV or JSON", format));
     }
 
     let sql = format!(
-        "COPY {} FROM '{}' WITH (FORMAT {}, HEADER {})",
+        "COPY {} FROM {} WITH (FORMAT {}, HEADER {})",
         quote_id(&table),
-        escaped_path,
+        path,
         fmt,
         if has_header { "true" } else { "false" },
     );
@@ -440,4 +444,24 @@ pub async fn db_import_file(
         rows: result.changes,
         time,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_vector_filter_runs() {
+        let db = stoolap::api::Database::open_in_memory().unwrap();
+        DbManager::execute_on(&db, "CREATE TABLE t (id INTEGER PRIMARY KEY, v VECTOR(3))", None).unwrap();
+        DbManager::execute_on(&db, "INSERT INTO t VALUES (1, '[1,2,3]'), (2, '[-1,-2,-3]')", None).unwrap();
+        let filters = vec![FilterCondition {
+            column: "v".into(),
+            operator: "cosine".into(),
+            value: "[1, 2, 3]|0.5".into(),
+        }];
+        let (clause, params) = build_where(Some(&filters)).unwrap();
+        let rows = DbManager::query_on(&db, &format!("SELECT id FROM t{clause}"), Some(params)).unwrap().rows;
+        assert_eq!(rows, vec![vec![serde_json::json!(1)]]);
+    }
 }

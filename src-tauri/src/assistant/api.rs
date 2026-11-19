@@ -109,10 +109,8 @@ pub async fn stream_turn(
     if !betas.is_empty() {
         req = req.header("anthropic-beta", betas.join(","));
     }
-    let resp = req
-        .json(body)
-        .send()
-        .await
+    let resp = or_cancel(cancel, req.json(body).send())
+        .await?
         .map_err(|e| format!("Could not reach the Claude API: {e}"))?;
 
     let status = resp.status();
@@ -134,14 +132,28 @@ pub async fn stream_turn(
 
     let mut builder = TurnBuilder::default();
     let mut stream = resp.bytes_stream();
-    while let Some(chunk) = stream.next().await {
-        if cancel.load(Ordering::Relaxed) {
-            return Err("cancelled".into());
-        }
+    while let Some(chunk) = or_cancel(cancel, stream.next()).await? {
         let chunk = chunk.map_err(|e| format!("The response stream broke off: {e}"))?;
         builder.feed(&chunk, &mut on_event)?;
     }
     builder.finish()
+}
+
+/// `fut`'s output, or Err("cancelled") as soon as `cancel` is set, even
+/// while the provider sends nothing (it can hold a stream open silently).
+pub(super) async fn or_cancel<T>(cancel: &AtomicBool, fut: impl std::future::Future<Output = T>) -> Result<T, String> {
+    tokio::pin!(fut);
+    let mut tick = tokio::time::interval(Duration::from_millis(100));
+    loop {
+        tokio::select! {
+            out = &mut fut => return Ok(out),
+            _ = tick.tick() => {
+                if cancel.load(Ordering::Relaxed) {
+                    return Err("cancelled".into());
+                }
+            }
+        }
+    }
 }
 
 /// Assembles a turn from the SSE byte stream.
@@ -353,5 +365,19 @@ mod tests {
         let bytes = sse(&[json!({"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}})]);
         assert!(builder.feed(&bytes, &mut |_| {}).is_err());
         assert!(TurnBuilder::default().finish().is_err());
+    }
+
+    #[tokio::test]
+    async fn stop_ends_a_wait_on_a_silent_stream() {
+        let cancel = std::sync::Arc::new(AtomicBool::new(false));
+        let flag = cancel.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(150)).await;
+            flag.store(true, Ordering::Relaxed);
+        });
+        let started = std::time::Instant::now();
+        let out = or_cancel(&cancel, std::future::pending::<()>()).await;
+        assert_eq!(out, Err("cancelled".to_string()));
+        assert!(started.elapsed() < Duration::from_secs(1));
     }
 }

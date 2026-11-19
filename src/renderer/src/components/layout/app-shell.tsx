@@ -257,6 +257,9 @@ export function AppShell() {
 
               {isDataTab ? (
                 <DataTabContent
+                  // Its own filters, page, sort and time travel: not the
+                  // previous data tab's
+                  key={activeTab.id}
                   tableName={activeTab.tableName!}
                   initialFilter={activeTab.initialFilter}
                 />

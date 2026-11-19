@@ -1,139 +1,77 @@
-/// Strip SQL comments (line and block) while preserving string literals.
-pub fn strip_comments(sql: &str) -> String {
-    let bytes = sql.as_bytes();
-    let mut result: Vec<u8> = Vec::with_capacity(sql.len());
-    let mut i = 0;
-    let len = bytes.len();
+use stoolap::parser::lexer::Lexer;
+use stoolap::parser::token::{Token, TokenType};
 
-    while i < len {
-        // Single-quoted string
-        if bytes[i] == b'\'' {
-            result.push(b'\'');
-            i += 1;
-            while i < len {
-                if bytes[i] == b'\'' && i + 1 < len && bytes[i + 1] == b'\'' {
-                    result.extend_from_slice(b"''");
-                    i += 2;
-                } else if bytes[i] == b'\'' {
-                    result.push(b'\'');
-                    i += 1;
-                    break;
-                } else {
-                    result.push(bytes[i]);
-                    i += 1;
-                }
-            }
-            continue;
+/// The engine's own tokens for `sql`, up to the first one it can't read
+/// (an unterminated string, say): what follows is left for the engine to
+/// reject. Reading SQL with the engine's lexer, not a copy of its rules,
+/// keeps quotes (a backslash escapes inside '...'), `identifiers` and
+/// # comments read the way the engine reads them.
+fn tokens(sql: &str) -> Vec<Token> {
+    let mut lexer = Lexer::new(sql);
+    let mut out = Vec::new();
+    loop {
+        let t = lexer.next_token();
+        if matches!(t.token_type, TokenType::Eof | TokenType::Error) {
+            return out;
         }
-        // Double-quoted identifier
-        if bytes[i] == b'"' {
-            result.push(b'"');
-            i += 1;
-            while i < len {
-                if bytes[i] == b'"' && i + 1 < len && bytes[i + 1] == b'"' {
-                    result.extend_from_slice(b"\"\"");
-                    i += 2;
-                } else if bytes[i] == b'"' {
-                    result.push(b'"');
-                    i += 1;
-                    break;
-                } else {
-                    result.push(bytes[i]);
-                    i += 1;
-                }
-            }
-            continue;
-        }
-        // Line comment
-        if bytes[i] == b'-' && i + 1 < len && bytes[i + 1] == b'-' {
-            while i < len && bytes[i] != b'\n' {
-                i += 1;
-            }
-            continue;
-        }
-        // Block comment
-        if bytes[i] == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
-            i += 2;
-            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                i += 1;
-            }
-            if i + 1 < len {
-                i += 2;
-            }
-            continue;
-        }
-        result.push(bytes[i]);
-        i += 1;
+        out.push(t);
     }
-    // Only whole comments are removed, cut at ASCII bytes, so the bytes
-    // left are valid UTF-8.
-    String::from_utf8_lossy(&result).trim().to_string()
 }
 
-/// Split SQL into individual statements (semicolon-separated), respecting string literals.
-pub fn split_statements(sql: &str) -> Vec<String> {
-    let bytes = sql.as_bytes();
-    let mut statements = Vec::new();
-    let mut current: Vec<u8> = Vec::new();
-    let mut i = 0;
-    let len = bytes.len();
-
-    while i < len {
-        if bytes[i] == b'\'' {
-            current.push(b'\'');
-            i += 1;
-            while i < len {
-                if bytes[i] == b'\'' && i + 1 < len && bytes[i + 1] == b'\'' {
-                    current.extend_from_slice(b"''");
-                    i += 2;
-                } else if bytes[i] == b'\'' {
-                    current.push(b'\'');
-                    i += 1;
-                    break;
-                } else {
-                    current.push(bytes[i]);
-                    i += 1;
-                }
-            }
-            continue;
-        }
-        if bytes[i] == b'"' {
-            current.push(b'"');
-            i += 1;
-            while i < len {
-                if bytes[i] == b'"' && i + 1 < len && bytes[i + 1] == b'"' {
-                    current.extend_from_slice(b"\"\"");
-                    i += 2;
-                } else if bytes[i] == b'"' {
-                    current.push(b'"');
-                    i += 1;
-                    break;
-                } else {
-                    current.push(bytes[i]);
-                    i += 1;
-                }
-            }
-            continue;
-        }
-        if bytes[i] == b';' {
-            push_statement(&mut statements, &current);
-            current.clear();
-            i += 1;
-            continue;
-        }
-        current.push(bytes[i]);
-        i += 1;
+/// A comment token's byte range; None for an unterminated block comment,
+/// which is left in place so the engine reports it.
+fn comment_range(t: &Token) -> Option<std::ops::Range<usize>> {
+    let text: &str = &t.literal;
+    if text.starts_with("/*") && (text.len() < 4 || !text.ends_with("*/")) {
+        return None;
     }
-    push_statement(&mut statements, &current);
+    let start = t.position.offset as usize;
+    Some(start..start + text.len())
+}
+
+/// Strip SQL comments; each becomes a space, so `SELECT/*x*/1` stays two words.
+pub fn strip_comments(sql: &str) -> String {
+    let mut out = String::with_capacity(sql.len());
+    let mut at = 0;
+    for t in tokens(sql) {
+        if t.token_type != TokenType::Comment {
+            continue;
+        }
+        if let Some(range) = comment_range(&t) {
+            out.push_str(&sql[at..range.start]);
+            out.push(' ');
+            at = range.end;
+        }
+    }
+    out.push_str(&sql[at..]);
+    out.trim().to_string()
+}
+
+/// Split SQL into statements at the semicolons the engine sees.
+pub fn split_statements(sql: &str) -> Vec<String> {
+    let mut statements = Vec::new();
+    let mut at = 0;
+    for t in tokens(sql) {
+        if t.token_type == TokenType::Punctuator && &*t.literal == ";" {
+            let end = t.position.offset as usize;
+            push_statement(&mut statements, &sql[at..end]);
+            at = end + 1;
+        }
+    }
+    push_statement(&mut statements, &sql[at..]);
     statements
 }
 
-/// Statements are cut at `;` (ASCII), so each one is valid UTF-8.
-fn push_statement(statements: &mut Vec<String>, bytes: &[u8]) {
-    let stmt = String::from_utf8_lossy(bytes).trim().to_string();
+fn push_statement(statements: &mut Vec<String>, text: &str) {
+    let stmt = text.trim();
     if !stmt.is_empty() {
-        statements.push(stmt);
+        statements.push(stmt.to_string());
     }
+}
+
+/// An unquoted word token (keyword or plain identifier) spelling `word`
+fn is_word(t: &Token, word: &str) -> bool {
+    matches!(t.token_type, TokenType::Keyword | TokenType::Identifier) && !t.quoted && t.literal.eq_ignore_ascii_case(word)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -195,92 +133,33 @@ pub fn modifies_data(sql: &str) -> bool {
         .any(|k| upper.starts_with(k))
 }
 
-/// True if `RETURNING` appears as a word outside string literals and quoted
-/// identifiers.
+/// True if `RETURNING` appears as a word, not in a string or quoted name.
 pub fn has_returning(sql: &str) -> bool {
-    let bytes = sql.as_bytes();
-    let len = bytes.len();
-    let mut i = 0;
-    while i < len {
-        let c = bytes[i];
-        if c == b'\'' || c == b'"' {
-            i += 1;
-            while i < len {
-                if bytes[i] == c {
-                    if i + 1 < len && bytes[i + 1] == c {
-                        i += 2;
-                        continue;
-                    }
-                    break;
-                }
-                i += 1;
-            }
-            i += 1;
-            continue;
-        }
-        if c.is_ascii_alphabetic() || c == b'_' {
-            let start = i;
-            while i < len && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
-                i += 1;
-            }
-            if sql[start..i].eq_ignore_ascii_case("RETURNING") {
-                return true;
-            }
-            continue;
-        }
-        i += 1;
-    }
-    false
+    tokens(sql).iter().any(|t| is_word(t, "RETURNING"))
 }
 
+/// A WITH statement's kind: the first top-level SELECT/INSERT/... after
+/// its CTEs.
 fn classify_with_body(sql: &str) -> StatementType {
-    let bytes = sql.as_bytes();
-    let mut i = 0;
-    let mut depth: i32 = 0;
-    let len = bytes.len();
-    while i < len {
-        let c = bytes[i];
-        if c == b'\'' || c == b'"' {
-            let quote = c;
-            i += 1;
-            while i < len {
-                if bytes[i] == quote {
-                    if i + 1 < len && bytes[i + 1] == quote {
-                        i += 2;
-                        continue;
-                    }
-                    i += 1;
-                    break;
-                }
-                i += 1;
+    let mut depth = 0i32;
+    for t in tokens(sql) {
+        if t.token_type == TokenType::Punctuator {
+            match &*t.literal {
+                "(" => depth += 1,
+                ")" => depth -= 1,
+                _ => {}
             }
             continue;
         }
-        if c == b'(' {
-            depth += 1;
-            i += 1;
+        if depth != 0 {
             continue;
         }
-        if c == b')' {
-            depth -= 1;
-            i += 1;
-            continue;
+        if is_word(&t, "SELECT") {
+            return StatementType::Query;
         }
-        if depth == 0 && (c.is_ascii_alphabetic() || c == b'_') {
-            let start = i;
-            while i < len && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
-                i += 1;
-            }
-            let word = sql[start..i].to_ascii_uppercase();
-            match word.as_str() {
-                "SELECT" => return StatementType::Query,
-                "INSERT" | "UPDATE" | "DELETE" | "MERGE" | "UPSERT" | "REPLACE" => {
-                    return StatementType::Dml;
-                }
-                _ => continue,
-            }
+        if ["INSERT", "UPDATE", "DELETE", "MERGE", "UPSERT", "REPLACE"].iter().any(|w| is_word(&t, w)) {
+            return StatementType::Dml;
         }
-        i += 1;
     }
     // Couldn't identify: treat as Query (safer: read-only assumption won't run
     // DML under a forgotten transaction wrapper).
@@ -318,5 +197,29 @@ mod tests {
             classify_statement("DELETE FROM \"returning\" WHERE id = 1"),
             StatementType::Dml
         );
+    }
+
+    /// Shared with the renderer's splitter tests (sql-split-cases.json):
+    /// each case is checked against the engine's parser here, so the
+    /// expected splits are the engine's
+    #[test]
+    fn splits_where_the_engine_does() {
+        let cases: Vec<serde_json::Value> =
+            serde_json::from_str(include_str!("../../src/renderer/src/lib/sql-split-cases.json")).unwrap();
+        for case in cases {
+            let sql = case["sql"].as_str().unwrap();
+            let expected: Vec<&str> = case["statements"].as_array().unwrap().iter().map(|s| s.as_str().unwrap()).collect();
+            let engine = stoolap::parser::parse_sql(sql).unwrap_or_else(|e| panic!("{sql}: {e}"));
+            assert_eq!(engine.len(), expected.len(), "engine: {sql}");
+            assert_eq!(split_statements(sql), expected, "{}", case["why"]);
+        }
+    }
+
+    #[test]
+    fn a_stripped_comment_leaves_a_space_and_an_unterminated_one_stays() {
+        assert_eq!(strip_comments("SELECT/*x*/1"), "SELECT 1");
+        assert_eq!(strip_comments("SELECT 1 # note"), "SELECT 1");
+        let unterminated = "INSERT INTO t VALUES (2) /* oops";
+        assert_eq!(strip_comments(unterminated), unterminated);
     }
 }
