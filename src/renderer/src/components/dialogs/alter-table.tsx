@@ -32,6 +32,7 @@ import { formatDefaultValue } from "@/lib/sql-utils";
 import { DATA_TYPES, VECTOR_DIM_PRESETS } from "@/lib/constants";
 import * as api from "@/lib/api-client";
 import type { ColumnInfo } from "@/lib/types";
+import { Tip } from "@/components/ui/tip";
 
 const TYPE_ALIASES: Record<string, string> = {
   INT: "INTEGER",
@@ -601,13 +602,14 @@ export function AlterTableDialog({
                   </div>
                 </>
               )}
-              <Input
-                placeholder={t("alterTable.default")}
-                value={newColDefault}
-                onChange={(e) => setNewColDefault(e.target.value)}
-                className="w-[100px] h-9 font-data"
-                title={t("alterTable.defaultHint")}
-              />
+              <Tip label={t("alterTable.defaultHint")}>
+                <Input
+                  placeholder={t("alterTable.default")}
+                  value={newColDefault}
+                  onChange={(e) => setNewColDefault(e.target.value)}
+                  className="w-[100px] h-9 font-data"
+                />
+              </Tip>
               <label className="flex items-center gap-1.5 text-sm whitespace-nowrap">
                 <Checkbox
                   checked={newColNullable}

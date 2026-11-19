@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { StoolapDialect } from "@/components/editor/sql-editor";
 import * as agent from "@/lib/agent";
+import { Tip } from "@/components/ui/tip";
 
 const sqlParser = sql({ dialect: StoolapDialect }).language.parser;
 
@@ -70,16 +71,17 @@ const components: Components = {
   // Links open in the browser, never inside the app
   a({ href, children }) {
     return (
-      <a
-        href={href}
-        title={href}
-        onClick={(e) => {
-          e.preventDefault();
-          if (href) agent.openLink(href).catch((err) => toast.error(String(err)));
-        }}
-      >
-        {children}
-      </a>
+      <Tip label={href}>
+        <a
+          href={href}
+          onClick={(e) => {
+            e.preventDefault();
+            if (href) agent.openLink(href).catch((err) => toast.error(String(err)));
+          }}
+        >
+          {children}
+        </a>
+      </Tip>
     );
   },
   table({ children }) {

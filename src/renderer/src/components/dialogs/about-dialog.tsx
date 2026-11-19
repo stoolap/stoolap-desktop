@@ -47,7 +47,7 @@ function LinkButton({ icon, label, url }: { icon: ReactNode; label: string; url:
     <button
       type="button"
       onClick={() => agent.openLink(url).catch((e) => toast.error(String(e)))}
-      className="flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+      className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
     >
       {icon}
       {label}
@@ -85,7 +85,7 @@ export function AboutDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Nothing focused on open: the X or a link would show selected */}
-      <DialogContent className="gap-0 p-0 sm:max-w-[340px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <DialogContent className="grid-cols-[minmax(0,1fr)] gap-0 p-0 sm:max-w-[340px]" onOpenAutoFocus={(e) => e.preventDefault()}>
         <div className="flex flex-col items-center px-6 pt-7 pb-5 text-center">
           <img
             src="/icon.png"
@@ -124,7 +124,8 @@ export function AboutDialog({
           </button>
         </div>
 
-        <div className="mx-5 mt-3 flex gap-1">
+        {/* Wraps instead of widening the window when the labels run long */}
+        <div className="mx-5 mt-3 flex flex-wrap justify-center gap-x-1">
           <LinkButton icon={<Globe className="h-3.5 w-3.5" />} label={t("about.website")} url="https://stoolap.io" />
           <LinkButton icon={<Github className="h-3.5 w-3.5" />} label="GitHub" url={REPO} />
           <LinkButton

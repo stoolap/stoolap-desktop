@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Plus, X, Table2, FileCode, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tip } from "@/components/ui/tip";
 
 export function EditorTabs() {
   const { t } = useTranslation("editor");
@@ -131,16 +132,17 @@ export function EditorTabs() {
         ))}
       </div>
       {/* Outside the scrolling list, so a full tab bar cannot push it off-screen */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-5 w-5 shrink-0 mx-1 opacity-40 hover:opacity-100"
-        onClick={() => addTab()}
-        title={t("tabs.newTab")}
-        aria-label={t("tabs.newTab")}
-      >
-        <Plus className="h-2.5 w-2.5" />
-      </Button>
+      <Tip label={t("tabs.newTab")}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-5 w-5 shrink-0 mx-1 opacity-40 hover:opacity-100"
+          onClick={() => addTab()}
+          aria-label={t("tabs.newTab")}
+        >
+          <Plus className="h-2.5 w-2.5" />
+        </Button>
+      </Tip>
     </div>
   );
 }

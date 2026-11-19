@@ -56,6 +56,7 @@ import { useEditorSchema } from "@/hooks/use-schema";
 import { contextPrompts } from "@/lib/agent-prompts";
 import { MessageText } from "./message-text";
 import { Composer, type ComposerHandle } from "./composer";
+import { Tip } from "@/components/ui/tip";
 
 /** "5 min ago", "yesterday", or the date */
 function ago(ms: number): string {
@@ -516,33 +517,36 @@ export function AgentPanel() {
                   </SelectContent>
                 </Select>
                 <Select value={target} onValueChange={(v) => setTarget(v as "new" | "current")}>
-                  <SelectTrigger
-                    aria-label={t("panel.whereLabel")}
-                    title={t("panel.whereTitle")}
-                    className="h-6 w-auto gap-1 border-0 bg-transparent px-1.5 text-xs shadow-none"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
+                  <Tip label={t("panel.whereTitle")}>
+                    <SelectTrigger
+                      aria-label={t("panel.whereLabel")}
+                      className="h-6 w-auto gap-1 border-0 bg-transparent px-1.5 text-xs shadow-none"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                  </Tip>
                   <SelectContent position="popper" side="top" align="start">
                     <SelectItem value="new" className="text-xs">{t("panel.newTab")}</SelectItem>
                     <SelectItem value="current" className="text-xs">{t("panel.thisTab")}</SelectItem>
                   </SelectContent>
                 </Select>
-                <label
-                  className={cn(
-                    "flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap px-1.5 text-xs",
-                    allowWrites ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground",
-                  )}
-                  title={t("panel.writesTitle")}
-                >
-                  <Switch
-                    checked={allowWrites}
-                    onCheckedChange={(v) => setWriteAccess(accessKey, v)}
-                    className="scale-75"
-                    aria-label={t("panel.allowWrites")}
-                  />
-                  {t("panel.runWrites")}
-                </label>
+                <Tip label={t("panel.writesTitle")}>
+                  <label
+                    className={cn(
+                      // Shrinks (ending in …) before it pushes Send out of a narrow panel
+                      "flex min-w-0 cursor-pointer items-center gap-1.5 whitespace-nowrap px-1.5 text-xs",
+                      allowWrites ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground",
+                    )}
+                  >
+                    <Switch
+                      checked={allowWrites}
+                      onCheckedChange={(v) => setWriteAccess(accessKey, v)}
+                      className="scale-75"
+                      aria-label={t("panel.allowWrites")}
+                    />
+                    <span className="truncate">{t("panel.runWrites")}</span>
+                  </label>
+                </Tip>
                 <div className="flex-1" />
                 {running ? (
                   <Button size="icon" variant="secondary" className="h-6 w-6" onClick={() => {
@@ -925,15 +929,16 @@ function Proposal({
       </pre>
       <div className="flex items-center gap-1 border-t border-border/60 px-1.5 py-1">
         {tab && item.applied && (
-          <Button
-            size="sm"
-            className="h-6 px-2 text-xs"
-            variant={item.autoRan ? "ghost" : "default"}
-            onClick={run}
-            title={item.autoRan ? t("proposal.runAgainTitle") : t("proposal.runTitle")}
-          >
-            <Play className="h-3 w-3" /> {item.autoRan ? t("proposal.runAgain") : t("proposal.run")}
-          </Button>
+          <Tip label={item.autoRan ? t("proposal.runAgainTitle") : t("proposal.runTitle")}>
+            <Button
+              size="sm"
+              className="h-6 px-2 text-xs"
+              variant={item.autoRan ? "ghost" : "default"}
+              onClick={run}
+            >
+              <Play className="h-3 w-3" /> {item.autoRan ? t("proposal.runAgain") : t("proposal.run")}
+            </Button>
+          </Tip>
         )}
         {tab &&
           (item.applied ? (
