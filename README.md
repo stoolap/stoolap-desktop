@@ -15,16 +15,17 @@
 
 ---
 
-Stoolap Desktop is a lightweight native database client for the [Stoolap](https://github.com/stoolap/stoolap) embedded SQL engine. It embeds the Rust engine directly — no server, no bundled Chromium, no Node runtime — so the app stays under 15 MB and talks to your database at in-process speed.
+Stoolap Desktop is a lightweight native database client for the [Stoolap](https://github.com/stoolap/stoolap) embedded SQL engine. It embeds the Rust engine directly — no server, no bundled Chromium, no Node runtime — so the download stays under 10 MB and the app talks to your database at in-process speed.
 
-Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 frontend) and React. Stoolap Desktop 0.5.2 embeds Stoolap 0.5.0 from crates.io, with the engine's jemalloc allocator.
+Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 frontend) and React. Stoolap Desktop 0.5.3 embeds Stoolap 0.5.0 from crates.io, with the engine's jemalloc allocator.
 
 ## Why Stoolap Desktop?
 
-- **Truly native** — Tauri wraps the system WebView; the whole app is ~12 MB binary + 5 MB DMG instead of the 100+ MB a typical Electron database client ships.
+- **Small** — Tauri wraps the system WebView; the macOS DMG is about 8 MB (about 17 MB installed) instead of the 100+ MB a typical Electron database client ships.
 - **In-process engine** — `stoolap` is linked as a Rust crate. There is no IPC to a driver, no "connector" to misconfigure, and transactions run at the same latency the underlying engine gives you.
 - **Full Stoolap feature surface** — time-travel queries (`AS OF TIMESTAMP`), HNSW vector search, multi-column indexes, MVCC transactions, and rich DDL are first-class in the UI, not bolted on.
 - **SQL agent that knows Stoolap** — Claude or ChatGPT writes and runs SQL in your query tab, with a Stoolap dialect guide tested against the engine; changes to data only run when you allow them.
+- **16 languages** — the interface and menus follow your system language, or the one you pick in Settings.
 - **Native feel on macOS** — overlay title bar, system accent color, system appearance follows light/dark, native context menus and file dialogs.
 - **Auto-update built in** — code-signed updater ships new versions over a GitHub Releases feed.
 
@@ -43,6 +44,7 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 - A transaction you open with `BEGIN` stays open across runs until you `COMMIT` or `ROLLBACK`
 - A script of several statements shows every statement's result in its own tab over the grid; an error names the statement that failed
 - Query history per session
+- The time shown for a run is what you waited, from the request to the rows on screen, not only the engine's share
 - Query timeout in the status bar (30 s to 1 hour, or off; 5 min by default): the engine cancels statements that run longer. **Stop** only stops waiting, because the engine cannot interrupt a statement from outside; the timeout is what ends it
 
 ### SQL Agent
@@ -50,7 +52,7 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 - Runs through your local Claude Code (your own Claude sign-in and plan) when it is installed. Otherwise it calls the Claude API with your Anthropic account, signed in with the browser (billed to your Console organization; nothing to install or copy), or with an API key. It can also use ChatGPT, through your local Codex signed in with your ChatGPT account, or the OpenAI API with a key
 - Pick the model in the panel: Claude Opus 5.5 (default), Sonnet 5.5, Haiku 5.5 or Fable 5.2; with ChatGPT, the models your account or key offers
 - Knows Stoolap: every request carries a guide to Stoolap's SQL dialect (every type and function that exists, statement syntax, what fails and what to write instead, how the planner uses indexes), checked against the engine: `cargo test` runs each of its examples. For details it searches and reads the bundled Stoolap 0.5 documentation (55 pages)
-- Works in a query tab, in front of you: a new tab of its own by default, or the tab you are on ("New tab" / "This tab"). The SQL appears in the editor as it is written, runs there and fills the result grid, and the agent reads the outcome (up to 50 rows, sent to the provider you chose) and continues, pausing briefly between runs so you can follow along. Each edit can be undone from the panel
+- Works in a query tab, in front of you: a new tab of its own by default, or the tab you are on ("New tab" / "This tab"). The SQL appears in the editor as it is written, runs there and fills the result grid, and the agent reads the outcome (up to 50 rows and how long each statement took, sent to the provider you chose) and continues, pausing briefly between runs so you can follow along. Each edit can be undone from the panel
 - Reads always run. SQL that changes data (INSERT, UPDATE, DELETE, DDL) or a script of several statements runs only when you allow writes for that database ("Run writes", off by default); otherwise it is written into the tab and waits for your **Run**
 - **Fix with agent** on a query error
 - Earlier conversations for each database (the history button); a conversation picked up after a restart sends its earlier messages along
@@ -101,13 +103,13 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 - HNSW index parameters (`metric`, `m`, `ef_construction`) are preserved in the backup and re-applied on restore
 
 ### Native Integration
-- macOS: overlay title bar with hidden title, system accent color live-tracked, native context menus, proper app menu with `About`, `Check for Updates…`, services submenu, quit
+- macOS: overlay title bar with hidden title, system accent color live-tracked, native context menus, proper app menu with `About`, `Check for Updates…`, `Settings…`, services submenu, quit
 - System notifications on long-running operations (backup complete, export finished, import complete), and for a query that ran 10 s or more while the window was in the background
 - Native file / folder dialogs via the OS picker
 - Drop a database folder onto the window to open it, or a `.sql` file to open it in a new tab
 - `File → Open Recent` lists recently opened databases
 - Single instance: launching the app again focuses the open window; a database folder passed on the command line opens there
-- Windows and Linux: `Help` menu with `Check for Updates…` and `About`
+- Windows and Linux: `File → Settings…`, and a `Help` menu with `Check for Updates…` and `About`
 - Window state persistence — size, position, and maximized state restore on next launch
 - Single-process: the engine is linked in, not spawned
 
@@ -130,26 +132,29 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 
 ### macOS
 
-Download `Stoolap Desktop_<version>_aarch64.dmg` (Apple Silicon) or `…_x64.dmg` (Intel) from the [latest release](https://github.com/stoolap/stoolap-desktop/releases/latest), open the DMG, and drag Stoolap Desktop to `/Applications`.
+Download `Stoolap.Desktop_<version>_aarch64.dmg` (Apple Silicon) or `Stoolap.Desktop_<version>_x64.dmg` (Intel) from the [latest release](https://github.com/stoolap/stoolap-desktop/releases/latest), open the DMG, and drag Stoolap Desktop to `/Applications`.
 
 If the app isn't notarized yet, right-click → **Open** the first time to bypass Gatekeeper.
 
 ### Linux
 
-Download the `.AppImage` (portable) or `.deb` (for Debian / Ubuntu) from the [latest release](https://github.com/stoolap/stoolap-desktop/releases/latest).
+Download the `.AppImage` (portable), `.deb` (Debian / Ubuntu) or `.rpm` (Fedora / RHEL / openSUSE) from the [latest release](https://github.com/stoolap/stoolap-desktop/releases/latest).
 
 ```sh
 # AppImage
-chmod +x "Stoolap Desktop_*.AppImage"
-./"Stoolap Desktop_*.AppImage"
+chmod +x Stoolap.Desktop_*_amd64.AppImage
+./Stoolap.Desktop_*_amd64.AppImage
 
 # .deb
-sudo dpkg -i stoolap-desktop_*_amd64.deb
+sudo apt install ./Stoolap.Desktop_*_amd64.deb
+
+# .rpm
+sudo dnf install ./Stoolap.Desktop-*.x86_64.rpm
 ```
 
 ### Windows
 
-Download the `.msi` installer from the [latest release](https://github.com/stoolap/stoolap-desktop/releases/latest) and run it.
+Download the `_x64-setup.exe` or `_x64_en-US.msi` installer from the [latest release](https://github.com/stoolap/stoolap-desktop/releases/latest) and run it.
 
 ## Getting Started
 
@@ -170,11 +175,13 @@ Download the `.msi` installer from the [latest release](https://github.com/stool
 | `Cmd/Ctrl + W` | Close tab |
 | `Ctrl + Tab` / `Ctrl + Shift + Tab` | Next / previous tab |
 | `Cmd/Ctrl + B` | Toggle sidebar |
+| `Cmd/Ctrl + L` | Toggle the agent panel |
 | `Cmd/Ctrl + F` | Search in results grid |
 | `Cmd/Ctrl + C` | Copy selected cells |
 | `Cmd/Ctrl + O` | Open database |
 | `Cmd/Ctrl + N` | New in-memory database |
 | `Cmd/Ctrl + Shift + S` | Backup database |
+| `Cmd/Ctrl + ,` | Settings (language) |
 | `Cmd/Ctrl + ?` | Show this help |
 
 ## Building from Source
@@ -207,8 +214,8 @@ npm run build
 
 Outputs:
 - **macOS** — `src-tauri/target/release/bundle/macos/Stoolap Desktop.app` + `…/dmg/*.dmg`
-- **Linux** — `…/appimage/*.AppImage` + `…/deb/*.deb`
-- **Windows** — `…/msi/*.msi`
+- **Linux** — `…/appimage/*.AppImage` + `…/deb/*.deb` + `…/rpm/*.rpm`
+- **Windows** — `…/msi/*.msi` + `…/nsis/*-setup.exe`
 
 ### Linting
 
@@ -229,7 +236,7 @@ npm test
 ┌────────────────────────────────────────────┐
 │  React + TypeScript UI (src/renderer)      │
 │  CodeMirror · TanStack Query / Table /     │
-│  Virtual · Zustand · shadcn/radix          │
+│  Virtual · Zustand · shadcn/radix · i18next│
 └──────────────────┬─────────────────────────┘
                    │  Tauri invoke / event
 ┌──────────────────┴─────────────────────────┐
@@ -238,7 +245,9 @@ npm test
 │  ├── commands::query                       │
 │  ├── commands::schema                      │
 │  ├── commands::data                        │
-│  └── commands::system                      │
+│  ├── commands::system                      │
+│  ├── agent (Claude / OpenAI, MCP tools)    │
+│  └── i18n (language, menu, messages)       │
 └──────────────────┬─────────────────────────┘
                    │  direct Rust API
 ┌──────────────────┴─────────────────────────┐
@@ -247,7 +256,7 @@ npm test
 └────────────────────────────────────────────┘
 ```
 
-- **`src/renderer/`** — React 19 + TypeScript UI. State is a mix of Zustand stores (connections, editor tabs) and TanStack Query (schema, row data). Styling is Tailwind 4 with shadcn/radix primitives.
+- **`src/renderer/`** — React 19 + TypeScript UI. State is a mix of Zustand stores (connections, editor tabs, the agent) and TanStack Query (schema, row data). Styling is Tailwind 4 with shadcn/radix primitives; text comes from `src/renderer/src/locales` through react-i18next.
 - **`src-tauri/`** — Rust. `DbManager` holds one `Arc<Database>` per open connection so transactions persist across IPC calls while cross-connection queries run concurrently. All SQL paths parameterize user input via `?` placeholders.
 - **`stoolap`** — the database engine itself; see its [repo](https://github.com/stoolap/stoolap) for engine docs.
 
@@ -288,15 +297,14 @@ Releases are driven by `.github/workflows/release.yml`, which triggers on any `v
 
 ### Cutting a release
 
-1. Bump `version` in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
-2. Commit, tag, push:
+1. Bump `version` in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml` (and the lockfiles: `npm install --package-lock-only`, `cargo check`).
+2. Add a `## vX.Y.Z` section to [CHANGELOG.md](CHANGELOG.md): it becomes the release note on GitHub and in the in-app update dialog, and the release fails without it.
+3. Merge that to `main`, then tag and push:
    ```sh
-   git commit -am "Release v0.4.1"
-   git tag v0.4.1
-   git push origin main v0.4.1
+   git tag v0.5.3
+   git push origin v0.5.3
    ```
-3. CI builds the matrix (macOS arm64 / Intel, Linux x64, Windows x64), signs updater artifacts, uploads a draft release with all DMGs / AppImages / MSIs, and generates `latest.json`.
-4. The `publish-release` job flips the draft to published and pulls commit messages into the release notes.
+4. CI builds the matrix (macOS arm64 / Intel, Linux x64, Windows x64), signs the updater artifacts, uploads them to a draft release with `latest.json`, and the `publish-release` job publishes it with the CHANGELOG section as its notes.
 
 Installed apps hit `https://github.com/stoolap/stoolap-desktop/releases/latest/download/latest.json` on **Check for Updates…** and prompt the user to install.
 
@@ -305,11 +313,11 @@ Installed apps hit `https://github.com/stoolap/stoolap-desktop/releases/latest/d
 Issues and PRs welcome. Before opening a PR:
 
 ```sh
-npx tsc --noEmit
-(cd src-tauri && cargo clippy --all-targets --all-features -- -D warnings)
+npx tsc --noEmit && npm test
+(cd src-tauri && cargo clippy --all-targets --all-features -- -D warnings && cargo test)
 ```
 
-Both should pass cleanly.
+All should pass cleanly.
 
 ### Translations
 

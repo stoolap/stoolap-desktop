@@ -4,6 +4,27 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.3
+
+### Languages
+- Stoolap Desktop speaks 16 languages: English, Türkçe, Deutsch, Français, Español, Português (Brasil), Italiano, Nederlands, Polski, Русский, Українська, 日本語, 한국어, 简体中文, 繁體中文 and Bahasa Indonesia. Menus, dialogs, error messages and the agent's step labels are translated, and numbers and dates follow the language.
+- The app follows your system language. **Settings…** (⌘, / Ctrl+,) picks another one, which then stays, and the menus switch at once.
+- The translations have not all been reviewed by native speakers yet; corrections are welcome on GitHub.
+
+### Agent
+- The SQL assistant is now called **Agent**. Your conversations and settings carry over.
+- The agent now sees how long each query it ran took, so it can tell when a query is slow.
+
+### Queries and results
+- Large results arrive faster: on an Apple Silicon Mac, a 100,000-row SELECT shows in about 32 ms instead of 44 ms, a million rows in about 350 ms instead of 455 ms.
+- The time shown for a run is what you waited, from running it to the rows on screen; before, it left out sending the rows to the window.
+- The sidebar refreshes after INSERT, UPDATE and DELETE (row counts), and after a CREATE or DROP that comes after a comment, as the agent's SQL usually does.
+
+### Look and feel
+- A new About window, with a **Copy versions** button for bug reports and links to the website, GitHub and the changelog.
+- Release notes in the update window show formatted, from the next update on.
+- Dialogs no longer open with the close button looking selected.
+
 ## v0.5.2
 
 ### SQL assistant
