@@ -383,12 +383,17 @@ fn value_to_json(val: Option<&Value>) -> serde_json::Value {
     }
 }
 
+/// `s` as a SQL string literal the engine reads back exactly. It reads
+/// backslash escapes inside quotes (\n is a newline), so \ is doubled too.
+pub fn sql_string(s: &str) -> String {
+    format!("'{}'", s.replace('\\', "\\\\").replace('\'', "''"))
+}
+
 /// `val` as a SQL literal that restores it exactly: integers in full (no
 /// JavaScript rounding), JSON as its own text (so `null` and strings in a
 /// JSON column stay JSON, apart from SQL NULL and TEXT).
 pub fn sql_literal(val: Option<&Value>) -> String {
-    // The engine reads backslash escapes inside quotes, so \ is doubled too
-    let quote = |s: &str| format!("'{}'", s.replace('\\', "\\\\").replace('\'', "''"));
+    let quote = sql_string;
     match val {
         None | Some(Value::Null(_)) => "NULL".into(),
         Some(Value::Integer(i)) => i.to_string(),
@@ -536,5 +541,14 @@ mod tests {
         assert_eq!(changed.changes, 1);
         let left = DbManager::query_on(&db, "SELECT n FROM t ORDER BY id", None).unwrap().rows;
         assert_eq!(left, vec![vec![json!(3)], vec![json!(2)]]);
+    }
+
+    #[test]
+    fn string_literals_read_back_exactly() {
+        let db = Database::open_in_memory().unwrap();
+        for s in [r"C:\new\file.csv", "it's", r"a\'b", r"\\server\share", "line\nbreak"] {
+            let rows = DbManager::query_on(&db, &format!("SELECT {}", sql_string(s)), None).unwrap().rows;
+            assert_eq!(rows, vec![vec![json!(s)]], "{s}");
+        }
     }
 }

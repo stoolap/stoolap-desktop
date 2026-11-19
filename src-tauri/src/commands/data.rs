@@ -118,7 +118,11 @@ fn build_where(
                     "ip" => "VEC_DISTANCE_IP",
                     _ => unreachable!(),
                 };
-                clauses.push(format!("{}({}, {}) < {}", fn_name, col, vec_lit, threshold));
+                // As parameters: the engine reads a vector from its text
+                // ('[1, 2]'); a bare [1, 2] doesn't parse
+                clauses.push(format!("{}({}, ?) < ?", fn_name, col));
+                params.push(serde_json::Value::String(vec_lit));
+                params.push(serde_json::json!(threshold));
             }
             other => return Err(format!("Unsupported filter operator: {}", other)),
         }
@@ -417,20 +421,7 @@ pub async fn db_import_file(
     format: String,
     has_header: bool,
 ) -> Result<ImportResult, String> {
-    let escaped_path = file_path.replace('\'', "''");
-    let fmt = format.to_uppercase();
-    if fmt != "CSV" && fmt != "JSON" {
-        return Err(format!("Unsupported format '{}', use CSV or JSON", format));
-    }
-
-    let sql = format!(
-        "COPY {} FROM '{}' WITH (FORMAT {}, HEADER {})",
-        quote_id(&table),
-        escaped_path,
-        fmt,
-        if has_header { "true" } else { "false" },
-    );
-
+    let sql = copy_sql(&table, &file_path, &format, has_header)?;
     let start = std::time::Instant::now();
     let result = state.execute(&conn_id, &sql, None)?;
     let time = start.elapsed().as_secs_f64() * 1000.0;
@@ -440,4 +431,83 @@ pub async fn db_import_file(
         rows: result.changes,
         time,
     })
+}
+
+/// The COPY statement for an import.
+fn copy_sql(table: &str, file_path: &str, format: &str, has_header: bool) -> Result<String, String> {
+    let fmt = format.to_uppercase();
+    if fmt != "CSV" && fmt != "JSON" {
+        return Err(format!("Unsupported format '{}', use CSV or JSON", format));
+    }
+    Ok(format!(
+        "COPY {} FROM {} WITH (FORMAT {}, HEADER {})",
+        quote_id(table),
+        copy_path(file_path)?,
+        fmt,
+        if has_header { "true" } else { "false" },
+    ))
+}
+
+/// A file path as COPY reads it. The lexer turns '' into ' and keeps a
+/// backslash with the character after it; COPY then takes the text between
+/// the quotes as is. So a quote is doubled, except right after a backslash,
+/// where it is already kept; only a path ending in a lone backslash (which
+/// would take the closing quote) can't be written.
+fn copy_path(path: &str) -> Result<String, String> {
+    let mut out = String::from("'");
+    let mut chars = path.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => {
+                out.push(c);
+                out.push(chars.next().ok_or("Can't import from a path that ends with \\.")?);
+            }
+            '\'' => out.push_str("''"),
+            _ => out.push(c),
+        }
+    }
+    out.push('\'');
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_vector_filter_runs() {
+        let db = stoolap::api::Database::open_in_memory().unwrap();
+        DbManager::execute_on(&db, "CREATE TABLE t (id INTEGER PRIMARY KEY, v VECTOR(3))", None).unwrap();
+        DbManager::execute_on(&db, "INSERT INTO t VALUES (1, '[1,2,3]'), (2, '[-1,-2,-3]')", None).unwrap();
+        let filters = vec![FilterCondition {
+            column: "v".into(),
+            operator: "cosine".into(),
+            value: "[1, 2, 3]|0.5".into(),
+        }];
+        let (clause, params) = build_where(Some(&filters)).unwrap();
+        let rows = DbManager::query_on(&db, &format!("SELECT id FROM t{clause}"), Some(params)).unwrap().rows;
+        assert_eq!(rows, vec![vec![serde_json::json!(1)]]);
+    }
+
+    #[test]
+    fn copy_reads_paths_with_quotes_and_backslashes() {
+        let dir = std::env::temp_dir().join(format!("stoolap-copy-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let names: &[&str] = if cfg!(windows) {
+            &["it's.csv", "it''s.csv"]
+        } else {
+            &["it's.csv", "it''s.csv", r"a\b.csv", r"a\'b.csv", r"a\\'b.csv", r"a\.csv"]
+        };
+        let db = stoolap::api::Database::open_in_memory().unwrap();
+        DbManager::execute_on(&db, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)", None).unwrap();
+        for (i, name) in names.iter().enumerate() {
+            let file = dir.join(name);
+            std::fs::write(&file, format!("id,name\n{i},x\n")).unwrap();
+            let sql = copy_sql("t", file.to_str().unwrap(), "csv", true).unwrap();
+            let imported = DbManager::execute_on(&db, &sql, None).map(|r| r.changes);
+            assert_eq!(imported, Ok(1), "{name}");
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert!(copy_sql("t", r"/tmp/a\", "csv", true).is_err());
+    }
 }

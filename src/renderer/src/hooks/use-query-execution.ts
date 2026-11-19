@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { errorMessage } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useEditorStore } from "@/stores/editor-store";
@@ -51,21 +51,46 @@ function stoppedMessage(): string {
     : `Stopped waiting. The query keeps running in the background until it finishes or reaches the ${queryTimeoutLabel(ms)} timeout.`;
 }
 
+/**
+ * The run each tab is waiting on, shared by every component that runs or
+ * stops queries (toolbar, editor, shortcuts, tabs), so Stop finds a run
+ * whichever one started it.
+ */
+const runs = new Map<string, AbortController>();
+
+/** Start a run in the tab, stopping the wait on the one before it. */
+export function startRun(tabId: string): AbortController {
+  runs.get(tabId)?.abort();
+  const controller = new AbortController();
+  runs.set(tabId, controller);
+  return controller;
+}
+
+/** A run ended; a newer run in the same tab stays registered. */
+export function endRun(tabId: string, controller: AbortController): void {
+  if (runs.get(tabId) === controller) runs.delete(tabId);
+}
+
+/** Stop waiting on the tab's run, or on every run. */
+export function stopRuns(tabId?: string): void {
+  if (tabId) runs.get(tabId)?.abort();
+  else for (const controller of runs.values()) controller.abort();
+}
+
+/**
+ * A run the user stopped, or one a newer run in the tab replaced. Only the
+ * tab's current run shows it: a replaced one leaves the newer run's
+ * spinner and Stop alone.
+ */
+function stopped(tabId: string, controller: AbortController): ApiResult {
+  const result = { error: stoppedMessage() };
+  if (runs.get(tabId) === controller) useEditorStore.getState().setTabResult(tabId, result);
+  return result;
+}
+
 export function useQueryExecution() {
   const activeId = useConnectionStore((s) => s.activeId);
   const queryClient = useQueryClient();
-  const abortMapRef = useRef<Map<string, AbortController>>(new Map());
-
-  // Abort all pending queries on unmount
-  useEffect(() => {
-    const map = abortMapRef.current;
-    return () => {
-      for (const controller of map.values()) {
-        controller.abort();
-      }
-      map.clear();
-    };
-  }, []);
 
   const executeQuery = useCallback(
     /**
@@ -79,10 +104,7 @@ export function useQueryExecution() {
       const { setTabRunning, setTabLastExecutedSql, addToHistory } =
         useEditorStore.getState();
 
-      // Cancel any running query for THIS tab
-      abortMapRef.current.get(tabId)?.abort();
-      const controller = new AbortController();
-      abortMapRef.current.set(tabId, controller);
+      const controller = startRun(tabId);
 
       setTabRunning(tabId, true);
       setTabLastExecutedSql(tabId, sql.trim());
@@ -91,11 +113,7 @@ export function useQueryExecution() {
       const started = Date.now();
       try {
         const result = await api.executeQuery(activeId, sql, controller.signal);
-        if (controller.signal.aborted) {
-          const stopped = { error: stoppedMessage() };
-          useEditorStore.getState().setTabResult(tabId, stopped);
-          return stopped;
-        }
+        if (controller.signal.aborted) return stopped(tabId, controller);
         if ("results" in result) {
           useEditorStore.getState().setTabResults(tabId, result.results);
         } else {
@@ -118,31 +136,16 @@ export function useQueryExecution() {
         }
         return result;
       } catch (e) {
-        if (controller.signal.aborted) {
-          const stopped = { error: stoppedMessage() };
-          useEditorStore.getState().setTabResult(tabId, stopped);
-          return stopped;
-        }
+        if (controller.signal.aborted) return stopped(tabId, controller);
         const failed = { error: errorMessage(e) };
         useEditorStore.getState().setTabResult(tabId, failed);
         return failed;
       } finally {
-        abortMapRef.current.delete(tabId);
+        endRun(tabId, controller);
       }
     },
     [activeId, queryClient],
   );
 
-  const cancelQuery = useCallback((tabId?: string) => {
-    if (tabId) {
-      abortMapRef.current.get(tabId)?.abort();
-    } else {
-      // Cancel all running queries
-      for (const controller of abortMapRef.current.values()) {
-        controller.abort();
-      }
-    }
-  }, []);
-
-  return { executeQuery, cancelQuery, isConnected: !!activeId };
+  return { executeQuery, cancelQuery: stopRuns, isConnected: !!activeId };
 }

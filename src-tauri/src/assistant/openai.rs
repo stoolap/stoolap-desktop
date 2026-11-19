@@ -4,6 +4,7 @@
 //! Nothing is stored at OpenAI (`store: false`): every request sends the
 //! whole conversation, with reasoning carried along encrypted.
 
+use super::api::or_cancel;
 use super::{emit, emit_tool, mcp::McpSession, Event};
 use futures_util::StreamExt;
 use serde_json::{json, Value};
@@ -182,24 +183,18 @@ async fn stream_response(
     cancel: &AtomicBool,
     mut on_event: impl FnMut(Streamed),
 ) -> Result<Vec<Value>, String> {
-    let resp = super::api::client()
-        .post(format!("{API}/responses"))
-        .bearer_auth(key)
-        .json(body)
-        .send()
-        .await
+    let request = super::api::client().post(format!("{API}/responses")).bearer_auth(key).json(body);
+    let resp = or_cancel(cancel, request.send())
+        .await?
         .map_err(|e| format!("Could not reach the OpenAI API: {e}"))?;
     let status = resp.status().as_u16();
     if status != 200 {
-        let text = resp.text().await.unwrap_or_default();
+        let text = or_cancel(cancel, resp.text()).await?.unwrap_or_default();
         return Err(error_message(status, &text));
     }
     let mut builder = ResponseBuilder::default();
     let mut stream = resp.bytes_stream();
-    while let Some(chunk) = stream.next().await {
-        if cancel.load(Ordering::Relaxed) {
-            return Err("cancelled".into());
-        }
+    while let Some(chunk) = or_cancel(cancel, stream.next()).await? {
         let chunk = chunk.map_err(|e| format!("The response stream broke off: {e}"))?;
         builder.feed(&chunk, &mut on_event)?;
     }

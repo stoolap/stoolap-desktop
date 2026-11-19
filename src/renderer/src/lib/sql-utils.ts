@@ -16,7 +16,8 @@ export function formatDefaultValue(value: string): string {
       dv,
     ) ||
     (dv.startsWith("'") && dv.endsWith("'"));
-  return isRaw ? dv : `'${dv.replace(/'/g, "''")}'`;
+  // Stoolap reads backslash escapes inside quotes, so \ is doubled too
+  return isRaw ? dv : `'${dv.replace(/\\/g, "\\\\").replace(/'/g, "''")}'`;
 }
 
 /** Extract a safe error message: first line only, file system paths stripped. */
@@ -25,76 +26,53 @@ export function safeErrorMessage(e: unknown, fallback: string): string {
   return e.message.split("\n")[0].replace(/(?:\/[\w.\-/]+)+/g, "[path]");
 }
 
-/** Split SQL on semicolons, respecting strings, identifiers, and comments. */
+/**
+ * Split SQL on semicolons, reading quotes and comments the way Stoolap's
+ * lexer does: in '...' a backslash escapes the next character (and '' is a
+ * quote); "..." and `...` are names, closed only by their quote (doubled to
+ * escape); -- and # run to the end of the line; block comments don't nest.
+ * The cases in sql-split-cases.json are checked against the engine itself.
+ */
 export function splitStatements(sql: string): string[] {
   const statements: string[] = [];
-  let current = "";
+  let start = 0;
   let i = 0;
+  const push = (end: number) => {
+    const s = sql.slice(start, end).trim();
+    if (s) statements.push(s);
+  };
   while (i < sql.length) {
-    // Single-quoted string literal
-    if (sql[i] === "'") {
-      current += sql[i++];
-      while (i < sql.length) {
-        if (sql[i] === "'" && sql[i + 1] === "'") {
-          current += "''";
-          i += 2;
-        } else if (sql[i] === "'") {
-          current += sql[i++];
-          break;
-        } else {
-          current += sql[i++];
-        }
-      }
-      continue;
-    }
-    // Double-quoted identifier
-    if (sql[i] === '"') {
-      current += sql[i++];
-      while (i < sql.length) {
-        if (sql[i] === '"' && sql[i + 1] === '"') {
-          current += '""';
-          i += 2;
-        } else if (sql[i] === '"') {
-          current += sql[i++];
-          break;
-        } else {
-          current += sql[i++];
-        }
-      }
-      continue;
-    }
-    // Line comment
-    if (sql[i] === "-" && sql[i + 1] === "-") {
-      while (i < sql.length && sql[i] !== "\n") {
-        current += sql[i++];
-      }
-      continue;
-    }
-    // Block comment
-    if (sql[i] === "/" && sql[i + 1] === "*") {
-      current += sql[i++];
-      current += sql[i++];
-      while (i < sql.length && !(sql[i] === "*" && sql[i + 1] === "/")) {
-        current += sql[i++];
-      }
-      if (i < sql.length) {
-        current += sql[i++];
-        current += sql[i++];
-      }
-      continue;
-    }
-    // Statement separator
-    if (sql[i] === ";") {
-      const trimmed = current.trim();
-      if (trimmed.length > 0) statements.push(trimmed);
-      current = "";
+    const c = sql[i];
+    if (c === "'") {
       i++;
-      continue;
-    }
-    current += sql[i++];
+      while (i < sql.length) {
+        if (sql[i] === "\\") i += 2;
+        else if (sql[i] === "'" && sql[i + 1] === "'") i += 2;
+        else if (sql[i] === "'") {
+          i++;
+          break;
+        } else i++;
+      }
+    } else if (c === '"' || c === "`") {
+      i++;
+      while (i < sql.length) {
+        if (sql[i] === c && sql[i + 1] === c) i += 2;
+        else if (sql[i] === c) {
+          i++;
+          break;
+        } else i++;
+      }
+    } else if ((c === "-" && sql[i + 1] === "-") || c === "#") {
+      while (i < sql.length && sql[i] !== "\n") i++;
+    } else if (c === "/" && sql[i + 1] === "*") {
+      const end = sql.indexOf("*/", i + 2);
+      i = end < 0 ? sql.length : end + 2;
+    } else if (c === ";") {
+      push(i);
+      start = ++i;
+    } else i++;
   }
-  const trimmed = current.trim();
-  if (trimmed.length > 0) statements.push(trimmed);
+  push(sql.length);
   return statements;
 }
 
@@ -106,10 +84,10 @@ export function splitStatements(sql: string): string[] {
 export function isSingleReadOnly(sql: string): boolean {
   const stmts = splitStatements(sql).filter((s) => stripComments(s).trim());
   if (stmts.length !== 1) return false;
-  // Keywords inside strings and quoted names don't count
-  const code = stripComments(stmts[0])
-    .replace(/'(?:[^']|'')*'/g, "''")
-    .replace(/"(?:[^"]|"")*"/g, '""')
+  // Keywords inside strings, quoted names and comments don't count. One
+  // pass, so a quote inside a name is never taken for a string's start
+  const code = stmts[0]
+    .replace(QUOTED_OR_COMMENT, (_, quoted?: string) => (quoted ? quoted[0].repeat(2) : " "))
     .trim()
     .toUpperCase();
   const first = code.split(/\s+/)[0];
@@ -134,7 +112,11 @@ export function explainAll(sql: string): string {
     .join(";\n");
 }
 
-/** Drop -- line and block comments, keeping string literals intact. */
+/** Drop --, # and block comments, keeping strings and quoted names intact. */
 function stripComments(sql: string): string {
-  return sql.replace(/('(?:[^']|'')*')|--[^\n]*|\/\*[\s\S]*?\*\//g, (m, str) => str ?? " ");
+  return sql.replace(QUOTED_OR_COMMENT, (_, quoted?: string) => quoted ?? " ");
 }
+
+/** A string, quoted name (group 1) or comment, read as the engine reads them */
+const QUOTED_OR_COMMENT =
+  /('(?:[^'\\]|\\[\s\S]|'')*'|"(?:[^"]|"")*"|`(?:[^`]|``)*`)|(?:--|#)[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/g;
