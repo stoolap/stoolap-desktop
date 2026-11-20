@@ -250,7 +250,7 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
           <Button variant="outline" onClick={resetAndClose} disabled={loading}>
             {t("actions.cancel")}
           </Button>
-          <Button onClick={handleBackup} disabled={loading}>
+          <Button onClick={handleBackup} disabled={loading} data-default>
             {loading ? t("backup.exporting") : t("backup.export")}
           </Button>
         </DialogFooter>

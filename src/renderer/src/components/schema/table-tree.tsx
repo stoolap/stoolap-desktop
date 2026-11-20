@@ -445,7 +445,8 @@ function TableNode({
     <div className="overflow-hidden">
       <div
         className={cn(
-          "flex items-center gap-1.5 px-2 py-1 cursor-pointer hover:bg-accent text-xs select-none min-w-0 overflow-hidden",
+          // A pill inset from the edges, as macOS' sidebars have
+          "mx-2 flex items-center gap-2 rounded-lg px-2 py-1 cursor-pointer hover:bg-accent text-sm select-none min-w-0 overflow-hidden",
         )}
         onClick={() => setExpanded(!expanded)}
         onDoubleClick={handleDoubleClick}
@@ -457,15 +458,15 @@ function TableNode({
           <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
         )}
         {type === "table" ? (
-          <Table2 className="h-3 w-3 text-blue-400 shrink-0" />
+          <Table2 className="h-4 w-4 text-foreground/80 shrink-0" />
         ) : (
-          <Eye className="h-3 w-3 text-purple-400 shrink-0" />
+          <Eye className="h-4 w-4 text-foreground/80 shrink-0" />
         )}
         <Tip label={name} side="right" delay={700}>
           <span className="truncate">{name}</span>
         </Tip>
         {type === "table" && rowCount !== undefined && (
-          <span className="ml-auto text-xs text-muted-foreground/40 tabular-nums shrink-0 pr-0.5">
+          <span className="ml-auto text-xs text-muted-foreground tabular-nums shrink-0 pr-0.5">
             {rowCount.toLocaleString(locale())}
           </span>
         )}
@@ -482,7 +483,7 @@ function TableNode({
           ))}
           {foreignKeys && foreignKeys.length > 0 && (
             <>
-              <div className="pl-5 pr-2 pt-1.5 pb-0.5 text-xs text-muted-foreground/40 uppercase tracking-widest font-semibold">
+              <div className="pl-5 pr-2 pt-1.5 pb-0.5 text-xs font-semibold text-muted-foreground">
                 {t("tableTree.foreignKeys")}
               </div>
               {foreignKeys.map((fk) => (
@@ -492,7 +493,7 @@ function TableNode({
           )}
           {indexes && indexes.length > 0 && (
             <>
-              <div className="pl-5 pr-2 pt-1.5 pb-0.5 text-xs text-muted-foreground/40 uppercase tracking-widest font-semibold">
+              <div className="pl-5 pr-2 pt-1.5 pb-0.5 text-xs font-semibold text-muted-foreground">
                 {t("tableTree.indexes")}
               </div>
               {indexes.map((idx) => {
@@ -596,8 +597,8 @@ export function TableTree() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-border/30">
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/50">
+      <div className="flex items-center justify-between pl-4 pr-2.5 py-1">
+        <span className="text-xs font-semibold text-muted-foreground">
           {t("tableTree.schema")}
         </span>
         <div className="flex gap-0">
@@ -609,7 +610,7 @@ export function TableTree() {
               onClick={() => setCreateTableOpen(true)}
               aria-label={t("tableTree.createTable")}
             >
-              <Plus className="h-2.5 w-2.5" />
+              <Plus className="h-3.5 w-3.5" />
             </Button>
           </Tip>
           <Tip label={t("tableTree.createView")}>
@@ -620,7 +621,7 @@ export function TableTree() {
               onClick={() => setCreateViewOpen(true)}
               aria-label={t("tableTree.createView")}
             >
-              <Eye className="h-2.5 w-2.5" />
+              <Eye className="h-3.5 w-3.5" />
             </Button>
           </Tip>
           <Tip label={t("tableTree.refresh")}>
@@ -632,21 +633,21 @@ export function TableTree() {
               aria-label={t("tableTree.refreshSchema")}
             >
               <RefreshCw
-                className={cn("h-2.5 w-2.5", isRefreshing && "animate-spin")}
+                className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")}
               />
             </Button>
           </Tip>
         </div>
       </div>
 
-      <div className="px-1.5 py-1 border-b border-border/30">
+      <div className="px-2 pb-1">
         <div className="relative">
-          <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/40" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
           <Input
             placeholder={t("tableTree.filterPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-6 pl-6 text-xs border-0 bg-muted/30 shadow-none focus-visible:ring-1"
+            className="h-8 rounded-lg pl-8 text-xs border-0 bg-muted/40 shadow-none focus-visible:ring-1"
             aria-label={t("tableTree.filterLabel")}
           />
         </div>
@@ -659,7 +660,7 @@ export function TableTree() {
           <div className="py-0.5">
             {filteredTables.length > 0 && (
               <>
-                <div className="px-2 py-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground/40">
+                <div className="px-4 pt-2 pb-1 text-xs font-semibold text-muted-foreground">
                   {t("tableTree.tables", {
                     shown: search && tables ? `${filteredTables.length}/${tables.length}` : filteredTables.length,
                   })}
@@ -676,7 +677,7 @@ export function TableTree() {
             )}
             {filteredViews.length > 0 && (
               <>
-                <div className="px-3 py-1.5 mt-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground/50">
+                <div className="px-4 pt-3 pb-1 text-xs font-semibold text-muted-foreground">
                   {t("tableTree.views", {
                     shown: search && views ? `${filteredViews.length}/${views.length}` : filteredViews.length,
                   })}

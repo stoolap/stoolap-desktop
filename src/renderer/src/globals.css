@@ -164,9 +164,10 @@
   [role="separator"][aria-orientation="horizontal"] { cursor: row-resize; }
 }
 
-/* WebKit renders fonts smaller than Chromium — bump sizes for readability */
-.text-xs { font-size: 13px !important; line-height: 1.5 !important; }
-.text-sm { font-size: 14px !important; line-height: 1.5 !important; }
+/* The interface at the size of macOS 26's sidebars (Mail, App Store):
+   15px for primary text, 14px for secondary */
+.text-xs { font-size: 14px !important; line-height: 1.5 !important; }
+.text-sm { font-size: 15px !important; line-height: 1.5 !important; }
 
 /* ═══════════════════════════════════════
    Override shadcn to look native macOS
@@ -307,9 +308,15 @@ button, [role="button"], [role="tab"], [role="menuitem"],
    ═══════════════════════════════════════ */
 .font-data {
   font-family: "SF Mono", SFMono-Regular, ui-monospace, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
+  font-size: 13px;
   font-feature-settings: "tnum";
   letter-spacing: -0.01em;
+}
+/* The editor on the app's background, not One Dark's own blue-grey: it
+   sits next to the agent and the results. The syntax colours stay. */
+.dark .cm-editor,
+.dark .cm-editor .cm-gutters {
+  background-color: var(--background);
 }
 /* CodeMirror's default focus ring is a dotted outline around the editor */
 .cm-editor.cm-focused {
@@ -319,7 +326,7 @@ button, [role="button"], [role="tab"], [role="menuitem"],
 .cm-editor .cm-gutters,
 .cm-editor .cm-tooltip {
   font-family: "SF Mono", SFMono-Regular, ui-monospace, Menlo, Monaco, Consolas, monospace;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* ═══════════════════════════════════════
@@ -361,13 +368,13 @@ html, body { overscroll-behavior: none; }
 }
 
 [data-slot="dialog-title"] {
-  font-size: 14px !important;
+  font-size: 15px !important;
   font-weight: 600 !important;
   letter-spacing: 0 !important;
 }
 
 [data-slot="dialog-description"] {
-  font-size: 13px !important;
+  font-size: 14px !important;
 }
 
 /* Form inputs — native NSTextField appearance */
@@ -430,3 +437,20 @@ html, body { overscroll-behavior: none; }
 .dark .agent-md .tok-number, .dark .agent-md .tok-bool, .dark .agent-md .tok-atom { color: #d19a66; }
 .dark .agent-md .tok-comment { color: #7d8799; }
 .dark .agent-md .tok-typeName { color: #e5c07b; }
+
+/* Windows 11's dialog (ContentDialog): the buttons on a band along the
+   bottom, the main one first. Footers list Cancel first (macOS' order). */
+html[data-platform="windows"] [data-slot="dialog-footer"] {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+  margin: 0 -1.5rem -1.5rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--muted);
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+/* macOS: the line between two panes (as Mail's between its list and the
+   message), darker than both, so it reads as a gap rather than a border */
+.pane-divider { width: 3px; background: rgba(0, 0, 0, 0.12); }
+.dark .pane-divider { background: rgba(0, 0, 0, 0.55); }

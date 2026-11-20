@@ -98,7 +98,6 @@
     "hours_other": "{{count}} jam",
     "off": "Mati",
     "label": "Batas waktu kueri",
-    "title": "Batas waktu kueri: kueri yang berjalan lebih lama dari ini dihentikan",
     "none": "Tanpa batas waktu kueri",
     "current": "Batas waktu kueri {{timeout}}",
     "heading": "Hentikan kueri yang berjalan lebih lama dari:",

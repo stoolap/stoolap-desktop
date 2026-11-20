@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -88,7 +88,13 @@ function transcript(items: AgentItem[]): string {
   return text.length > 12000 ? `…${text.slice(-12000)}` : text;
 }
 
-export function AgentPanel() {
+const IS_MAC = navigator.userAgent.includes("Mac");
+
+/**
+ * `clearLights`: it is the leftmost panel, under macOS' traffic lights, and
+ * `toggles` (the panels' buttons) follow them in its header
+ */
+export function AgentPanel({ clearLights = false, toggles }: { clearLights?: boolean; toggles?: ReactNode }) {
   const { t } = useTranslation("agent");
   const mod = useModKey();
   const [models, setModels] = useState<AgentModel[]>([]);
@@ -337,9 +343,17 @@ export function AgentPanel() {
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Header */}
-      <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border/40 pl-3 pr-1">
-        {/* No icon: the toggle beside the tabs, right next to it, shows it */}
-        <span className="text-xs font-medium">{t("panel.title")}</span>
+      {/* On macOS its header is part of the title bar: on the traffic
+          lights' line, and the window moves from its empty space */}
+      <div
+        data-tauri-drag-region={IS_MAC || undefined}
+        className={cn(
+          "flex h-9 shrink-0 items-center gap-1 pl-3 pr-1",
+          IS_MAC && "h-[46px]",
+          clearLights && "pl-[88px]",
+        )}
+      >
+        {toggles}
         <div className="flex-1" />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -504,7 +518,7 @@ export function AgentPanel() {
           </div>
 
           {/* Composer */}
-          <div className="shrink-0 border-t border-border/40 p-2">
+          <div className="shrink-0 p-2">
             <div className="rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring">
               <Composer
                 ref={inputRef}

@@ -13,7 +13,6 @@
     "yesterday": "вчера"
   },
   "panel": {
-    "title": "Агент",
     "newConversation": "Новый диалог",
     "earlierConversations": "Предыдущие диалоги",
     "noConversations": "Диалогов об этой базе данных пока нет.",

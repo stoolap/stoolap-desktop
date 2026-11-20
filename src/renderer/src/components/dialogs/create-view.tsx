@@ -114,6 +114,7 @@ export function CreateViewDialog({
             {t("actions.cancel")}
           </Button>
           <Button
+            data-default
             onClick={handleCreate}
             disabled={loading || !viewName.trim() || !hasSelectBody}
           >

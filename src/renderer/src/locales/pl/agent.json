@@ -13,7 +13,6 @@
     "yesterday": "wczoraj"
   },
   "panel": {
-    "title": "Agent",
     "newConversation": "Nowa rozmowa",
     "earlierConversations": "Wcześniejsze rozmowy",
     "noConversations": "Brak rozmów o tej bazie danych.",

@@ -9,7 +9,6 @@
     "yesterday": "gestern"
   },
   "panel": {
-    "title": "Agent",
     "newConversation": "Neue Unterhaltung",
     "earlierConversations": "Frühere Unterhaltungen",
     "noConversations": "Noch keine Unterhaltungen zu dieser Datenbank.",

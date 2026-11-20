@@ -98,7 +98,9 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| match event {
-            tauri::WindowEvent::Destroyed => {
+            // Settings and About are windows too: only the main one's
+            // closing ends the session
+            tauri::WindowEvent::Destroyed if window.label() == "main" => {
                 let state = window.state::<DbManager>();
                 let _ = state.close_all();
             }
@@ -244,8 +246,12 @@ fn build_menu(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
 }
 
 fn on_menu_event(app_handle: &tauri::AppHandle, event: tauri::menu::MenuEvent) {
-    let Some(window) = app_handle.get_webview_window("main") else { return };
     let id = event.id().as_ref();
+    if id == "settings" || id == "about" {
+        open_panel(app_handle, id);
+        return;
+    }
+    let Some(window) = app_handle.get_webview_window("main") else { return };
     if let Some(path) = id.strip_prefix(RECENT_PREFIX) {
         let _ = window.emit("app:open-path", path);
         return;
@@ -258,12 +264,63 @@ fn on_menu_event(app_handle: &tauri::AppHandle, event: tauri::menu::MenuEvent) {
         "restore" => "menu:restore",
         "toggle-sidebar" => "menu:toggle-sidebar",
         "toggle-agent" => "menu:toggle-agent",
-        "settings" => "menu:settings",
-        "about" => "menu:about",
         "check-updates" => "menu:check-updates",
         _ => return,
     };
     let _ = window.emit(name, ());
+}
+
+/// Settings and About open as windows of their own, above the main one (a
+/// second click brings the open one forward). The page sizes the window to
+/// its content and shows it.
+fn open_panel(app: &tauri::AppHandle, label: &str) {
+    if let Some(window) = app.get_webview_window(label) {
+        let _ = window.show();
+        let _ = window.set_focus();
+        return;
+    }
+    let Some(main) = app.get_webview_window("main") else { return };
+    let width = if label == "about" { 340.0 } else { 480.0 };
+    let built = tauri::WebviewWindowBuilder::new(app, label, tauri::WebviewUrl::App("index.html".into()))
+        .title(panel_title(app, label))
+        .inner_size(width, 200.0)
+        .resizable(false)
+        .maximizable(false)
+        .minimizable(false)
+        .visible(false)
+        .center()
+        .parent(&main)
+        .and_then(|builder| builder.build());
+    match built {
+        Ok(window) => {
+            match_background_to_theme(&window, window.theme().ok());
+            // On Windows and Linux the app's menu bar is every window's
+            #[cfg(not(target_os = "macos"))]
+            let _ = window.remove_menu();
+        }
+        Err(e) => eprintln!("Couldn't open the {label} window: {e}"),
+    }
+}
+
+/// A panel window's title in the app's language. On macOS About has none,
+/// as the system's own About windows don't.
+fn panel_title(app: &tauri::AppHandle, label: &str) -> String {
+    let lang = i18n::current(app);
+    match label {
+        "about" if cfg!(target_os = "macos") => String::new(),
+        "about" => i18n::text(lang, "about"),
+        // The menu item's "Settings…" without its ellipsis
+        _ => i18n::text(lang, "settings").trim_end_matches(['…', '.']).to_string(),
+    }
+}
+
+/// Retitle the open panel windows after a language change
+fn retitle_panels(app: &tauri::AppHandle) {
+    for label in ["settings", "about"] {
+        if let Some(window) = app.get_webview_window(label) {
+            let _ = window.set_title(&panel_title(app, label));
+        }
+    }
 }
 
 const RECENT_PREFIX: &str = "recent:";

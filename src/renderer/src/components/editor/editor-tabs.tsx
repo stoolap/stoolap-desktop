@@ -50,11 +50,12 @@ export function EditorTabs() {
   };
 
   return (
-    <div className="flex items-center bg-muted/40">
+    // Its empty space moves the window on macOS, where the tab row is the title bar
+    <div data-tauri-drag-region className="flex h-full items-center bg-muted/40">
       <div
         ref={tabListRef}
         role="tablist"
-        className="flex min-w-0 items-center overflow-x-auto scrollbar-none"
+        className="flex min-w-0 items-center self-stretch overflow-x-auto scrollbar-none"
       >
         {tabs.map((tab) => (
           <Tooltip key={tab.id}>
@@ -63,7 +64,7 @@ export function EditorTabs() {
                 role="tab"
                 aria-selected={activeTabId === tab.id}
                 className={cn(
-                  "group flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer shrink-0 border-r border-border/15",
+                  "group flex items-center self-stretch gap-1.5 px-3 py-1.5 text-xs cursor-pointer shrink-0 border-r border-border/15",
                   activeTabId === tab.id
                     ? "bg-background text-foreground"
                     : "text-muted-foreground/70 hover:text-foreground/80 hover:bg-background/40",
@@ -71,9 +72,9 @@ export function EditorTabs() {
                 onClick={() => setActiveTab(tab.id)}
               >
                 {tab.mode === "data" ? (
-                  <Table2 className="h-3 w-3 text-blue-400 shrink-0" />
+                  <Table2 className="h-4 w-4 text-blue-400 shrink-0" />
                 ) : (
-                  <FileCode className="h-3 w-3 shrink-0 opacity-30" />
+                  <FileCode className="h-4 w-4 shrink-0 opacity-50" />
                 )}
                 {renamingId === tab.id ? (
                   <input
@@ -110,7 +111,7 @@ export function EditorTabs() {
                 )}
                 {tabs.length > 1 && (
                   <button
-                    className="ml-0.5 opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-destructive"
+                    className="ml-1 rounded p-0.5 opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-foreground/10"
                     onClick={(e) => {
                       e.stopPropagation();
                       cancelQuery(tab.id);
@@ -118,7 +119,7 @@ export function EditorTabs() {
                     }}
                     aria-label={t("tabs.close", { title: tab.title })}
                   >
-                    <X className="h-2.5 w-2.5" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
@@ -136,11 +137,11 @@ export function EditorTabs() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-5 w-5 shrink-0 mx-1 opacity-40 hover:opacity-100"
+          className="h-7 w-7 shrink-0 ml-2 mr-1 opacity-40 hover:opacity-100"
           onClick={() => addTab()}
           aria-label={t("tabs.newTab")}
         >
-          <Plus className="h-2.5 w-2.5" />
+          <Plus className="size-5" />
         </Button>
       </Tip>
     </div>

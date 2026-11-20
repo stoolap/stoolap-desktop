@@ -7,7 +7,6 @@
     "yesterday": "昨天"
   },
   "panel": {
-    "title": "智能体",
     "newConversation": "新对话",
     "earlierConversations": "之前的对话",
     "noConversations": "还没有关于此数据库的对话。",

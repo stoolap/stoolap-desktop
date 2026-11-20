@@ -33,7 +33,6 @@ export function AppShell() {
   const [isDark, setIsDark] = useState(false);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isResizingEditor, setIsResizingEditor] = useState(false);
-  const [appVersion, setAppVersion] = useState("");
   const editorAreaRef = useRef<HTMLDivElement>(null);
   const sidebarWidthRef = useRef(sidebarWidth);
   const editorHeightRef = useRef(editorHeight);
@@ -50,15 +49,22 @@ export function AppShell() {
   const activeId = useConnectionStore((s) => s.activeId);
   const connections = useConnectionStore((s) => s.connections);
   const activeConn = connections.find((c) => c.id === activeId);
+  // The leftmost panel holds the traffic lights; with none, the tab row does
+  const agentOpen = useAgentStore((s) => s.open);
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  // macOS: room right of the sidebar's card when the agent isn't against it
+  const sidebarGap = IS_MAC && !agentOpen ? 4 : 0;
+  // macOS: the panels' toggles, by the traffic lights (as Mail's)
+  const toggles = (
+    <div className="flex shrink-0 items-center gap-0.5">
+      <SidebarToggle open={sidebarOpen} onToggle={toggleSidebar} />
+      <AgentToggle />
+    </div>
+  );
   const transactionOpen = useConnectionStore((s) => (activeId ? !!s.openTransactions[activeId] : false));
 
   const setConnections = useConnectionStore((s) => s.setConnections);
   const setActiveId = useConnectionStore((s) => s.setActiveId);
-
-  // Get app version
-  useEffect(() => {
-    native.getVersion().then(setAppVersion);
-  }, []);
 
   // Restore persisted layout sizes
   useEffect(() => {
@@ -189,167 +195,187 @@ export function AppShell() {
   const isDataTab = activeTab?.mode === "data" && activeTab.tableName;
 
   return (
-    <div className="h-screen flex flex-col text-foreground">
+    <div className="h-screen flex text-foreground">
       <KeyboardShortcuts />
       {/* Headless toolbar — just manages dialogs */}
       <Toolbar />
 
-      {/* macOS title bar drag region with centered title. Tauri moves the
-          window from it and zooms it on a double-click (both need their
-          permissions in capabilities/) */}
-      {IS_MAC && (
+      {/* Slides open and shut: its width goes to 0 while the content keeps
+          its own, clipped. Not while being resized, which would lag. */}
+      <div
+        style={{ width: sidebarOpen ? sidebarWidth + sidebarGap : 0 }}
+        inert={!sidebarOpen}
+        className={cn(
+          "shrink-0 overflow-hidden",
+          !isResizingSidebar && "transition-[width] duration-200 ease-out motion-reduce:transition-none",
+        )}
+      >
+        {IS_MAC ? (
+          // A card inset from the window's edges, the traffic lights inside
+          // it (trafficLightPosition in tauri.macos.conf.json)
+          // The window's background around it; when the agent isn't against
+          // it, a little on the right too, added outside the card's width
+          <div
+            style={{ width: sidebarWidth + sidebarGap, paddingRight: sidebarGap }}
+            className="h-full bg-background p-2"
+          >
+            <div className="h-full flex flex-col overflow-hidden rounded-[18px] border border-border/60 bg-sidebar">
+              <div data-tauri-drag-region className="h-[30px] shrink-0 flex items-center justify-end pr-2">
+                {toggles}
+              </div>
+              <div className="flex-1 min-h-0">
+                <Sidebar />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ width: sidebarWidth }} className="h-full border-r border-border/40 bg-sidebar">
+            <Sidebar />
+          </div>
+        )}
+      </div>
+      {sidebarOpen && (
         <div
-          data-tauri-drag-region
-          className="h-[38px] shrink-0 drag-region flex items-center justify-center border-b border-border/40"
-        >
-          <span className="text-xs text-muted-foreground/60 font-medium tracking-tight pointer-events-none">
-            {activeConn ? activeConn.name : "Stoolap Desktop"}
-          </span>
-        </div>
+          role="separator"
+          aria-orientation="vertical"
+          className={cn(
+            "cursor-col-resize hover:bg-primary/30 active:bg-primary/50 shrink-0",
+            // On macOS no line: the window's background sets the card apart
+            IS_MAC ? "w-px bg-background" : "w-px bg-transparent hover:w-0.5",
+          )}
+          onMouseDown={handleSidebarMouseDown}
+        />
       )}
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar — transparent for macOS vibrancy */}
-        {sidebarOpen && (
-          <>
-            <div
-              style={{ width: sidebarWidth }}
-              className="shrink-0 overflow-hidden border-r border-border/40 bg-sidebar "
-            >
-              <Sidebar />
-            </div>
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              className="w-px cursor-col-resize hover:w-0.5 hover:bg-primary/30 active:bg-primary/50 shrink-0 bg-transparent"
-              onMouseDown={handleSidebarMouseDown}
-            />
-          </>
-        )}
+      {/* Full height between the sidebar and the editor */}
+      <AgentDock leftmost={!sidebarOpen} toggles={toggles} />
 
-        {/* Main content area — opaque background */}
-        <div
-          ref={editorAreaRef}
-          className="flex-1 flex flex-col overflow-hidden bg-background"
-        >
-          {connections.length === 0 ? (
-            <Welcome />
-          ) : (
-            <>
-              <div className="flex items-center">
-                <Tip label={sidebarOpen ? t("appShell.hideSidebar") : t("appShell.showSidebar")}>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 shrink-0 rounded-none"
-                    onClick={() => setSidebarOpen(!sidebarOpen)}
-                    aria-label={sidebarOpen ? t("appShell.hideSidebar") : t("appShell.showSidebar")}
-                  >
-                    {sidebarOpen ? (
-                      <PanelLeftClose className="h-3 w-3" />
-                    ) : (
-                      <PanelLeft className="h-3 w-3" />
-                    )}
-                  </Button>
-                </Tip>
-                <div className="flex-1 overflow-hidden">
-                  <EditorTabs />
+      <div className="flex-1 min-w-0 flex flex-col bg-background">
+        <div className="flex-1 flex overflow-hidden">
+
+          {/* Main content area — opaque background */}
+          <div
+            ref={editorAreaRef}
+            className="flex-1 flex flex-col overflow-hidden bg-background"
+          >
+            {connections.length === 0 ? (
+              <>
+                {/* The window's top edge, to move it by: no tab row here */}
+                {IS_MAC && (
+                  <div data-tauri-drag-region className="h-[46px] shrink-0 flex items-center pl-[88px]">
+                    {!sidebarOpen && !agentOpen && toggles}
+                  </div>
+                )}
+                <Welcome />
+              </>
+            ) : (
+              <>
+                {/* On macOS the tab row is the title bar: on the traffic
+                    lights' line, moved and zoomed from its empty space
+                    (permissions in capabilities/), clear of the lights when
+                    no panel is open */}
+                <div
+                  data-tauri-drag-region
+                  className={cn("flex items-center", IS_MAC && "h-[46px] bg-muted/40", IS_MAC && !sidebarOpen && !agentOpen && "pl-[88px]")}
+                >
+                  {!IS_MAC && <SidebarToggle open={sidebarOpen} onToggle={toggleSidebar} />}
+                  {/* On macOS the toggles sit by the traffic lights, in the
+                      leftmost panel: here when none is open */}
+                  {IS_MAC && !sidebarOpen && !agentOpen && toggles}
+                  <div className="flex-1 self-stretch overflow-hidden">
+                    <EditorTabs />
+                  </div>
+                  {!IS_MAC && <AgentToggle />}
                 </div>
-                <AgentToggle />
-              </div>
 
-              {isDataTab ? (
-                <DataTabContent
-                  // Its own filters, page, sort and time travel: not the
-                  // previous data tab's
-                  key={activeTab.id}
-                  tableName={activeTab.tableName!}
-                  initialFilter={activeTab.initialFilter}
-                />
-              ) : (
-                <>
-                  <div
-                    style={{ height: editorHeight }}
-                    className="shrink-0 overflow-hidden"
-                  >
-                    {activeTab && (
-                      <SqlEditor
-                        tabId={activeTab.id}
-                        value={activeTab.sql}
-                        isDark={isDark}
-                        schema={editorSchema}
-                      />
-                    )}
-                  </div>
-
-                  <QueryToolbar />
-
-                  <div
-                    role="separator"
-                    aria-orientation="horizontal"
-                    className="h-px cursor-row-resize hover:h-0.5 hover:bg-primary/30 active:bg-primary/50 shrink-0 bg-border/30"
-                    onMouseDown={handleEditorMouseDown}
+                {isDataTab ? (
+                  <DataTabContent
+                    // Its own filters, page, sort and time travel: not the
+                    // previous data tab's
+                    key={activeTab.id}
+                    tableName={activeTab.tableName!}
+                    initialFilter={activeTab.initialFilter}
                   />
+                ) : (
+                  <>
+                    <div
+                      style={{ height: editorHeight }}
+                      className="shrink-0 overflow-hidden"
+                    >
+                      {activeTab && (
+                        <SqlEditor
+                          tabId={activeTab.id}
+                          value={activeTab.sql}
+                          isDark={isDark}
+                          schema={editorSchema}
+                        />
+                      )}
+                    </div>
 
-                  <div className="flex-1 overflow-hidden">
-                    <ResultsPanel />
-                  </div>
-                </>
-              )}
+                    <QueryToolbar />
+
+                    <div
+                      role="separator"
+                      aria-orientation="horizontal"
+                      className="h-px cursor-row-resize hover:h-0.5 hover:bg-primary/30 active:bg-primary/50 shrink-0 bg-border/30"
+                      onMouseDown={handleEditorMouseDown}
+                    />
+
+                    <div className="flex-1 overflow-hidden">
+                      <ResultsPanel />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Status bar */}
+        <div className="flex items-center h-8 text-xs bg-background shrink-0">
+          <div className="flex items-center gap-1.5 px-3 h-full">
+            {activeConn ? (
+              <>
+                <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+                <span className="text-foreground/80">{activeConn.name}</span>
+                {activeConn.type === "memory" ? (
+                  <Tip label={t("statusBar.inMemoryHint")} side="top">
+                    <span className="cursor-help text-muted-foreground">— {t("statusBar.inMemory")}</span>
+                  </Tip>
+                ) : (
+                  <span className="text-muted-foreground">— {activeConn.path}</span>
+                )}
+                {transactionOpen && (
+                  <Tip label={t("statusBar.transactionOpenHint")} side="top">
+                    <span className="ml-1 flex cursor-help items-center gap-1 rounded bg-amber-500/15 px-1.5 text-amber-600 dark:text-amber-400">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      {t("statusBar.transactionOpen")}
+                    </span>
+                  </Tip>
+                )}
+              </>
+            ) : (
+              <>
+                <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/40" />
+                <span className="text-muted-foreground">{t("statusBar.noConnection")}</span>
+              </>
+            )}
+          </div>
+          {activeTab && (
+            <>
+              <div className="w-px h-3 bg-border/50" />
+              <div className="flex items-center px-3 h-full text-muted-foreground">
+                {activeTab.mode === "data"
+                  ? activeTab.tableName
+                  : activeTab.title}
+              </div>
             </>
           )}
-        </div>
-
-        <AgentDock />
-      </div>
-
-      {/* Status bar */}
-      <div className="flex items-center h-8 border-t border-border/40 text-xs bg-background shrink-0">
-        <div className="flex items-center gap-1.5 px-3 h-full">
-          {activeConn ? (
-            <>
-              <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
-              <span className="text-foreground/80">{activeConn.name}</span>
-              {activeConn.type === "memory" ? (
-                <Tip label={t("statusBar.inMemoryHint")} side="top">
-                  <span className="cursor-help text-muted-foreground">— {t("statusBar.inMemory")}</span>
-                </Tip>
-              ) : (
-                <span className="text-muted-foreground">— {activeConn.path}</span>
-              )}
-              {transactionOpen && (
-                <Tip label={t("statusBar.transactionOpenHint")} side="top">
-                  <span className="ml-1 flex cursor-help items-center gap-1 rounded bg-amber-500/15 px-1.5 text-amber-600 dark:text-amber-400">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
-                    {t("statusBar.transactionOpen")}
-                  </span>
-                </Tip>
-              )}
-            </>
-          ) : (
-            <>
-              <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/40" />
-              <span className="text-muted-foreground">{t("statusBar.noConnection")}</span>
-            </>
-          )}
-        </div>
-        {activeTab && (
-          <>
-            <div className="w-px h-3 bg-border/50" />
-            <div className="flex items-center px-3 h-full text-muted-foreground">
-              {activeTab.mode === "data"
-                ? activeTab.tableName
-                : activeTab.title}
-            </div>
-          </>
-        )}
-        <div className="flex-1" />
-        <QueryTimeoutSelect />
-        <div className="w-px h-3 bg-border/50" />
-        <div className="flex items-center px-3 h-full text-muted-foreground/60">
-          v{appVersion}
+          <div className="flex-1" />
+          <QueryTimeoutSelect />
         </div>
       </div>
+
     </div>
   );
 }
@@ -391,6 +417,24 @@ function DataTabContent({
   );
 }
 
+function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  const { t } = useTranslation("layout");
+  const label = open ? t("appShell.hideSidebar") : t("appShell.showSidebar");
+  return (
+    <Tip label={label}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className={cn("h-7 w-7 shrink-0", IS_MAC ? "rounded-md" : "rounded-none")}
+        onClick={onToggle}
+        aria-label={label}
+      >
+        {open ? <PanelLeftClose className="h-3.5 w-3.5" /> : <PanelLeft className="h-3.5 w-3.5" />}
+      </Button>
+    </Tip>
+  );
+}
+
 function AgentToggle() {
   const { t } = useTranslation("layout");
   const open = useAgentStore((s) => s.open);
@@ -400,7 +444,7 @@ function AgentToggle() {
       <Button
         variant="ghost"
         size="icon"
-        className={cn("h-7 w-7 shrink-0 rounded-none", open && "text-primary")}
+        className={cn("h-7 w-7 shrink-0", IS_MAC ? "rounded-md" : "rounded-none", open && "text-primary")}
         onClick={toggle}
         aria-label={open ? t("agentToggle.hide") : t("agentToggle.show")}
         aria-pressed={open}

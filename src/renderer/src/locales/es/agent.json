@@ -11,7 +11,6 @@
     "yesterday": "ayer"
   },
   "panel": {
-    "title": "Agente",
     "newConversation": "Nueva conversación",
     "earlierConversations": "Conversaciones anteriores",
     "noConversations": "Aún no hay conversaciones sobre esta base de datos.",

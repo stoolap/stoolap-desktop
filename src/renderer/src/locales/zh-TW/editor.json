@@ -98,7 +98,6 @@
     "hours_other": "{{count}} 小時",
     "off": "關",
     "label": "查詢逾時",
-    "title": "查詢逾時：執行時間超過此值的查詢會被停止",
     "none": "無查詢逾時",
     "current": "查詢逾時 {{timeout}}",
     "heading": "停止執行時間超過以下值的查詢：",

@@ -313,6 +313,7 @@ export function CreateIndexDialog({
             {t("actions.cancel")}
           </Button>
           <Button
+            data-default
             onClick={handleCreate}
             disabled={
               loading || !indexName.trim() || selectedColumns.length === 0

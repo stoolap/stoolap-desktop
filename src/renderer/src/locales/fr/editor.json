@@ -111,7 +111,6 @@
     "hours_other": "{{count}} heures",
     "off": "Désactivé",
     "label": "Délai d'expiration des requêtes",
-    "title": "Délai d'expiration : une requête qui dure plus longtemps est arrêtée",
     "none": "Aucun délai d'expiration",
     "current": "Délai d'expiration : {{timeout}}",
     "heading": "Arrêter une requête qui dure plus de :",

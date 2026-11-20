@@ -7,7 +7,6 @@
     "yesterday": "어제"
   },
   "panel": {
-    "title": "에이전트",
     "newConversation": "새 대화",
     "earlierConversations": "이전 대화",
     "noConversations": "이 데이터베이스에 대한 대화가 아직 없습니다.",

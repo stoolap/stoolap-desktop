@@ -7,7 +7,6 @@
     "yesterday": "kemarin"
   },
   "panel": {
-    "title": "Agen",
     "newConversation": "Percakapan baru",
     "earlierConversations": "Percakapan sebelumnya",
     "noConversations": "Belum ada percakapan tentang basis data ini.",

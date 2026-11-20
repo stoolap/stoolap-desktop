@@ -7,7 +7,6 @@
     "yesterday": "昨日"
   },
   "panel": {
-    "title": "エージェント",
     "newConversation": "新しい会話",
     "earlierConversations": "以前の会話",
     "noConversations": "このデータベースに関する会話はまだありません。",

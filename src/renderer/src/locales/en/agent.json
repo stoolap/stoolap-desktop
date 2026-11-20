@@ -9,7 +9,6 @@
     "yesterday": "yesterday"
   },
   "panel": {
-    "title": "Agent",
     "newConversation": "New conversation",
     "earlierConversations": "Earlier conversations",
     "noConversations": "No conversations about this database yet.",

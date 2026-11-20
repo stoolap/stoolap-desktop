@@ -44,7 +44,7 @@ export function Sidebar() {
   return (
     <div className="h-full flex flex-col">
       {/* Connection header */}
-      <div className="px-1.5 pt-0.5 pb-1 border-b border-border/30">
+      <div className="px-2 pt-0.5 pb-1">
         {connections.length > 0 ? (
           <div className="flex items-center gap-0.5">
             <Select value={activeId ?? ""} onValueChange={setActiveId}>
@@ -54,7 +54,9 @@ export function Sidebar() {
                   <SelectValue placeholder={t("sidebar.selectConnection")} />
                 </div>
               </SelectTrigger>
-              <SelectContent>
+              {/* Below the button: aligned on the chosen item, the list
+                  would rise over macOS' traffic lights */}
+              <SelectContent position="popper" sideOffset={4}>
                 {connections.map((conn) => (
                   <SelectItem key={conn.id} value={conn.id}>
                     <span className="text-xs">{conn.name}</span>
