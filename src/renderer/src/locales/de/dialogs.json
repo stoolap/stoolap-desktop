@@ -17,13 +17,9 @@
     "ip": "Skalarprodukt"
   },
   "about": {
-    "tagline": "Native Datenbankverwaltung für Stoolap",
+    "tagline": "Visuelle Datenbankverwaltung für Stoolap",
     "version": "Version",
-    "engine": "Engine",
-    "builtWith": "Erstellt mit",
-    "copied": "Kopiert",
-    "copyVersions": "Versionen kopieren",
-    "copyFailed": "Kopieren fehlgeschlagen",
+    "poweredBy": "Basiert auf {{engine}}",
     "website": "Website",
     "changelog": "Änderungsprotokoll"
   },

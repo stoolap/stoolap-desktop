@@ -17,13 +17,9 @@
     "ip": "内積"
   },
   "about": {
-    "tagline": "Stoolapのためのネイティブなデータベース管理",
+    "tagline": "Stoolapのためのビジュアルなデータベース管理アプリ",
     "version": "バージョン",
-    "engine": "エンジン",
-    "builtWith": "使用技術",
-    "copied": "コピーしました",
-    "copyVersions": "バージョンをコピー",
-    "copyFailed": "コピーできませんでした",
+    "poweredBy": "{{engine}} で動作",
     "website": "Webサイト",
     "changelog": "変更履歴"
   },

@@ -302,12 +302,10 @@ fn open_panel(app: &tauri::AppHandle, label: &str) {
     }
 }
 
-/// A panel window's title in the app's language. On macOS About has none,
-/// as the system's own About windows don't.
+/// A panel window's title in the app's language
 fn panel_title(app: &tauri::AppHandle, label: &str) -> String {
     let lang = i18n::current(app);
     match label {
-        "about" if cfg!(target_os = "macos") => String::new(),
         "about" => i18n::text(lang, "about"),
         // The menu item's "Settings…" without its ellipsis
         _ => i18n::text(lang, "settings").trim_end_matches(['…', '.']).to_string(),

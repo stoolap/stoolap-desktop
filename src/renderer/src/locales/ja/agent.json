@@ -38,7 +38,7 @@
     "thisTab": "このタブ",
     "writesTitle": "このデータベースを変更するSQL（INSERT、UPDATE、DELETE、DDL）を確認なしでエージェントに実行させます。読み取りは常に実行されます。",
     "allowWrites": "エージェントに書き込みの実行を許可",
-    "runWrites": "書き込みを実行",
+    "runWrites": "書き込みを許可",
     "stop": "停止",
     "send": "送信",
     "anthropicAccount": "Anthropicアカウント",

@@ -17,13 +17,9 @@
     "ip": "内积"
   },
   "about": {
-    "tagline": "Stoolap 原生数据库管理工具",
+    "tagline": "Stoolap 可视化数据库管理应用",
     "version": "版本",
-    "engine": "引擎",
-    "builtWith": "构建工具",
-    "copied": "已复制",
-    "copyVersions": "复制版本信息",
-    "copyFailed": "无法复制",
+    "poweredBy": "由 {{engine}} 驱动",
     "website": "网站",
     "changelog": "更新日志"
   },

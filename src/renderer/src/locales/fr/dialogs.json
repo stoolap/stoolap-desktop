@@ -17,13 +17,9 @@
     "ip": "Produit scalaire"
   },
   "about": {
-    "tagline": "Gestion native de bases de données pour Stoolap",
+    "tagline": "Application visuelle de gestion de bases de données pour Stoolap",
     "version": "Version",
-    "engine": "Moteur",
-    "builtWith": "Conçu avec",
-    "copied": "Copié",
-    "copyVersions": "Copier les versions",
-    "copyFailed": "Impossible de copier",
+    "poweredBy": "Propulsé par {{engine}}",
     "website": "Site web",
     "changelog": "Notes de version"
   },

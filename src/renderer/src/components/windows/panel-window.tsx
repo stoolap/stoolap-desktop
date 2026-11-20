@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { Toaster } from "sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { AboutWindow } from "./about-window";
 import { SettingsWindow } from "./settings-window";
 
@@ -49,9 +48,9 @@ export function PanelWindow({ label }: { label: string }) {
   }, []);
 
   return (
-    <TooltipProvider delayDuration={300}>
+    <>
       <div ref={ref}>{label === "about" ? <AboutWindow /> : <SettingsWindow />}</div>
       <Toaster position="bottom-center" />
-    </TooltipProvider>
+    </>
   );
 }

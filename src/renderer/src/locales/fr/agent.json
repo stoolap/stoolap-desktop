@@ -40,7 +40,7 @@
     "thisTab": "Cet onglet",
     "writesTitle": "Laisser l'agent exécuter sans demander le SQL qui modifie cette base de données (INSERT, UPDATE, DELETE, DDL). Les lectures s'exécutent toujours.",
     "allowWrites": "Autoriser l'agent à exécuter des écritures",
-    "runWrites": "Exécuter les écritures",
+    "runWrites": "Autoriser les écritures",
     "stop": "Arrêter",
     "send": "Envoyer",
     "anthropicAccount": "Compte Anthropic",

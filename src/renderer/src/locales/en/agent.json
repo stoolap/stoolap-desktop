@@ -40,7 +40,7 @@
     "thisTab": "This tab",
     "writesTitle": "Let the agent run SQL that changes this database (INSERT, UPDATE, DELETE, DDL) without asking. Reads always run.",
     "allowWrites": "Allow the agent to run writes",
-    "runWrites": "Run writes",
+    "runWrites": "Allow writes",
     "stop": "Stop",
     "send": "Send",
     "anthropicAccount": "Anthropic account",

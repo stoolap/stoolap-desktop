@@ -38,7 +38,7 @@
     "thisTab": "此分頁",
     "writesTitle": "允許代理程式不經詢問即執行會變更此資料庫的 SQL（INSERT、UPDATE、DELETE、DDL）。讀取一律會執行。",
     "allowWrites": "允許代理程式執行寫入",
-    "runWrites": "執行寫入",
+    "runWrites": "允許寫入",
     "stop": "停止",
     "send": "傳送",
     "anthropicAccount": "Anthropic 帳號",

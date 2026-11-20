@@ -17,13 +17,9 @@
     "ip": "İç Çarpım"
   },
   "about": {
-    "tagline": "Stoolap için yerel veritabanı yönetimi",
+    "tagline": "Stoolap için görsel veritabanı yönetim uygulaması",
     "version": "Sürüm",
-    "engine": "Motor",
-    "builtWith": "Altyapı",
-    "copied": "Kopyalandı",
-    "copyVersions": "Sürümleri kopyala",
-    "copyFailed": "Kopyalanamadı",
+    "poweredBy": "{{engine}} ile çalışır",
     "website": "Web sitesi",
     "changelog": "Değişiklik günlüğü"
   },

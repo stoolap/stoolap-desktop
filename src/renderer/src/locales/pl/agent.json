@@ -44,7 +44,7 @@
     "thisTab": "Ta karta",
     "writesTitle": "Pozwól agentowi bez pytania uruchamiać SQL, który zmienia tę bazę danych (INSERT, UPDATE, DELETE, DDL). Odczyty są uruchamiane zawsze.",
     "allowWrites": "Pozwól agentowi uruchamiać zapisy",
-    "runWrites": "Uruchamiaj zapisy",
+    "runWrites": "Zezwalaj na zapisy",
     "stop": "Zatrzymaj",
     "send": "Wyślij",
     "anthropicAccount": "Konto Anthropic",

@@ -42,7 +42,7 @@
     "thisTab": "Esta pestaña",
     "writesTitle": "Permite que el agente ejecute SQL que modifica esta base de datos (INSERT, UPDATE, DELETE, DDL) sin preguntar. Las lecturas siempre se ejecutan.",
     "allowWrites": "Permitir que el agente ejecute escrituras",
-    "runWrites": "Ejecutar escrituras",
+    "runWrites": "Permitir escrituras",
     "stop": "Detener",
     "send": "Enviar",
     "anthropicAccount": "Cuenta de Anthropic",

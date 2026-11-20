@@ -452,5 +452,5 @@ html[data-platform="windows"] [data-slot="dialog-footer"] {
 
 /* macOS: the line between two panes (as Mail's between its list and the
    message), darker than both, so it reads as a gap rather than a border */
-.pane-divider { width: 3px; background: rgba(0, 0, 0, 0.12); }
+.pane-divider { width: 2px; background: rgba(0, 0, 0, 0.12); }
 .dark .pane-divider { background: rgba(0, 0, 0, 0.55); }

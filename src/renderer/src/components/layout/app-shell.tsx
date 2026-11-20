@@ -276,7 +276,7 @@ export function AppShell() {
                     no panel is open */}
                 <div
                   data-tauri-drag-region
-                  className={cn("flex items-center", IS_MAC && "h-[46px] bg-muted/40", IS_MAC && !sidebarOpen && !agentOpen && "pl-[88px]")}
+                  className={cn("flex items-center", IS_MAC && "h-[46px]", IS_MAC && !sidebarOpen && !agentOpen && "pl-[88px]")}
                 >
                   {!IS_MAC && <SidebarToggle open={sidebarOpen} onToggle={toggleSidebar} />}
                   {/* On macOS the toggles sit by the traffic lights, in the
@@ -361,16 +361,6 @@ export function AppShell() {
               </>
             )}
           </div>
-          {activeTab && (
-            <>
-              <div className="w-px h-3 bg-border/50" />
-              <div className="flex items-center px-3 h-full text-muted-foreground">
-                {activeTab.mode === "data"
-                  ? activeTab.tableName
-                  : activeTab.title}
-              </div>
-            </>
-          )}
           <div className="flex-1" />
           <QueryTimeoutSelect />
         </div>

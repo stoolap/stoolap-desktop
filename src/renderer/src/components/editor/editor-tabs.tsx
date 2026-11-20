@@ -51,11 +51,11 @@ export function EditorTabs() {
 
   return (
     // Its empty space moves the window on macOS, where the tab row is the title bar
-    <div data-tauri-drag-region className="flex h-full items-center bg-muted/40">
+    <div data-tauri-drag-region className="flex h-full items-center gap-1 px-1">
       <div
         ref={tabListRef}
         role="tablist"
-        className="flex min-w-0 items-center self-stretch overflow-x-auto scrollbar-none"
+        className="flex min-w-0 items-center gap-1 self-stretch overflow-x-auto scrollbar-none"
       >
         {tabs.map((tab) => (
           <Tooltip key={tab.id}>
@@ -64,10 +64,11 @@ export function EditorTabs() {
                 role="tab"
                 aria-selected={activeTabId === tab.id}
                 className={cn(
-                  "group flex items-center self-stretch gap-1.5 px-3 py-1.5 text-xs cursor-pointer shrink-0 border-r border-border/15",
+                  // Pills on the toolbar, as macOS 26's tabs
+                  "group my-1.5 flex items-center self-stretch gap-1.5 rounded-lg px-3 py-1 text-xs cursor-pointer shrink-0",
                   activeTabId === tab.id
-                    ? "bg-background text-foreground"
-                    : "text-muted-foreground/70 hover:text-foreground/80 hover:bg-background/40",
+                    ? "bg-foreground/10 text-foreground"
+                    : "text-muted-foreground/70 hover:text-foreground/80 hover:bg-foreground/5",
                 )}
                 onClick={() => setActiveTab(tab.id)}
               >
@@ -137,11 +138,11 @@ export function EditorTabs() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 shrink-0 ml-2 mr-1 opacity-40 hover:opacity-100"
+          className="h-7 w-7 shrink-0 opacity-40 hover:opacity-100"
           onClick={() => addTab()}
           aria-label={t("tabs.newTab")}
         >
-          <Plus className="size-5" />
+          <Plus className="size-[18px]" />
         </Button>
       </Tip>
     </div>

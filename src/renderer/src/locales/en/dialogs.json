@@ -17,13 +17,9 @@
     "ip": "Inner Product"
   },
   "about": {
-    "tagline": "Native database management for Stoolap",
+    "tagline": "Visual database management application for Stoolap",
     "version": "Version",
-    "engine": "Engine",
-    "builtWith": "Built with",
-    "copied": "Copied",
-    "copyVersions": "Copy versions",
-    "copyFailed": "Could not copy",
+    "poweredBy": "Powered by {{engine}}",
     "website": "Website",
     "changelog": "Changelog"
   },

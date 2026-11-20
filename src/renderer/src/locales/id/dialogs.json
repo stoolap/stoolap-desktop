@@ -17,13 +17,9 @@
     "ip": "Hasil Kali Dalam"
   },
   "about": {
-    "tagline": "Manajemen basis data native untuk Stoolap",
+    "tagline": "Aplikasi manajemen basis data visual untuk Stoolap",
     "version": "Versi",
-    "engine": "Mesin",
-    "builtWith": "Dibuat dengan",
-    "copied": "Disalin",
-    "copyVersions": "Salin versi",
-    "copyFailed": "Tidak dapat menyalin",
+    "poweredBy": "Didukung oleh {{engine}}",
     "website": "Situs web",
     "changelog": "Catatan perubahan"
   },
