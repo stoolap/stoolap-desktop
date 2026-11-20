@@ -50,7 +50,7 @@ export function ShortcutsHelpDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" showCloseButton>
         <DialogHeader>
           <DialogTitle>{t("shortcuts.title")}</DialogTitle>
         </DialogHeader>

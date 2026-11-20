@@ -1,11 +1,14 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { initI18n } from "@/lib/i18n";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { followLanguage, initI18n } from "@/lib/i18n";
 import "./globals.css";
 
 // Platform detection for platform-specific CSS (vibrancy, etc.)
 if (navigator.platform.includes("Mac")) {
   document.documentElement.dataset.platform = "mac";
+} else if (navigator.platform.includes("Win")) {
+  document.documentElement.dataset.platform = "windows";
 }
 
 // Follow system dark/light mode
@@ -61,15 +64,19 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", app
 // Listen for system accent color changes
 onAccentColorChanged(applyAccentColor);
 
+// Settings and About are windows of their own on the same page
+const label = getCurrentWindow().label;
+
 // The app loads once the translations have, so its stores and first frame
 // are already in the user's language
 initI18n()
   .catch(() => {})
-  .then(() => import("./App"))
-  .then(({ default: App }) =>
-    ReactDOM.createRoot(document.getElementById("root")!).render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>,
-    ),
+  .then(() => {
+    followLanguage();
+    return label === "main"
+      ? import("./App").then(({ default: App }) => <App />)
+      : import("./components/windows/panel-window").then(({ PanelWindow }) => <PanelWindow label={label} />);
+  })
+  .then((page) =>
+    ReactDOM.createRoot(document.getElementById("root")!).render(<React.StrictMode>{page}</React.StrictMode>),
   );

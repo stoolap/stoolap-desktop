@@ -484,6 +484,7 @@ export function CreateTableDialog({
             {t("actions.cancel")}
           </Button>
           <Button
+            data-default
             onClick={handleCreate}
             disabled={
               loading || !tableName.trim() || !columns.some((c) => c.name)

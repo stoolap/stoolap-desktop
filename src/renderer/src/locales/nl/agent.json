@@ -9,7 +9,6 @@
     "yesterday": "gisteren"
   },
   "panel": {
-    "title": "Agent",
     "newConversation": "Nieuw gesprek",
     "earlierConversations": "Eerdere gesprekken",
     "noConversations": "Nog geen gesprekken over deze database.",

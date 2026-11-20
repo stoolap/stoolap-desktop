@@ -84,7 +84,7 @@ export function Welcome() {
 
         {recent.length > 0 && (
           <div className="flex flex-col gap-1">
-            <h2 className="px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <h2 className="px-3 text-xs font-semibold text-muted-foreground">
               {t("welcome.recent")}
             </h2>
             {recent.map((entry) => (

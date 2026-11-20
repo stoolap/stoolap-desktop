@@ -10,8 +10,6 @@ import { ConnectDialog } from "@/components/dialogs/connect-dialog";
 import { ShortcutsHelpDialog } from "@/components/dialogs/shortcuts-help";
 import { BackupDialog } from "@/components/dialogs/backup-dialog";
 import { RestoreDialog } from "@/components/dialogs/restore-dialog";
-import { AboutDialog } from "@/components/dialogs/about-dialog";
-import { SettingsDialog } from "@/components/dialogs/settings-dialog";
 import { UpdateDialog } from "@/components/dialogs/update-dialog";
 import { toast } from "sonner";
 import * as api from "@/lib/api-client";
@@ -145,8 +143,6 @@ export function Toolbar() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
-  const [aboutOpen, setAboutOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
   const { connections, activeId, setActiveId, connect } = useConnection();
   const addTab = useEditorStore((s) => s.addTab);
@@ -178,8 +174,6 @@ export function Toolbar() {
       native.onMenuLoadExample(() => loadExampleRef.current()),
       native.onMenuBackup(() => setBackupOpen(true)),
       native.onMenuRestore(() => setRestoreOpen(true)),
-      native.onMenuSettings(() => setSettingsOpen(true)),
-      native.onMenuAbout(() => setAboutOpen(true)),
       native.onMenuCheckUpdates(() => setUpdateOpen(true)),
     ];
     return () => cleanups.forEach((c) => c());
@@ -352,8 +346,6 @@ LIMIT 5;`;
       <ShortcutsHelpDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <BackupDialog open={backupOpen} onOpenChange={setBackupOpen} />
       <RestoreDialog open={restoreOpen} onOpenChange={setRestoreOpen} />
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
       <UpdateDialog open={updateOpen} onOpenChange={setUpdateOpen} />
     </>
   );

@@ -17,13 +17,9 @@
     "ip": "Prodotto interno"
   },
   "about": {
-    "tagline": "Gestione nativa dei database per Stoolap",
+    "tagline": "Applicazione visuale di gestione dei database per Stoolap",
     "version": "Versione",
-    "engine": "Motore",
-    "builtWith": "Realizzato con",
-    "copied": "Copiato",
-    "copyVersions": "Copia versioni",
-    "copyFailed": "Impossibile copiare",
+    "poweredBy": "Basato su {{engine}}",
     "website": "Sito web",
     "changelog": "Novità"
   },

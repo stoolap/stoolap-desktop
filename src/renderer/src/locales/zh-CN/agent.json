@@ -7,7 +7,6 @@
     "yesterday": "昨天"
   },
   "panel": {
-    "title": "智能体",
     "newConversation": "新对话",
     "earlierConversations": "之前的对话",
     "noConversations": "还没有关于此数据库的对话。",
@@ -39,7 +38,7 @@
     "thisTab": "此标签页",
     "writesTitle": "允许智能体无需询问即可运行更改此数据库的 SQL（INSERT、UPDATE、DELETE、DDL）。读取始终会运行。",
     "allowWrites": "允许智能体运行写入",
-    "runWrites": "运行写入",
+    "runWrites": "允许写入",
     "stop": "停止",
     "send": "发送",
     "anthropicAccount": "Anthropic 账户",

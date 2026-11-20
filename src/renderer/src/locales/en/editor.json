@@ -111,7 +111,6 @@
     "hours_other": "{{count}} hours",
     "off": "Off",
     "label": "Query timeout",
-    "title": "Query timeout: a query running longer than this is stopped",
     "none": "No query timeout",
     "current": "Query timeout {{timeout}}",
     "heading": "Stop a query that runs longer than:",

@@ -11,7 +11,6 @@
     "yesterday": "ontem"
   },
   "panel": {
-    "title": "Agente",
     "newConversation": "Nova conversa",
     "earlierConversations": "Conversas anteriores",
     "noConversations": "Ainda não há conversas sobre este banco de dados.",
@@ -43,7 +42,7 @@
     "thisTab": "Esta aba",
     "writesTitle": "Permite que o agente execute SQL que altera este banco de dados (INSERT, UPDATE, DELETE, DDL) sem perguntar. Leituras sempre são executadas.",
     "allowWrites": "Permitir que o agente execute escritas",
-    "runWrites": "Executar escritas",
+    "runWrites": "Permitir escritas",
     "stop": "Parar",
     "send": "Enviar",
     "anthropicAccount": "Conta da Anthropic",

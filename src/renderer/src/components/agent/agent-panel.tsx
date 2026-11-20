@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -88,7 +88,13 @@ function transcript(items: AgentItem[]): string {
   return text.length > 12000 ? `…${text.slice(-12000)}` : text;
 }
 
-export function AgentPanel() {
+const IS_MAC = navigator.userAgent.includes("Mac");
+
+/**
+ * `clearLights`: it is the leftmost panel, under macOS' traffic lights, and
+ * `toggles` (the panels' buttons) follow them in its header
+ */
+export function AgentPanel({ clearLights = false, toggles }: { clearLights?: boolean; toggles?: ReactNode }) {
   const { t } = useTranslation("agent");
   const mod = useModKey();
   const [models, setModels] = useState<AgentModel[]>([]);
@@ -337,9 +343,17 @@ export function AgentPanel() {
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Header */}
-      <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border/40 pl-3 pr-1">
-        {/* No icon: the toggle beside the tabs, right next to it, shows it */}
-        <span className="text-xs font-medium">{t("panel.title")}</span>
+      {/* On macOS its header is part of the title bar: on the traffic
+          lights' line, and the window moves from its empty space */}
+      <div
+        data-tauri-drag-region={IS_MAC || undefined}
+        className={cn(
+          "flex h-9 shrink-0 items-center gap-1 pl-3 pr-1",
+          IS_MAC && "h-[46px]",
+          clearLights && "pl-[88px]",
+        )}
+      >
+        {toggles}
         <div className="flex-1" />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -504,7 +518,7 @@ export function AgentPanel() {
           </div>
 
           {/* Composer */}
-          <div className="shrink-0 border-t border-border/40 p-2">
+          <div className="shrink-0 p-2">
             <div className="rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring">
               <Composer
                 ref={inputRef}
@@ -546,23 +560,6 @@ export function AgentPanel() {
                     <SelectItem value="current" className="text-xs">{t("panel.thisTab")}</SelectItem>
                   </SelectContent>
                 </Select>
-                <Tip label={t("panel.writesTitle")}>
-                  <label
-                    className={cn(
-                      // Shrinks (ending in …) before it pushes Send out of a narrow panel
-                      "flex min-w-0 cursor-pointer items-center gap-1.5 whitespace-nowrap px-1.5 text-xs",
-                      allowWrites ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground",
-                    )}
-                  >
-                    <Switch
-                      checked={allowWrites}
-                      onCheckedChange={(v) => setWriteAccess(accessKey, v)}
-                      className="scale-75"
-                      aria-label={t("panel.allowWrites")}
-                    />
-                    <span className="truncate">{t("panel.runWrites")}</span>
-                  </label>
-                </Tip>
                 <div className="flex-1" />
                 {running ? (
                   <Button size="icon" variant="secondary" className="h-6 w-6" onClick={() => {
@@ -578,18 +575,41 @@ export function AgentPanel() {
                 )}
               </div>
             </div>
-            <p className="mt-1 px-1 text-[11px] text-muted-foreground/70">
-              {backend === "claude-code"
-                ? `Claude Code${info?.claudeCode?.version ? ` ${info.claudeCode.version.split(" ")[0]}` : ""}`
-                : backend === "console"
-                  ? t("panel.anthropicAccount")
-                  : backend === "codex"
-                    ? t("panel.chatgptViaCodex")
-                    : backend === "openai"
-                      ? t("panel.openaiKey")
-                      : t("panel.anthropicKey")}{" "}
-              · {t("panel.hints", { mod })}
-            </p>
+            {/* Under the box: how the agent runs (its keys in the tooltip)
+                and, with room to show its label, whether it may write */}
+            <div className="mt-1 flex items-center gap-2 px-1">
+              <Tip label={t("panel.hints", { mod })}>
+                <span className="min-w-0 truncate text-[11px] text-muted-foreground/70">
+                  {backend === "claude-code"
+                    ? `Claude Code${info?.claudeCode?.version ? ` ${info.claudeCode.version.split(" ")[0]}` : ""}`
+                    : backend === "console"
+                      ? t("panel.anthropicAccount")
+                      : backend === "codex"
+                        ? t("panel.chatgptViaCodex")
+                        : backend === "openai"
+                          ? t("panel.openaiKey")
+                          : t("panel.anthropicKey")}
+                </span>
+              </Tip>
+              <div className="flex-1" />
+              <Tip label={t("panel.writesTitle")}>
+                <label
+                  className={cn(
+                    // Keeps its label: the line's other text gives way
+                    "flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap text-xs",
+                    allowWrites ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground",
+                  )}
+                >
+                  <Switch
+                    checked={allowWrites}
+                    onCheckedChange={(v) => setWriteAccess(accessKey, v)}
+                    className="scale-75"
+                    aria-label={t("panel.allowWrites")}
+                  />
+                  <span>{t("panel.runWrites")}</span>
+                </label>
+              </Tip>
+            </div>
           </div>
         </>
       )}

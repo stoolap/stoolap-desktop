@@ -124,7 +124,6 @@
     "hours_many": "{{count}} horas",
     "off": "Desactivado",
     "label": "Tiempo límite de consulta",
-    "title": "Tiempo límite de consulta: se detiene una consulta que tarde más que esto",
     "none": "Sin tiempo límite de consulta",
     "current": "Tiempo límite de consulta: {{timeout}}",
     "heading": "Detener una consulta que tarde más de:",

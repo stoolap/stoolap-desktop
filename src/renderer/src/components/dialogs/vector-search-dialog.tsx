@@ -231,7 +231,7 @@ export function VectorSearchDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col" showCloseButton>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Waypoints className="h-5 w-5 text-purple-500" />

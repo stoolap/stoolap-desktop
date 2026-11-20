@@ -17,13 +17,9 @@
     "ip": "Iloczyn skalarny"
   },
   "about": {
-    "tagline": "Natywne zarządzanie bazami danych Stoolap",
+    "tagline": "Wizualna aplikacja do zarządzania bazami danych Stoolap",
     "version": "Wersja",
-    "engine": "Silnik",
-    "builtWith": "Zbudowano z",
-    "copied": "Skopiowano",
-    "copyVersions": "Kopiuj wersje",
-    "copyFailed": "Nie udało się skopiować",
+    "poweredBy": "Napędzane przez {{engine}}",
     "website": "Strona internetowa",
     "changelog": "Lista zmian"
   },

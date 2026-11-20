@@ -17,13 +17,9 @@
     "ip": "내적"
   },
   "about": {
-    "tagline": "Stoolap을 위한 네이티브 데이터베이스 관리",
+    "tagline": "Stoolap을 위한 비주얼 데이터베이스 관리 앱",
     "version": "버전",
-    "engine": "엔진",
-    "builtWith": "사용 기술",
-    "copied": "복사됨",
-    "copyVersions": "버전 복사",
-    "copyFailed": "복사할 수 없습니다",
+    "poweredBy": "{{engine}} 기반",
     "website": "웹사이트",
     "changelog": "변경 내역"
   },

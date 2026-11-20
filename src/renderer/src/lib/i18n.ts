@@ -1,6 +1,7 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 /** The app's languages, each named in itself. Codes match src-tauri/src/i18n.rs */
 export const LANGUAGES = [
@@ -65,6 +66,11 @@ export async function setLanguage(preference: string): Promise<LanguageInfo> {
   const info = await invoke<LanguageInfo>("set_language", { preference });
   await show(info.language);
   return info;
+}
+
+/** Switch when another window (Settings) changes the language */
+export function followLanguage(): void {
+  listen<string>("app:language", (e) => show(e.payload)).catch(() => {});
 }
 
 /** The app's language, for formatting numbers and dates */

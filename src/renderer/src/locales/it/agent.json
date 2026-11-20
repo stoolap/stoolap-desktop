@@ -11,7 +11,6 @@
     "yesterday": "ieri"
   },
   "panel": {
-    "title": "Agente",
     "newConversation": "Nuova conversazione",
     "earlierConversations": "Conversazioni precedenti",
     "noConversations": "Ancora nessuna conversazione su questo database.",
@@ -43,7 +42,7 @@
     "thisTab": "Questa scheda",
     "writesTitle": "Consenti all'agente di eseguire senza chiedere SQL che modifica questo database (INSERT, UPDATE, DELETE, DDL). Le letture vengono sempre eseguite.",
     "allowWrites": "Consenti all'agente di eseguire scritture",
-    "runWrites": "Esegui scritture",
+    "runWrites": "Consenti scritture",
     "stop": "Interrompi",
     "send": "Invia",
     "anthropicAccount": "Account Anthropic",

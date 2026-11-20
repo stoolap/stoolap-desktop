@@ -7,7 +7,6 @@
     "yesterday": "kemarin"
   },
   "panel": {
-    "title": "Agen",
     "newConversation": "Percakapan baru",
     "earlierConversations": "Percakapan sebelumnya",
     "noConversations": "Belum ada percakapan tentang basis data ini.",
@@ -39,7 +38,7 @@
     "thisTab": "Tab ini",
     "writesTitle": "Izinkan agen menjalankan SQL yang mengubah basis data ini (INSERT, UPDATE, DELETE, DDL) tanpa bertanya. Pembacaan selalu dijalankan.",
     "allowWrites": "Izinkan agen menjalankan penulisan",
-    "runWrites": "Jalankan penulisan",
+    "runWrites": "Izinkan penulisan",
     "stop": "Hentikan",
     "send": "Kirim",
     "anthropicAccount": "Akun Anthropic",

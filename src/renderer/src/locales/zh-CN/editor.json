@@ -98,7 +98,6 @@
     "hours_other": "{{count}} 小时",
     "off": "关",
     "label": "查询超时",
-    "title": "查询超时：运行时间超过此值的查询将被停止",
     "none": "无查询超时",
     "current": "查询超时 {{timeout}}",
     "heading": "停止运行时间超过以下值的查询：",

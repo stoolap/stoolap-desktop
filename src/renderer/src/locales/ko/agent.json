@@ -7,7 +7,6 @@
     "yesterday": "어제"
   },
   "panel": {
-    "title": "에이전트",
     "newConversation": "새 대화",
     "earlierConversations": "이전 대화",
     "noConversations": "이 데이터베이스에 대한 대화가 아직 없습니다.",
@@ -39,7 +38,7 @@
     "thisTab": "이 탭",
     "writesTitle": "에이전트가 묻지 않고 이 데이터베이스를 변경하는 SQL(INSERT, UPDATE, DELETE, DDL)을 실행하도록 허용합니다. 읽기는 항상 실행됩니다.",
     "allowWrites": "에이전트의 쓰기 실행 허용",
-    "runWrites": "쓰기 실행",
+    "runWrites": "쓰기 허용",
     "stop": "중지",
     "send": "보내기",
     "anthropicAccount": "Anthropic 계정",

@@ -137,7 +137,6 @@
     "hours_other": "{{count}} godziny",
     "off": "Wył.",
     "label": "Limit czasu zapytania",
-    "title": "Limit czasu zapytania: zapytanie trwające dłużej zostanie zatrzymane",
     "none": "Brak limitu czasu zapytania",
     "current": "Limit czasu zapytania: {{timeout}}",
     "heading": "Zatrzymaj zapytanie trwające dłużej niż:",

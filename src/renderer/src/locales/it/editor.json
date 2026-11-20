@@ -124,7 +124,6 @@
     "hours_many": "{{count}} ore",
     "off": "Disattivato",
     "label": "Timeout query",
-    "title": "Timeout query: una query che dura più di questo viene interrotta",
     "none": "Nessun timeout query",
     "current": "Timeout query: {{timeout}}",
     "heading": "Interrompi una query che dura più di:",

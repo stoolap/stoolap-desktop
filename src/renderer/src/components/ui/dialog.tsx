@@ -6,6 +6,10 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
+// Each platform's own dialog: a sheet under the title bar on macOS, a
+// centered dialog elsewhere (Windows' footer band is in globals.css)
+const IS_MAC = navigator.userAgent.includes("Mac");
+
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -38,7 +42,9 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
+        "fixed inset-0 z-50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
+        // A sheet barely dims its window
+        IS_MAC ? "bg-black/25" : "bg-black/50",
         className,
       )}
       {...props}
@@ -46,23 +52,49 @@ function DialogOverlay({
   );
 }
 
+/**
+ * Native dialogs have no X: Cancel and Esc close them. Pass showCloseButton
+ * for one without a button that does. Return presses the button marked
+ * `data-default` (none in a form, which submits on its own).
+ */
 function DialogContent({
   className,
   children,
-  showCloseButton = true,
+  showCloseButton = false,
+  onKeyDown,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
+  const pressDefault = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    onKeyDown?.(e);
+    if (e.defaultPrevented || e.key !== "Enter" || e.nativeEvent.isComposing) return;
+    if (e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("textarea, [contenteditable], button, a, [role=combobox], form")) return;
+    const button = e.currentTarget.querySelector<HTMLButtonElement>("[data-default]:not(:disabled)");
+    if (button) {
+      e.preventDefault();
+      button.click();
+    }
+  };
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
+      {/* One column as wide as the dialog (minmax(0, 1fr)): an auto column
+          grows to the widest content, such as a long path meant to truncate,
+          and spills past the padding */}
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          "fixed left-[50%] z-50 grid w-full grid-cols-[minmax(0,1fr)] max-w-[calc(100%-2rem)] translate-x-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 sm:max-w-lg",
+          // macOS: slides down from under the title bar; elsewhere centered
+          IS_MAC
+            ? "top-[52px] rounded-[14px] data-[state=open]:slide-in-from-top-4 data-[state=closed]:slide-out-to-top-4"
+            : "top-[50%] translate-y-[-50%]",
           className,
         )}
+        onKeyDown={pressDefault}
         {...props}
       >
         {children}

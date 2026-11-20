@@ -111,7 +111,6 @@
     "hours_other": "{{count}} uur",
     "off": "Uit",
     "label": "Query-time-out",
-    "title": "Query-time-out: een query die langer duurt, wordt gestopt",
     "none": "Geen query-time-out",
     "current": "Query-time-out {{timeout}}",
     "heading": "Een query stoppen die langer duurt dan:",

@@ -111,7 +111,6 @@
     "hours_other": "{{count}} saat",
     "off": "Kapalı",
     "label": "Sorgu zaman aşımı",
-    "title": "Sorgu zaman aşımı: bundan uzun süren sorgu durdurulur",
     "none": "Sorgu zaman aşımı yok",
     "current": "Sorgu zaman aşımı: {{timeout}}",
     "heading": "Şu süreden uzun süren sorguyu durdur:",

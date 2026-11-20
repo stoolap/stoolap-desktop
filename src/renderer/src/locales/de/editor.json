@@ -111,7 +111,6 @@
     "hours_other": "{{count}} Stunden",
     "off": "Aus",
     "label": "Zeitlimit für Abfragen",
-    "title": "Zeitlimit für Abfragen: Eine Abfrage, die länger läuft, wird gestoppt",
     "none": "Kein Zeitlimit für Abfragen",
     "current": "Zeitlimit für Abfragen: {{timeout}}",
     "heading": "Abfrage stoppen, wenn sie länger läuft als:",

@@ -9,7 +9,6 @@
     "yesterday": "gestern"
   },
   "panel": {
-    "title": "Agent",
     "newConversation": "Neue Unterhaltung",
     "earlierConversations": "Frühere Unterhaltungen",
     "noConversations": "Noch keine Unterhaltungen zu dieser Datenbank.",
@@ -41,7 +40,7 @@
     "thisTab": "Dieser Tab",
     "writesTitle": "Den Agent SQL, das diese Datenbank ändert (INSERT, UPDATE, DELETE, DDL), ohne Rückfrage ausführen lassen. Lesezugriffe laufen immer.",
     "allowWrites": "Agent darf Schreibzugriffe ausführen",
-    "runWrites": "Schreibzugriffe ausführen",
+    "runWrites": "Schreibzugriffe erlauben",
     "stop": "Stoppen",
     "send": "Senden",
     "anthropicAccount": "Anthropic-Konto",

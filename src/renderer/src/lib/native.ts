@@ -210,14 +210,6 @@ export function onMenuToggleAgent(callback: () => void): () => void {
   return onEvent("menu:toggle-agent", callback);
 }
 
-export function onMenuSettings(callback: () => void): () => void {
-  return onEvent("menu:settings", callback);
-}
-
-export function onMenuAbout(callback: () => void): () => void {
-  return onEvent("menu:about", callback);
-}
-
 export function onMenuCheckUpdates(callback: () => void): () => void {
   return onEvent("menu:check-updates", callback);
 }

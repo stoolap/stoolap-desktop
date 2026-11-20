@@ -4,7 +4,24 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
-## v0.5.9
+## v0.5.10
+
+### Look and feel
+- On macOS the window is laid out as the system's own apps: the sidebar is a card with the window buttons inside it, the tabs sit in the title bar, and the top strip is gone, so the editor gets more room. The sidebar slides open and shut.
+- The agent's panel sits between the sidebar and the editor, full height. Its button and the sidebar's are next to the window buttons.
+- The sidebar has roomier rows, plain icons and no dividing lines; tabs are rounded, and the editor uses the same background as the rest of the app.
+- Text is larger: 15px for the interface, 14px in the editor.
+
+### Dialogs and windows
+- Dialogs open as the system's own: on macOS as a sheet under the title bar, on Windows with the buttons along the bottom. They close with Cancel or Esc, without an X, and Return confirms the safe ones (Backup, Create Table, Index and View).
+- Settings and About open in windows of their own. Settings' language list is the system's menu; About shows the versions as text you can select and copy.
+
+### Agent
+- The switch that lets the agent change data is now called **Allow writes** and sits under the message box, where its label fits.
+
+### Fixes
+- The Open Database dialog no longer spills out of its window when a recent database has a long path.
+
 
 ### Fixes
 - **Query Using Index** on an index over several columns now writes one condition per column, in the index's order. Before, it treated the whole column list as one column name, and the query failed.

@@ -7,7 +7,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::sync::{OnceLock, RwLock};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 /// The `native` translations of each language. English is the fallback.
 const NATIVE: &[(&str, &str)] = &[
@@ -192,7 +192,11 @@ pub fn set_language(app: AppHandle, preference: String) -> Result<LanguageInfo, 
         .map_err(|e| e.to_string())?;
     set_current(current(&app));
     crate::build_menu(&app).map_err(|e| e.to_string())?;
-    Ok(info(&app))
+    crate::retitle_panels(&app);
+    let info = info(&app);
+    // Every window follows, not only the one that changed it
+    let _ = app.emit("app:language", &info.language);
+    Ok(info)
 }
 
 #[cfg(test)]

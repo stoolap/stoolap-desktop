@@ -17,13 +17,9 @@
     "ip": "Inwendig product"
   },
   "about": {
-    "tagline": "Native databasebeheer voor Stoolap",
+    "tagline": "Visuele databasebeheerapp voor Stoolap",
     "version": "Versie",
-    "engine": "Engine",
-    "builtWith": "Gemaakt met",
-    "copied": "Gekopieerd",
-    "copyVersions": "Versies kopiëren",
-    "copyFailed": "Kan niet kopiëren",
+    "poweredBy": "Aangedreven door {{engine}}",
     "website": "Website",
     "changelog": "Wijzigingslogboek"
   },

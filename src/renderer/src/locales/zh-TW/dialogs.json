@@ -17,13 +17,9 @@
     "ip": "內積"
   },
   "about": {
-    "tagline": "Stoolap 原生資料庫管理工具",
+    "tagline": "Stoolap 視覺化資料庫管理應用程式",
     "version": "版本",
-    "engine": "引擎",
-    "builtWith": "建置工具",
-    "copied": "已複製",
-    "copyVersions": "複製版本資訊",
-    "copyFailed": "無法複製",
+    "poweredBy": "由 {{engine}} 驅動",
     "website": "網站",
     "changelog": "變更記錄"
   },

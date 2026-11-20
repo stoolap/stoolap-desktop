@@ -3,7 +3,7 @@
 
   <h1>Stoolap Desktop</h1>
 
-  <p>Native desktop database manager for <a href="https://github.com/stoolap/stoolap">Stoolap</a>.</p>
+  <p>Visual database management application for <a href="https://github.com/stoolap/stoolap">Stoolap</a>.</p>
 
   <p>
     <a href="https://github.com/stoolap/stoolap-desktop/actions/workflows/ci.yml"><img src="https://github.com/stoolap/stoolap-desktop/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -17,7 +17,7 @@
 
 Stoolap Desktop is a lightweight native database client for the [Stoolap](https://github.com/stoolap/stoolap) embedded SQL engine. It embeds the Rust engine directly — no server, no bundled Chromium, no Node runtime — so the download stays under 10 MB and the app talks to your database at in-process speed.
 
-Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 frontend) and React. Stoolap Desktop 0.5.9 embeds Stoolap 0.5.0 from crates.io, with the engine's jemalloc allocator.
+Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 frontend) and React. Stoolap Desktop 0.5.10 embeds Stoolap 0.5.0 from crates.io, with the engine's jemalloc allocator.
 
 ## Why Stoolap Desktop?
 
@@ -26,7 +26,7 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 - **Full Stoolap feature surface** — time-travel queries (`AS OF TIMESTAMP`), HNSW vector search, multi-column indexes, MVCC transactions, and rich DDL are first-class in the UI, not bolted on.
 - **SQL agent that knows Stoolap** — Claude or ChatGPT writes and runs SQL in your query tab, with a Stoolap dialect guide tested against the engine; changes to data only run when you allow them.
 - **16 languages** — the interface and menus follow your system language, or the one you pick in Settings.
-- **Native feel on macOS** — overlay title bar, system accent color, system appearance follows light/dark, native context menus and file dialogs.
+- **Native feel on macOS** — laid out as macOS 26's own apps: the sidebar a card with the traffic lights inside it, the tab row as the title bar, dialogs as sheets, Settings and About in windows of their own; the system accent color, light/dark appearance, native context menus and file dialogs.
 - **Auto-update built in** — code-signed updater ships new versions over a GitHub Releases feed.
 
 ## Screenshots
@@ -48,14 +48,14 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 - Query timeout in the status bar (30 s to 1 hour, or off; 5 min by default): the engine cancels statements that run longer. **Stop** only stops waiting, because the engine cannot interrupt a statement from outside; the timeout is what ends it
 
 ### SQL Agent
-- Right-hand panel (`Cmd/Ctrl+L`, or the sparkle button next to the tabs) that writes, fixes, explains and speeds up the SQL in the current tab
+- A panel between the sidebar and the editor (`Cmd/Ctrl+L`, or the sparkle button: by the traffic lights on macOS, beside the tabs elsewhere) that writes, fixes, explains and speeds up the SQL in the current tab
 - Runs through your local Claude Code (your own Claude sign-in and plan) when it is installed. Otherwise it calls the Claude API with your Anthropic account, signed in with the browser (billed to your Console organization; nothing to install or copy), or with an API key. It can also use ChatGPT, through your local Codex signed in with your ChatGPT account, or the OpenAI API with a key
-- Pick the model in the panel: Claude Opus 5.5 (default), Sonnet 5.5, Haiku 5.5 or Fable 5.2; with ChatGPT, the models your account or key offers
+- Pick the model in the panel. With an Anthropic API key or sign-in the list comes from your account (newest first, the models the agent can run on), so new Claude models show without an app update; Claude Code offers Opus 5.5 (default), Sonnet 5.5, Haiku 5.5 and Fable 5.2. With ChatGPT, the models your account or key offers
 - Knows Stoolap: every request carries a guide to Stoolap's SQL dialect (every type and function that exists, statement syntax, what fails and what to write instead, how the planner uses indexes), checked against the engine: `cargo test` runs each of its examples. For details it searches and reads the bundled Stoolap 0.5 documentation (55 pages)
 - Works in a query tab, in front of you: a new tab of its own by default, or the tab you are on ("New tab" / "This tab"). The SQL appears in the editor as it is written, runs there and fills the result grid, and the agent reads the outcome (up to 50 rows and how long each statement took, sent to the provider you chose) and continues, pausing briefly between runs so you can follow along. Each edit can be undone from the panel
 - Quick checks without touching your tab: to verify something (a count, whether a value exists, a plan) the agent runs one read-only statement in a transaction that is rolled back. Each check shows in the panel as a step that opens to the SQL and the rows it returned
 - It can read your other query tabs, see where the database lives (in memory, or its folder, which matters for `COPY` paths), and look back at your recent runs on that database with their timings, to tell when a query got slower
-- Reads always run. SQL that changes data (INSERT, UPDATE, DELETE, DDL) or a script of several statements runs only when you allow writes for that database ("Run writes", off by default); otherwise it is written into the tab and waits for your **Run**
+- Reads always run. SQL that changes data (INSERT, UPDATE, DELETE, DDL) or a script of several statements runs only when you allow writes for that database ("Allow writes", off by default); otherwise it is written into the tab and waits for your **Run**
 - **Fix with agent** on a query error
 - Earlier conversations for each database (the history button); a conversation picked up after a restart sends its earlier messages along
 - `↑`/`↓` recall earlier requests, `Tab` takes a completion drawn from them and the schema, `@` inserts table and column names, and suggested requests follow the open tab (its error, selection, SQL) and the tables
@@ -89,6 +89,7 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 ### Index Management
 - Create standard or HNSW indexes via dialog; the engine picks the standard index type (B-tree for TEXT columns since Stoolap 0.5.0), and `CREATE INDEX ... USING HASH | BITMAP` in the editor sets it explicitly
 - Multi-column indexes, `UNIQUE` option, named constraints
+- **Query Using Index** writes a query that uses an index: one condition per column, in the index's order, with a value of each column's type to replace
 - k-NN search template generation from any HNSW index
 
 ### Table & View Management
@@ -105,7 +106,9 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 - HNSW index parameters (`metric`, `m`, `ef_construction`) are preserved in the backup and re-applied on restore
 
 ### Native Integration
-- macOS: overlay title bar with hidden title, system accent color live-tracked, native context menus, proper app menu with `About`, `Check for Updates…`, `Settings…`, services submenu, quit
+- macOS: the sidebar is a card inset from the window's edges with the traffic lights inside it, and slides open and shut; the tab row is the title bar (the window moves and zooms from its empty space); dialogs open as sheets under the title bar, with Cancel and Esc rather than an X; system accent color live-tracked, native context menus, proper app menu with `About`, `Check for Updates…`, `Settings…`, services submenu, quit
+- Settings and About open in windows of their own; Settings' language picker is the system's pop-up menu
+- Windows: dialogs as Windows 11's, the buttons on a band along the bottom with the main one first
 - System notifications on long-running operations (backup complete, export finished, import complete), and for a query that ran 10 s or more while the window was in the background
 - Native file / folder dialogs via the OS picker
 - Drop a database folder onto the window to open it, or a `.sql` file to open it in a new tab

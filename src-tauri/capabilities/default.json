@@ -1,12 +1,19 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
-  "windows": ["main"],
+  "description": "Capability for the main window and the Settings and About windows",
+  "windows": [
+    "main",
+    "settings",
+    "about"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
     "core:window:allow-internal-toggle-maximize",
+    "core:window:allow-set-focus",
+    "core:window:allow-show",
+    "core:window:allow-set-size",
     "dialog:default",
     "dialog:allow-open",
     "dialog:allow-save",

@@ -13,7 +13,6 @@
     "yesterday": "вчера"
   },
   "panel": {
-    "title": "Агент",
     "newConversation": "Новый диалог",
     "earlierConversations": "Предыдущие диалоги",
     "noConversations": "Диалогов об этой базе данных пока нет.",
@@ -45,7 +44,7 @@
     "thisTab": "Эта вкладка",
     "writesTitle": "Разрешить агенту без подтверждения выполнять SQL, изменяющий эту базу данных (INSERT, UPDATE, DELETE, DDL). Чтение выполняется всегда.",
     "allowWrites": "Разрешить агенту выполнять запись",
-    "runWrites": "Выполнять запись",
+    "runWrites": "Разрешить запись",
     "stop": "Остановить",
     "send": "Отправить",
     "anthropicAccount": "Аккаунт Anthropic",
