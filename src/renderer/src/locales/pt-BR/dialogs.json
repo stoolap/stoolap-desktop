@@ -1,10 +1,4 @@
 {
-  "settings": {
-    "title": "Ajustes",
-    "language": "Idioma",
-    "system": "Sistema ({{language}})",
-    "languageHint": "Sistema segue o idioma do seu computador. As traduções podem ser melhoradas no GitHub."
-  },
   "actions": {
     "cancel": "Cancelar",
     "close": "Fechar",
@@ -17,11 +11,7 @@
     "ip": "Produto interno"
   },
   "about": {
-    "tagline": "Aplicativo visual de gerenciamento de banco de dados para Stoolap",
-    "version": "Versão",
-    "poweredBy": "Com tecnologia {{engine}}",
-    "website": "Site",
-    "changelog": "Novidades"
+    "version": "Versão"
   },
   "shortcuts": {
     "title": "Atalhos de teclado",

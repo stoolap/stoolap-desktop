@@ -33,8 +33,6 @@
     "ok": "OK",
     "bookmarks": "Bookmarks",
     "removeBookmark": "Remove bookmark {{name}}",
-    "statsRows_one": "{{count}} row | {{time}}ms",
-    "statsRows_other": "{{count}} rows | {{time}}ms",
     "statsChanges": "{{count}} affected | {{time}}ms"
   },
   "sqlEditor": {

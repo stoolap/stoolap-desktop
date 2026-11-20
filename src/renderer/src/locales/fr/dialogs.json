@@ -1,10 +1,4 @@
 {
-  "settings": {
-    "title": "Réglages",
-    "language": "Langue",
-    "system": "Système ({{language}})",
-    "languageHint": "« Système » suit la langue de votre ordinateur. Les traductions peuvent être améliorées sur GitHub."
-  },
   "actions": {
     "cancel": "Annuler",
     "close": "Fermer",
@@ -17,11 +11,7 @@
     "ip": "Produit scalaire"
   },
   "about": {
-    "tagline": "Application visuelle de gestion de bases de données pour Stoolap",
-    "version": "Version",
-    "poweredBy": "Propulsé par {{engine}}",
-    "website": "Site web",
-    "changelog": "Notes de version"
+    "version": "Version"
   },
   "shortcuts": {
     "title": "Raccourcis clavier",

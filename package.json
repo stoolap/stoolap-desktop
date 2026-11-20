@@ -1,6 +1,6 @@
 {
   "name": "stoolap-desktop",
-  "version": "0.5.10",
+  "version": "0.5.11",
   "description": "Stoolap Desktop - Native database management for Stoolap",
   "scripts": {
     "tauri": "tauri",
@@ -23,7 +23,6 @@
     "@tauri-apps/plugin-dialog": "^2.7.0",
     "@tauri-apps/plugin-fs": "^2.5.0",
     "@tauri-apps/plugin-notification": "^2.3.3",
-    "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
     "@uiw/react-codemirror": "^4.25.7",
     "class-variance-authority": "^0.7.1",

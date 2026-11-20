@@ -33,7 +33,6 @@
     "ok": "확인",
     "bookmarks": "북마크",
     "removeBookmark": "북마크 {{name}} 제거",
-    "statsRows_other": "{{count}}행 | {{time}}ms",
     "statsChanges": "{{count}}행 영향 | {{time}}ms"
   },
   "sqlEditor": {

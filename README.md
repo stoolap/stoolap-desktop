@@ -17,7 +17,7 @@
 
 Stoolap Desktop is a lightweight native database client for the [Stoolap](https://github.com/stoolap/stoolap) embedded SQL engine. It embeds the Rust engine directly — no server, no bundled Chromium, no Node runtime — so the download stays under 10 MB and the app talks to your database at in-process speed.
 
-Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 frontend) and React. Stoolap Desktop 0.5.10 embeds Stoolap 0.5.0 from crates.io, with the engine's jemalloc allocator.
+Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 frontend) and React. Stoolap Desktop 0.5.11 embeds Stoolap 0.5.0 from crates.io, with the engine's jemalloc allocator.
 
 ## Why Stoolap Desktop?
 
@@ -25,8 +25,8 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 - **In-process engine** — `stoolap` is linked as a Rust crate. There is no IPC to a driver, no "connector" to misconfigure, and transactions run at the same latency the underlying engine gives you.
 - **Full Stoolap feature surface** — time-travel queries (`AS OF TIMESTAMP`), HNSW vector search, multi-column indexes, MVCC transactions, and rich DDL are first-class in the UI, not bolted on.
 - **SQL agent that knows Stoolap** — Claude or ChatGPT writes and runs SQL in your query tab, with a Stoolap dialect guide tested against the engine; changes to data only run when you allow them.
-- **16 languages** — the interface and menus follow your system language, or the one you pick in Settings.
-- **Native feel on macOS** — laid out as macOS 26's own apps: the sidebar a card with the traffic lights inside it, the tab row as the title bar, dialogs as sheets, Settings and About in windows of their own; the system accent color, light/dark appearance, native context menus and file dialogs.
+- **16 languages** — the interface and menus follow your system language, or the one you pick in the Language menu.
+- **Native feel on macOS** — laid out as macOS 26's own apps: the sidebar a card with the traffic lights inside it, the tab row as the title bar, dialogs as sheets, the system's own About panel; the system accent color, light/dark appearance, native context menus and file dialogs.
 - **Auto-update built in** — code-signed updater ships new versions over a GitHub Releases feed.
 
 ## Screenshots
@@ -106,15 +106,15 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 - HNSW index parameters (`metric`, `m`, `ef_construction`) are preserved in the backup and re-applied on restore
 
 ### Native Integration
-- macOS: the sidebar is a card inset from the window's edges with the traffic lights inside it, and slides open and shut; the tab row is the title bar (the window moves and zooms from its empty space); dialogs open as sheets under the title bar, with Cancel and Esc rather than an X; system accent color live-tracked, native context menus, proper app menu with `About`, `Check for Updates…`, `Settings…`, services submenu, quit
-- Settings and About open in windows of their own; Settings' language picker is the system's pop-up menu
+- macOS: the sidebar is a card inset from the window's edges with the traffic lights inside it, and slides open and shut; the tab row is the title bar (the window moves and zooms from its empty space); dialogs open as sheets under the title bar, with Cancel and Esc rather than an X; system accent color live-tracked, native context menus, proper app menu with `About`, `Check for Updates…`, `Language`, services submenu, quit
+- About is the system's own panel on macOS, and a window of its own elsewhere
 - Windows: dialogs as Windows 11's, the buttons on a band along the bottom with the main one first
 - System notifications on long-running operations (backup complete, export finished, import complete), and for a query that ran 10 s or more while the window was in the background
 - Native file / folder dialogs via the OS picker
 - Drop a database folder onto the window to open it, or a `.sql` file to open it in a new tab
 - `File → Open Recent` lists recently opened databases
 - Single instance: launching the app again focuses the open window; a database folder passed on the command line opens there
-- Windows and Linux: `File → Settings…`, and a `Help` menu with `Check for Updates…` and `About`
+- Windows and Linux: `View → Language`, and a `Help` menu with `Check for Updates…` and `About`
 - Window state persistence — size, position, and maximized state restore on next launch
 - Single-process: the engine is linked in, not spawned
 
@@ -125,7 +125,7 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 
 ### Languages
 - English, Türkçe, Deutsch, Français, Español, Português (Brasil), Italiano, Nederlands, Polski, Русский, Українська, 日本語, 한국어, 简体中文, 繁體中文 and Bahasa Indonesia, menus included
-- Follows the system language; **Settings… (`Cmd/Ctrl + ,`)** picks another one, which then stays
+- Follows the system language; the **Language** menu (in the app menu on macOS, in View elsewhere) picks another one, which then stays
 
 ### Auto-Update
 - Bundled `tauri-plugin-updater` checks a signed `latest.json` feed on GitHub Releases
@@ -186,7 +186,6 @@ Download the `_x64-setup.exe` or `_x64_en-US.msi` installer from the [latest rel
 | `Cmd/Ctrl + O` | Open database |
 | `Cmd/Ctrl + N` | New in-memory database |
 | `Cmd/Ctrl + Shift + S` | Backup database |
-| `Cmd/Ctrl + ,` | Settings (language) |
 | `Cmd/Ctrl + ?` | Show this help |
 
 ## Building from Source

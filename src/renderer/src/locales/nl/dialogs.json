@@ -1,10 +1,4 @@
 {
-  "settings": {
-    "title": "Instellingen",
-    "language": "Taal",
-    "system": "Systeem ({{language}})",
-    "languageHint": "Systeem volgt de taal van je computer. Vertalingen kunnen worden verbeterd op GitHub."
-  },
   "actions": {
     "cancel": "Annuleren",
     "close": "Sluiten",
@@ -17,11 +11,7 @@
     "ip": "Inwendig product"
   },
   "about": {
-    "tagline": "Visuele databasebeheerapp voor Stoolap",
-    "version": "Versie",
-    "poweredBy": "Aangedreven door {{engine}}",
-    "website": "Website",
-    "changelog": "Wijzigingslogboek"
+    "version": "Versie"
   },
   "shortcuts": {
     "title": "Toetscombinaties",

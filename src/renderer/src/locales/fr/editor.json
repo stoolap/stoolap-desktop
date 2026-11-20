@@ -33,8 +33,6 @@
     "ok": "OK",
     "bookmarks": "Signets",
     "removeBookmark": "Supprimer le signet {{name}}",
-    "statsRows_one": "{{count}} ligne | {{time}} ms",
-    "statsRows_other": "{{count}} lignes | {{time}} ms",
     "statsChanges": "Lignes affectées : {{count}} | {{time}} ms"
   },
   "sqlEditor": {

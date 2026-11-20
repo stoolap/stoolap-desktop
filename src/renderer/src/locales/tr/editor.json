@@ -33,8 +33,6 @@
     "ok": "Tamam",
     "bookmarks": "Yer imleri",
     "removeBookmark": "Yer imini kaldır: {{name}}",
-    "statsRows_one": "{{count}} satır | {{time}}ms",
-    "statsRows_other": "{{count}} satır | {{time}}ms",
     "statsChanges": "{{count}} etkilendi | {{time}}ms"
   },
   "sqlEditor": {

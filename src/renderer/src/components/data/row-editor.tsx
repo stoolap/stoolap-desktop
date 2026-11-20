@@ -109,7 +109,7 @@ export function RowEditorDialog({
           <DialogTitle>{t("rowEditor.title")}</DialogTitle>
         </DialogHeader>
         <form
-          className="space-y-3 py-2"
+          className="space-y-3 pt-2"
           onSubmit={(e) => {
             e.preventDefault();
             if (!loading) handleSave();

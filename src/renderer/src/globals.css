@@ -34,6 +34,8 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-button: var(--button);
+  --color-button-foreground: var(--button-foreground);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -51,6 +53,8 @@
    macOS Light — matches NSColor system palette
    ═══════════════════════════════════════ */
 :root {
+  /* Native scrollbars and form controls follow the theme */
+  color-scheme: light;
   --radius: 5px;
   /* White ground and near-black text; surfaces in neutral greys */
   --background: #ffffff;
@@ -61,6 +65,9 @@
   --popover-foreground: rgba(0, 0, 0, 0.92);
   --primary: #007aff;
   --primary-foreground: #ffffff;
+  /* Main buttons: neutral, a soft black rather than pure */
+  --button: #3a3a3c;
+  --button-foreground: #ffffff;
   --secondary: #f2f2f2;
   --secondary-foreground: rgba(0, 0, 0, 0.92);
   --muted: #f2f2f2;
@@ -90,6 +97,7 @@
    macOS Dark — matches NSColor system palette
    ═══════════════════════════════════════ */
 .dark {
+  color-scheme: dark;
   /* Near-black ground and bright text: surfaces (sidebar, cards, menus,
      inputs) sit visibly above it, in neutral greys with no tint */
   --background: #181818;
@@ -100,6 +108,9 @@
   --popover-foreground: rgba(255, 255, 255, 0.92);
   --primary: #0a84ff;
   --primary-foreground: #ffffff;
+  /* A soft white rather than pure */
+  --button: #d1d1d6;
+  --button-foreground: #1c1c1e;
   --secondary: rgba(255, 255, 255, 0.08);
   --secondary-foreground: rgba(255, 255, 255, 0.92);
   --muted: #262626;
@@ -254,29 +265,31 @@ button, [role="button"], [role="tab"], [role="menuitem"],
 }
 
 /* ═══════════════════════════════════════
-   Scrollbars — macOS overlay style
+   Scrollbars — macOS overlay style (the system's own elsewhere)
    ═══════════════════════════════════════ */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
+/* Thin overlay bars on macOS only: elsewhere a mouse wheel scrolls down, not
+   across, and a faint 8px bar is too hard to find and drag */
+html[data-platform="mac"] ::-webkit-scrollbar { width: 8px; height: 8px; }
+html[data-platform="mac"] ::-webkit-scrollbar-track { background: transparent; }
+html[data-platform="mac"] ::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.15);
   border-radius: 4px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
-::-webkit-scrollbar-thumb:hover {
+html[data-platform="mac"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.3);
   background-clip: content-box;
 }
-.dark ::-webkit-scrollbar-thumb {
+html[data-platform="mac"].dark ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   background-clip: content-box;
 }
-.dark ::-webkit-scrollbar-thumb:hover {
+html[data-platform="mac"].dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
   background-clip: content-box;
 }
-::-webkit-scrollbar-corner { background: transparent; }
+html[data-platform="mac"] ::-webkit-scrollbar-corner { background: transparent; }
 
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
@@ -454,3 +467,30 @@ html[data-platform="windows"] [data-slot="dialog-footer"] {
    message), darker than both, so it reads as a gap rather than a border */
 .pane-divider { width: 2px; background: rgba(0, 0, 0, 0.12); }
 .dark .pane-divider { background: rgba(0, 0, 0, 0.55); }
+
+/* A notice's bottom edge empties as its time runs out, and stops while the
+   pointer is over the notices (sonner pauses its timer then too) */
+@property --toast-left {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+.toast-countdown:not([data-type="loading"]) {
+  background-image: linear-gradient(var(--toast-bar), var(--toast-bar));
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: var(--toast-left) 2px;
+  animation: toast-countdown var(--toast-ms, 3000ms) linear forwards;
+  --toast-bar: color-mix(in oklab, var(--foreground) 22%, transparent);
+}
+/* In the colour of the notice's icon */
+.toast-countdown[data-type="success"] { --toast-bar: var(--color-green-500); }
+.toast-countdown[data-type="warning"] { --toast-bar: var(--color-amber-500); }
+.toast-countdown[data-type="error"] { --toast-bar: var(--color-red-500); }
+.toast-countdown[data-type="info"] { --toast-bar: var(--primary); }
+.toast-countdown[data-expanded="true"] {
+  animation-play-state: paused;
+}
+@keyframes toast-countdown {
+  to { --toast-left: 0%; }
+}

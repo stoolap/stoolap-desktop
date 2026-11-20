@@ -33,9 +33,6 @@
     "ok": "OK",
     "bookmarks": "Favoritos",
     "removeBookmark": "Remover favorito {{name}}",
-    "statsRows_one": "{{count}} linha | {{time}} ms",
-    "statsRows_other": "{{count}} linhas | {{time}} ms",
-    "statsRows_many": "{{count}} linhas | {{time}} ms",
     "statsChanges": "{{count}} afetadas | {{time}} ms"
   },
   "sqlEditor": {

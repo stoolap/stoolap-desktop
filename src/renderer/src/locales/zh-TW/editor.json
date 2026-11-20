@@ -33,7 +33,6 @@
     "ok": "好",
     "bookmarks": "書籤",
     "removeBookmark": "移除書籤 {{name}}",
-    "statsRows_other": "{{count}} 列 | {{time}}ms",
     "statsChanges": "{{count}} 列受影響 | {{time}}ms"
   },
   "sqlEditor": {

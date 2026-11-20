@@ -1,10 +1,4 @@
 {
-  "settings": {
-    "title": "設定",
-    "language": "語言",
-    "system": "系統（{{language}}）",
-    "languageHint": "「系統」會依照電腦的語言。歡迎在 GitHub 上改善翻譯。"
-  },
   "actions": {
     "cancel": "取消",
     "close": "關閉",
@@ -17,11 +11,7 @@
     "ip": "內積"
   },
   "about": {
-    "tagline": "Stoolap 視覺化資料庫管理應用程式",
-    "version": "版本",
-    "poweredBy": "由 {{engine}} 驅動",
-    "website": "網站",
-    "changelog": "變更記錄"
+    "version": "版本"
   },
   "shortcuts": {
     "title": "鍵盤快速鍵",

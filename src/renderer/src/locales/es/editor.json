@@ -33,9 +33,6 @@
     "ok": "Aceptar",
     "bookmarks": "Marcadores",
     "removeBookmark": "Quitar marcador {{name}}",
-    "statsRows_one": "{{count}} fila | {{time}} ms",
-    "statsRows_other": "{{count}} filas | {{time}} ms",
-    "statsRows_many": "{{count}} filas | {{time}} ms",
     "statsChanges": "{{count}} afectadas | {{time}} ms"
   },
   "sqlEditor": {

@@ -33,8 +33,6 @@
     "ok": "OK",
     "bookmarks": "Bladwijzers",
     "removeBookmark": "Bladwijzer {{name}} verwijderen",
-    "statsRows_one": "{{count}} rij | {{time}} ms",
-    "statsRows_other": "{{count}} rijen | {{time}} ms",
     "statsChanges": "{{count}} gewijzigd | {{time}} ms"
   },
   "sqlEditor": {

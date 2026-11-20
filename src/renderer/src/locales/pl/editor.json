@@ -33,10 +33,6 @@
     "ok": "OK",
     "bookmarks": "Zakładki",
     "removeBookmark": "Usuń zakładkę {{name}}",
-    "statsRows_one": "{{count}} wiersz | {{time}} ms",
-    "statsRows_few": "{{count}} wiersze | {{time}} ms",
-    "statsRows_many": "{{count}} wierszy | {{time}} ms",
-    "statsRows_other": "{{count}} wiersza | {{time}} ms",
     "statsChanges": "Zmienione: {{count}} | {{time}} ms"
   },
   "sqlEditor": {

@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
@@ -13,6 +14,9 @@ const queryClient = new QueryClient({
   },
 });
 
+/** How long a notice stays; its bottom edge counts it down (globals.css) */
+const TOAST_MS = 3000;
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -24,7 +28,8 @@ export default function App() {
           position="bottom-right"
           offset={{ bottom: 44, right: 16 }}
           theme="system"
-          duration={3000}
+          duration={TOAST_MS}
+          style={{ "--toast-ms": `${TOAST_MS}ms` } as CSSProperties}
           gap={8}
           visibleToasts={3}
           icons={{
@@ -38,13 +43,13 @@ export default function App() {
             unstyled: true,
             classNames: {
               toast:
-                "flex w-[340px] items-start gap-2.5 overflow-hidden rounded-xl border border-border/60 bg-popover/85 px-3.5 py-2.5 text-popover-foreground shadow-lg shadow-black/10 backdrop-blur-xl",
+                "toast-countdown flex w-[340px] items-start gap-2.5 overflow-hidden rounded-xl border border-border/60 bg-popover/85 px-3.5 py-2.5 text-popover-foreground shadow-lg shadow-black/10 backdrop-blur-xl",
               icon: "mt-px shrink-0",
               content: "flex min-w-0 flex-col gap-0.5",
               title: "text-[13px] font-medium leading-snug",
               description: "text-xs leading-snug text-muted-foreground break-words",
               actionButton:
-                "ml-auto shrink-0 rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground",
+                "ml-auto shrink-0 rounded-md bg-button px-2 py-1 text-xs font-medium text-button-foreground",
               cancelButton: "shrink-0 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent",
             },
           }}

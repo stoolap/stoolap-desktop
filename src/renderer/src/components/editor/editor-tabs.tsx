@@ -56,6 +56,10 @@ export function EditorTabs() {
         ref={tabListRef}
         role="tablist"
         className="flex min-w-0 items-center gap-1 self-stretch overflow-x-auto scrollbar-none"
+        // A mouse wheel only scrolls up and down; the row can only go sideways
+        onWheel={(e) => {
+          if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) e.currentTarget.scrollLeft += e.deltaY;
+        }}
       >
         {tabs.map((tab) => (
           <Tooltip key={tab.id}>

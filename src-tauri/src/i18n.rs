@@ -1,4 +1,4 @@
-//! The app's language: the one the user picked in Settings, or else the
+//! The app's language: the one the user picked in the Language menu, or else the
 //! system's. The renderer translates its own text; the native menu takes its
 //! labels from each language's native.json, shared with the renderer.
 
@@ -29,7 +29,28 @@ const NATIVE: &[(&str, &str)] = &[
     ("id", include_str!("../../src/renderer/src/locales/id/native.json")),
 ];
 
-const SYSTEM: &str = "system";
+/// Each language named in itself, in the Language menu's order (as
+/// LANGUAGES in src/renderer/src/lib/i18n.ts)
+pub const NAMES: &[(&str, &str)] = &[
+    ("en", "English"),
+    ("tr", "Türkçe"),
+    ("de", "Deutsch"),
+    ("fr", "Français"),
+    ("es", "Español"),
+    ("pt-BR", "Português (Brasil)"),
+    ("it", "Italiano"),
+    ("nl", "Nederlands"),
+    ("pl", "Polski"),
+    ("ru", "Русский"),
+    ("uk", "Українська"),
+    ("ja", "日本語"),
+    ("ko", "한국어"),
+    ("zh-CN", "简体中文"),
+    ("zh-TW", "繁體中文"),
+    ("id", "Bahasa Indonesia"),
+];
+
+pub const SYSTEM: &str = "system";
 
 fn catalogs() -> &'static HashMap<&'static str, Value> {
     static CATALOGS: OnceLock<HashMap<&'static str, Value>> = OnceLock::new();
@@ -124,7 +145,7 @@ fn match_tag(tag: &str) -> Option<&'static str> {
 }
 
 /// The first of the system's preferred languages the app has, else English.
-fn system_language() -> &'static str {
+pub fn system_language() -> &'static str {
     sys_locale::get_locales().find_map(|t| match_tag(&t)).unwrap_or("en")
 }
 
@@ -140,8 +161,8 @@ fn settings_file(app: &AppHandle) -> Option<std::path::PathBuf> {
     Some(app.path().app_config_dir().ok()?.join("settings.json"))
 }
 
-/// "system" or a language code, as saved in Settings.
-fn preference(app: &AppHandle) -> String {
+/// "system" or a language code, as picked in the Language menu.
+pub fn preference(app: &AppHandle) -> String {
     settings_file(app)
         .and_then(|f| std::fs::read_to_string(f).ok())
         .and_then(|s| serde_json::from_str::<Value>(&s).ok())
@@ -175,7 +196,6 @@ pub fn get_language(app: AppHandle) -> LanguageInfo {
 }
 
 /// Save the user's choice ("system" follows the system) and relabel the menu.
-#[tauri::command]
 pub fn set_language(app: AppHandle, preference: String) -> Result<LanguageInfo, String> {
     if preference != SYSTEM && !NATIVE.iter().any(|(l, _)| *l == preference) {
         return Err(format!("Unknown language {preference}"));
@@ -192,6 +212,7 @@ pub fn set_language(app: AppHandle, preference: String) -> Result<LanguageInfo, 
         .map_err(|e| e.to_string())?;
     set_current(current(&app));
     crate::build_menu(&app).map_err(|e| e.to_string())?;
+    #[cfg(not(target_os = "macos"))]
     crate::retitle_panels(&app);
     let info = info(&app);
     // Every window follows, not only the one that changed it
@@ -202,6 +223,13 @@ pub fn set_language(app: AppHandle, preference: String) -> Result<LanguageInfo, 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_language_has_a_name() {
+        let codes: Vec<_> = NATIVE.iter().map(|(l, _)| *l).collect();
+        let named: Vec<_> = NAMES.iter().map(|(l, _)| *l).collect();
+        assert_eq!(codes, named);
+    }
 
     #[test]
     fn system_tags_find_the_closest_language() {
