@@ -39,15 +39,17 @@ import { saveFile, escapeCSV, basename, errorMessage } from "@/lib/utils";
 import { toast } from "sonner";
 import { useModKey } from "@/hooks/use-mod-key";
 import { explainAll } from "@/lib/sql-utils";
+import { getEditorSelection } from "@/lib/editor-registry";
 
-/** The selected result's counts, and how long the user waited: for a
- * script, the whole script's wait, not the statement's engine time */
+/** How long the user waited (for a script, the whole script's wait, not the
+ * statement's engine time) and what changed. A result's row count is under
+ * its grid, which also counts the rows a search leaves. */
 function resultStats(result: ApiResult | null, waited?: number) {
   if (!result) return null;
   if ("time" in result && waited !== undefined) result = { ...result, time: waited };
   if ("error" in result && result.error) return null;
   if ("columns" in result) {
-    return i18n.t("editor:toolbar.statsRows", { count: result.rows.length, time: result.time });
+    return `${result.time}ms`;
   }
   if ("ddl" in result) {
     return `${result.ddl} | ${result.time}ms`;
@@ -110,16 +112,17 @@ export function QueryToolbar() {
   const [bookmarkName, setBookmarkName] = useState("");
   const saveInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Like Mod+Enter, the buttons run only the selected text when there is one
+  const sqlToRun = () => getEditorSelection().trim() || activeTab?.sql.trim() || "";
+
   const handleRun = () => {
-    if (activeTab && activeTab.sql.trim()) {
-      executeQuery(activeTab.id, activeTab.sql);
-    }
+    const sql = sqlToRun();
+    if (activeTab && sql) executeQuery(activeTab.id, sql);
   };
 
   const handleExplain = () => {
-    if (activeTab && activeTab.sql.trim()) {
-      executeQuery(activeTab.id, explainAll(activeTab.sql));
-    }
+    const sql = sqlToRun();
+    if (activeTab && sql) executeQuery(activeTab.id, explainAll(sql));
   };
 
   const handleFormat = () => {

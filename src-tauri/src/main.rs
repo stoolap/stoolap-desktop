@@ -33,7 +33,6 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
         .manage(DbManager::new())
         .manage(agent::AgentState::default())
         .invoke_handler(tauri::generate_handler![
@@ -68,9 +67,9 @@ fn main() {
             commands::system::get_accent_color,
             commands::system::get_version,
             commands::system::get_stoolap_version,
+            commands::system::relaunch,
             set_recent_databases,
             i18n::get_language,
-            i18n::set_language,
             // Agent
             agent::agent_models,
             agent::agent_backends,
@@ -98,7 +97,7 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| match event {
-            // Settings and About are windows too: only the main one's
+            // About is a window too (outside macOS): only the main one's
             // closing ends the session
             tauri::WindowEvent::Destroyed if window.label() == "main" => {
                 let state = window.state::<DbManager>();
@@ -150,9 +149,7 @@ fn build_menu(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
     let toggle_agent = MenuItemBuilder::with_id("toggle-agent", t("toggleAgent"))
         .accelerator("CmdOrCtrl+L")
         .build(app_handle)?;
-    let settings = MenuItemBuilder::with_id("settings", t("settings"))
-        .accelerator("CmdOrCtrl+,")
-        .build(app_handle)?;
+    // Not the predefined About item: macOS 26 gives that one an icon
     let about = MenuItemBuilder::with_id("about", t("about")).build(app_handle)?;
     let check_updates = MenuItemBuilder::with_id("check-updates", t("checkUpdates")).build(app_handle)?;
 
@@ -167,6 +164,25 @@ fn build_menu(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
         *recent = Some((open_recent.clone(), entries));
     }
 
+    // The app's language, the chosen one ticked; "System" follows the computer
+    let preference = i18n::preference(app_handle);
+    let system = i18n::NAMES.iter().find(|(code, _)| *code == i18n::system_language()).map_or("English", |(_, name)| *name);
+    let mut language_menu = SubmenuBuilder::new(app_handle, t("language"))
+        .item(
+            &CheckMenuItemBuilder::with_id(format!("{LANGUAGE_PREFIX}{}", i18n::SYSTEM), t("systemLanguage").replace("{{language}}", system))
+                .checked(preference == i18n::SYSTEM)
+                .build(app_handle)?,
+        )
+        .separator();
+    for (code, name) in i18n::NAMES {
+        language_menu = language_menu.item(
+            &CheckMenuItemBuilder::with_id(format!("{LANGUAGE_PREFIX}{code}"), *name)
+                .checked(preference == *code)
+                .build(app_handle)?,
+        );
+    }
+    let language_menu = language_menu.build()?;
+
     let file_menu = SubmenuBuilder::new(app_handle, t("file"))
         .item(&open_db)
         .item(&open_recent)
@@ -175,9 +191,6 @@ fn build_menu(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
         .separator()
         .item(&backup)
         .item(&restore);
-    // macOS has Settings in the app menu
-    #[cfg(not(target_os = "macos"))]
-    let file_menu = file_menu.separator().item(&settings);
     let file_menu = file_menu.separator().close_window_with_text(t("closeWindow")).build()?;
 
     let edit_menu = SubmenuBuilder::new(app_handle, t("edit"))
@@ -192,8 +205,11 @@ fn build_menu(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
 
     let view_menu = SubmenuBuilder::new(app_handle, t("view"))
         .item(&toggle_sidebar)
-        .item(&toggle_agent)
-        .build()?;
+        .item(&toggle_agent);
+    // macOS has Language in the app menu, where Settings would be
+    #[cfg(not(target_os = "macos"))]
+    let view_menu = view_menu.separator().item(&language_menu);
+    let view_menu = view_menu.build()?;
 
     let window_menu = SubmenuBuilder::new(app_handle, t("window"))
         .minimize_with_text(t("minimize"))
@@ -205,7 +221,7 @@ fn build_menu(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
             .item(&about)
             .item(&check_updates)
             .separator()
-            .item(&settings)
+            .item(&language_menu)
             .separator()
             .services_with_text(t("services"))
             .separator()
@@ -247,8 +263,21 @@ fn build_menu(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
 
 fn on_menu_event(app_handle: &tauri::AppHandle, event: tauri::menu::MenuEvent) {
     let id = event.id().as_ref();
-    if id == "settings" || id == "about" {
+    if id == "about" {
+        #[cfg(target_os = "macos")]
+        show_about_panel(app_handle);
+        #[cfg(not(target_os = "macos"))]
         open_panel(app_handle, id);
+        return;
+    }
+    if let Some(code) = id.strip_prefix(LANGUAGE_PREFIX) {
+        // After this event: switching rebuilds the menu that sent it
+        let (app, code) = (app_handle.clone(), code.to_string());
+        let _ = app_handle.run_on_main_thread(move || {
+            if let Err(e) = i18n::set_language(app, code) {
+                eprintln!("Couldn't switch the language: {e}");
+            }
+        });
         return;
     }
     let Some(window) = app_handle.get_webview_window("main") else { return };
@@ -270,9 +299,10 @@ fn on_menu_event(app_handle: &tauri::AppHandle, event: tauri::menu::MenuEvent) {
     let _ = window.emit(name, ());
 }
 
-/// Settings and About open as windows of their own, above the main one (a
-/// second click brings the open one forward). The page sizes the window to
-/// its content and shows it.
+/// About opens as a window of its own, above the main one (a second click
+/// brings the open one forward). The page sizes the window to its content
+/// and shows it.
+#[cfg(not(target_os = "macos"))]
 fn open_panel(app: &tauri::AppHandle, label: &str) {
     if let Some(window) = app.get_webview_window(label) {
         let _ = window.show();
@@ -280,9 +310,9 @@ fn open_panel(app: &tauri::AppHandle, label: &str) {
         return;
     }
     let Some(main) = app.get_webview_window("main") else { return };
-    let width = if label == "about" { 340.0 } else { 480.0 };
+    let width = 340.0;
     let built = tauri::WebviewWindowBuilder::new(app, label, tauri::WebviewUrl::App("index.html".into()))
-        .title(panel_title(app, label))
+        .title(panel_title(app))
         .inner_size(width, 200.0)
         .resizable(false)
         .maximizable(false)
@@ -303,25 +333,116 @@ fn open_panel(app: &tauri::AppHandle, label: &str) {
 }
 
 /// A panel window's title in the app's language
-fn panel_title(app: &tauri::AppHandle, label: &str) -> String {
-    let lang = i18n::current(app);
-    match label {
-        "about" => i18n::text(lang, "about"),
-        // The menu item's "Settings…" without its ellipsis
-        _ => i18n::text(lang, "settings").trim_end_matches(['…', '.']).to_string(),
-    }
+#[cfg(not(target_os = "macos"))]
+fn panel_title(app: &tauri::AppHandle) -> String {
+    i18n::text(i18n::current(app), "about")
 }
 
-/// Retitle the open panel windows after a language change
+/// Retitle the open About window after a language change
+#[cfg(not(target_os = "macos"))]
 fn retitle_panels(app: &tauri::AppHandle) {
-    for label in ["settings", "about"] {
-        if let Some(window) = app.get_webview_window(label) {
-            let _ = window.set_title(&panel_title(app, label));
-        }
+    if let Some(window) = app.get_webview_window("about") {
+        let _ = window.set_title(&panel_title(app));
     }
 }
 
 const RECENT_PREFIX: &str = "recent:";
+/// Language menu items: "language:system", "language:tr", …
+const LANGUAGE_PREFIX: &str = "language:";
+
+/// macOS' own About panel: the logo, name and version, then the tagline and
+/// the engine, as the About window elsewhere. The logo is passed in because
+/// a development build is no app bundle and would show a folder.
+#[cfg(target_os = "macos")]
+#[allow(deprecated)] // cocoa deprecates in favor of objc2 — migration is out of scope
+fn show_about_panel(app: &tauri::AppHandle) {
+    use cocoa::base::{id, nil};
+    use cocoa::foundation::{NSArray, NSData, NSDictionary, NSString};
+    use objc::{class, msg_send, sel, sel_impl};
+    // NSTextAlignmentCenter: 1 on Apple silicon, 2 on Intel
+    const CENTER: isize = if cfg!(target_arch = "aarch64") { 1 } else { 2 };
+
+    let lang = i18n::current(app);
+    let engine = engine_label(&commands::system::get_stoolap_version());
+    let credits_text = format!(
+        "{}\n{}",
+        i18n::text(lang, "aboutTagline"),
+        i18n::text(lang, "poweredBy").replace("{{engine}}", &engine)
+    );
+    // The year without a date library: a year is 365.2425 days on average
+    let year = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(2025, |d| 1970 + d.as_secs() / 31_556_952);
+    // The mark without its tile, which would vanish on the white panel
+    let logo = include_bytes!("../icons/about.png");
+    // SAFETY: plain AppKit calls on the main thread (menu events arrive there)
+    unsafe {
+        // Autoreleased: the panel keeps what it shows
+        let text = |s: &str| -> id { msg_send![NSString::alloc(nil).init_str(s), autorelease] };
+        let data = NSData::dataWithBytes_length_(nil, logo.as_ptr().cast(), logo.len() as u64);
+        let image: id = msg_send![class!(NSImage), alloc];
+        let image: id = msg_send![image, initWithData: data];
+        let image: id = msg_send![image, autorelease];
+        // Small, grey and centred, as macOS' own apps' credits
+        let style: id = msg_send![class!(NSMutableParagraphStyle), new];
+        let style: id = msg_send![style, autorelease];
+        let _: () = msg_send![style, setAlignment: CENTER];
+        let font: id = msg_send![class!(NSFont), systemFontOfSize: 11.0_f64];
+        let color: id = msg_send![class!(NSColor), secondaryLabelColor];
+        let attributes = NSDictionary::dictionaryWithObjects_forKeys_(
+            nil,
+            NSArray::arrayWithObjects(nil, &[style, font, color]),
+            NSArray::arrayWithObjects(nil, &[text("NSParagraphStyle"), text("NSFont"), text("NSColor")]),
+        );
+        let credits: id = msg_send![class!(NSAttributedString), alloc];
+        let credits: id = msg_send![credits, initWithString: text(&credits_text) attributes: attributes];
+        let credits: id = msg_send![credits, autorelease];
+        let keys = NSArray::arrayWithObjects(
+            nil,
+            &[
+                text("ApplicationName"),
+                text("ApplicationVersion"),
+                text("Version"),
+                text("Copyright"),
+                text("Credits"),
+                text("ApplicationIcon"),
+            ],
+        );
+        let values = NSArray::arrayWithObjects(
+            nil,
+            &[
+                text("Stoolap Desktop"),
+                text(&app.package_info().version.to_string()),
+                // Empty, or the bundle's build number follows in brackets
+                text(""),
+                text(&format!("© 2025–{year} Stoolap · Apache License 2.0")),
+                credits,
+                image,
+            ],
+        );
+        let options = NSDictionary::dictionaryWithObjects_forKeys_(nil, values, keys);
+        let ns_app: id = msg_send![class!(NSApplication), sharedApplication];
+        let _: () = msg_send![ns_app, orderFrontStandardAboutPanelWithOptions: options];
+    }
+}
+
+/// "stoolap 0.5.0 (commit: <sha>, built: <time>)" as "Stoolap 0.5.0", with
+/// the commit when it is a real hash (a crates.io build says "unknown")
+#[cfg(target_os = "macos")]
+fn engine_label(raw: &str) -> String {
+    let mut parts = raw.split_whitespace();
+    let (Some(_), Some(version)) = (parts.next(), parts.next()) else { return raw.to_string() };
+    let commit = raw
+        .split("commit:")
+        .nth(1)
+        .and_then(|rest| rest.split(',').next())
+        .map(str::trim)
+        .filter(|c| c.len() >= 7 && c.chars().all(|ch| ch.is_ascii_hexdigit()));
+    match commit {
+        Some(c) => format!("Stoolap {version} · {}", &c[..7]),
+        None => format!("Stoolap {version}"),
+    }
+}
 
 /// The File → Open Recent submenu and its entries, kept so the renderer can
 /// refill it and a rebuilt menu keeps them.

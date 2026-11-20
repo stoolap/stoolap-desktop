@@ -1,10 +1,6 @@
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import * as agent from "@/lib/agent";
 import * as native from "@/lib/native";
-
-const REPO = "https://github.com/stoolap/stoolap-desktop";
 
 /**
  * `SELECT VERSION()` returns
@@ -21,31 +17,26 @@ function engineLabel(raw: string): string {
     : `Stoolap ${version}`;
 }
 
-function Link({ label, url }: { label: string; url: string }) {
-  return (
-    <button
-      type="button"
-      onClick={() => agent.openLink(url).catch((e) => toast.error(String(e)))}
-      className="text-primary hover:underline"
-    >
-      {label}
-    </button>
-  );
-}
-
 /**
  * The About window, as macOS' own: the icon, the name and a few centred
  * lines. The versions can be selected and copied, for a bug report.
  */
-export function AboutWindow() {
+export function AboutWindow({ onReady }: { onReady: () => void }) {
   const { t } = useTranslation("dialogs");
   const [version, setVersion] = useState("");
   const [engine, setEngine] = useState("");
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    native.getVersion().then(setVersion);
-    native.getStoolapVersion().then(setEngine);
+    Promise.allSettled([
+      native.getVersion().then(setVersion),
+      native.getStoolapVersion().then(setEngine),
+    ]).then(() => setLoaded(true));
   }, []);
+  // After the render that shows them
+  useEffect(() => {
+    if (loaded) onReady();
+  }, [loaded, onReady]);
 
   return (
     <div className="flex flex-col items-center px-6 pt-6 pb-6 text-center">
@@ -58,27 +49,16 @@ export function AboutWindow() {
         draggable={false}
       />
       <h1 className="mt-3 text-base font-semibold">Stoolap Desktop</h1>
-      <p className="mt-0.5 text-xs text-muted-foreground">{t("about.tagline")}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">{t("native:aboutTagline")}</p>
 
       <div className="allow-select mt-4 text-xs leading-relaxed text-muted-foreground">
         <p>
           {t("about.version")} {version}
         </p>
         {engine && (
-          <p>{t("about.poweredBy", { engine: engineLabel(engine) })}</p>
+          <p>{t("native:poweredBy", { engine: engineLabel(engine) })}</p>
         )}
       </div>
-
-      <p className="mt-4 text-xs">
-        <Link label={t("about.website")} url="https://stoolap.io" />
-        <span className="mx-1.5 text-muted-foreground">·</span>
-        <Link label="GitHub" url={REPO} />
-        <span className="mx-1.5 text-muted-foreground">·</span>
-        <Link
-          label={t("about.changelog")}
-          url={version ? `${REPO}/releases/tag/v${version}` : `${REPO}/releases`}
-        />
-      </p>
 
       <p className="mt-4 text-[11px] text-muted-foreground">
         © 2025–{new Date().getFullYear()} Stoolap · Apache License 2.0

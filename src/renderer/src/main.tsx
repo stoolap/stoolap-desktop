@@ -11,6 +11,14 @@ if (navigator.platform.includes("Mac")) {
   document.documentElement.dataset.platform = "windows";
 }
 
+// No browser menu (Back, Reload, Inspect…) on a right-click: the app shows
+// its own where it has one. Text fields keep theirs, for copy and paste.
+document.addEventListener("contextmenu", (e) => {
+  const target = e.target as HTMLElement | null;
+  if (target?.closest("input, textarea, [contenteditable], .cm-editor, .allow-select")) return;
+  e.preventDefault();
+});
+
 // Follow system dark/light mode
 function applySystemTheme() {
   const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -64,7 +72,7 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", app
 // Listen for system accent color changes
 onAccentColorChanged(applyAccentColor);
 
-// Settings and About are windows of their own on the same page
+// About is a window of its own on the same page (outside macOS)
 const label = getCurrentWindow().label;
 
 // The app loads once the translations have, so its stores and first frame
@@ -75,7 +83,7 @@ initI18n()
     followLanguage();
     return label === "main"
       ? import("./App").then(({ default: App }) => <App />)
-      : import("./components/windows/panel-window").then(({ PanelWindow }) => <PanelWindow label={label} />);
+      : import("./components/windows/panel-window").then(({ PanelWindow }) => <PanelWindow />);
   })
   .then((page) =>
     ReactDOM.createRoot(document.getElementById("root")!).render(<React.StrictMode>{page}</React.StrictMode>),

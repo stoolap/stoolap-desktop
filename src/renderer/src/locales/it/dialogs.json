@@ -1,10 +1,4 @@
 {
-  "settings": {
-    "title": "Impostazioni",
-    "language": "Lingua",
-    "system": "Sistema ({{language}})",
-    "languageHint": "Sistema segue la lingua del tuo computer. Le traduzioni possono essere migliorate su GitHub."
-  },
   "actions": {
     "cancel": "Annulla",
     "close": "Chiudi",
@@ -17,11 +11,7 @@
     "ip": "Prodotto interno"
   },
   "about": {
-    "tagline": "Applicazione visuale di gestione dei database per Stoolap",
-    "version": "Versione",
-    "poweredBy": "Basato su {{engine}}",
-    "website": "Sito web",
-    "changelog": "Novità"
+    "version": "Versione"
   },
   "shortcuts": {
     "title": "Scorciatoie da tastiera",

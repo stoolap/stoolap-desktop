@@ -57,18 +57,7 @@ export async function initI18n(): Promise<void> {
   document.documentElement.lang = i18n.language;
 }
 
-export function getLanguage(): Promise<LanguageInfo> {
-  return invoke("get_language");
-}
-
-/** Save the choice ("system" follows the system) and switch to it, menu included. */
-export async function setLanguage(preference: string): Promise<LanguageInfo> {
-  const info = await invoke<LanguageInfo>("set_language", { preference });
-  await show(info.language);
-  return info;
-}
-
-/** Switch when another window (Settings) changes the language */
+/** Switch when the Language menu changes the language */
 export function followLanguage(): void {
   listen<string>("app:language", (e) => show(e.payload)).catch(() => {});
 }

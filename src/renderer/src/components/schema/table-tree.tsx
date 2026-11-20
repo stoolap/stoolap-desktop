@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ComponentProps } from "react";
 import { useTranslation } from "react-i18next";
 import {
   useTables,
@@ -71,7 +71,7 @@ function ColumnItem({
       ) : (
         <Columns3 className="h-3 w-3 shrink-0 opacity-40" />
       )}
-      <span className="truncate font-data">{col.field}</span>
+      <MiddleTruncate text={col.field} className="font-data" />
       <span className="ml-auto text-xs opacity-50 shrink-0 font-data">
         {col.type}
       </span>
@@ -86,6 +86,28 @@ function ColumnItem({
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * A name cut in the middle, as Finder does: its end, which often tells
+ * similar names apart (orders_2025, orders_2026), stays and the start gives
+ * way with "…". A short one is just cut at the end.
+ */
+function MiddleTruncate({ text, className, ...props }: { text: string } & ComponentProps<"span">) {
+  const tail = 7;
+  if (text.length <= tail * 2) {
+    return (
+      <span className={cn("truncate", className)} {...props}>
+        {text}
+      </span>
+    );
+  }
+  return (
+    <span className={cn("flex min-w-0", className)} {...props}>
+      <span className="truncate">{text.slice(0, -tail)}</span>
+      <span className="shrink-0">{text.slice(-tail)}</span>
+    </span>
   );
 }
 
@@ -153,7 +175,7 @@ function IndexItem({
         ) : (
           <Hash className="h-2.5 w-2.5 shrink-0 opacity-40" />
         )}
-        <span className="truncate font-data">{idx.indexName}</span>
+        <MiddleTruncate text={idx.indexName} className="font-data" />
         {idx.isUnique && (
           <span className="text-xs text-yellow-500 shrink-0 font-semibold">
             UQ
@@ -463,7 +485,7 @@ function TableNode({
           <Eye className="h-4 w-4 text-foreground/80 shrink-0" />
         )}
         <Tip label={name} side="right" delay={700}>
-          <span className="truncate">{name}</span>
+          <MiddleTruncate text={name} />
         </Tip>
         {type === "table" && rowCount !== undefined && (
           <span className="ml-auto text-xs text-muted-foreground tabular-nums shrink-0 pr-0.5">

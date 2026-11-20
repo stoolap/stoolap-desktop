@@ -4,6 +4,34 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.11
+
+### Look and feel
+- Main buttons are neutral, a soft black (a soft white in dark mode), instead of blue.
+- On macOS, About is the system's own panel, and the app menu has a **Language** menu in place of the Settings window. On Windows and Linux the Language menu is in the View menu, and About no longer shows links, as on macOS.
+- A notice shows how long it stays: a thin bar along its bottom runs down, green for success, amber for a warning, red for an error. It stops while the pointer is over the notice.
+- Long table, column and index names in the sidebar are cut in the middle, so their ends, which often tell similar names apart, stay readable.
+- Result columns start as wide as their content, up to a limit, instead of all the same width.
+- The query time is shown by itself in the toolbar; the row count is under the result.
+- The query timeout in the status bar shows only when a database is open.
+- Right-clicking where the app has no menu of its own no longer opens the browser's menu (Back, Reload, Inspect).
+
+### Editor
+- **Run** and **Explain** run only the selected text when there is a selection, as the keyboard shortcuts do.
+- A mouse wheel scrolls the row of tabs sideways when it is full.
+
+### Agent
+- Codex is found when it comes with the Codex desktop app, on macOS and on Windows, not only as the command-line tool.
+
+### Windows
+- The app's icon is the Stoolap mark without the white tile around it.
+- Scrollbars are the system's own and follow dark mode.
+- The sidebar and agent buttons sit together at the start of the tab row.
+- Dialogs no longer show a white strip under their buttons.
+
+### Fixes
+- On macOS, the app restarts after an update into the icon you keep in the Dock. Before, it opened as a second icon. The restart is done by the version being replaced, so this takes effect from the update after this one.
+
 ## v0.5.10
 
 ### Look and feel
@@ -22,6 +50,7 @@ before tagging; the release fails without one.
 ### Fixes
 - The Open Database dialog no longer spills out of its window when a recent database has a long path.
 
+## v0.5.9
 
 ### Fixes
 - **Query Using Index** on an index over several columns now writes one condition per column, in the index's order. Before, it treated the whole column list as one column name, and the query failed.

@@ -54,7 +54,8 @@ export function AppShell() {
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   // macOS: room right of the sidebar's card when the agent isn't against it
   const sidebarGap = IS_MAC && !agentOpen ? 4 : 0;
-  // macOS: the panels' toggles, by the traffic lights (as Mail's)
+  // The panels' toggles: on macOS by the traffic lights (as Mail's),
+  // elsewhere at the tab row's start
   const toggles = (
     <div className="flex shrink-0 items-center gap-0.5">
       <SidebarToggle open={sidebarOpen} onToggle={toggleSidebar} />
@@ -278,14 +279,13 @@ export function AppShell() {
                   data-tauri-drag-region
                   className={cn("flex items-center", IS_MAC && "h-[46px]", IS_MAC && !sidebarOpen && !agentOpen && "pl-[88px]")}
                 >
-                  {!IS_MAC && <SidebarToggle open={sidebarOpen} onToggle={toggleSidebar} />}
+                  {!IS_MAC && toggles}
                   {/* On macOS the toggles sit by the traffic lights, in the
                       leftmost panel: here when none is open */}
                   {IS_MAC && !sidebarOpen && !agentOpen && toggles}
                   <div className="flex-1 self-stretch overflow-hidden">
                     <EditorTabs />
                   </div>
-                  {!IS_MAC && <AgentToggle />}
                 </div>
 
                 {isDataTab ? (
@@ -362,7 +362,10 @@ export function AppShell() {
             )}
           </div>
           <div className="flex-1" />
-          <QueryTimeoutSelect />
+          {/* Hidden, not unmounted: it pushes the saved timeout at startup */}
+          <div hidden={!activeConn}>
+            <QueryTimeoutSelect />
+          </div>
         </div>
       </div>
 

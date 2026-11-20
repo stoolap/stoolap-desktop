@@ -1,10 +1,4 @@
 {
-  "settings": {
-    "title": "Einstellungen",
-    "language": "Sprache",
-    "system": "System ({{language}})",
-    "languageHint": "„System“ folgt der Sprache Ihres Computers. Übersetzungen können auf GitHub verbessert werden."
-  },
   "actions": {
     "cancel": "Abbrechen",
     "close": "Schließen",
@@ -17,11 +11,7 @@
     "ip": "Skalarprodukt"
   },
   "about": {
-    "tagline": "Visuelle Datenbankverwaltung für Stoolap",
-    "version": "Version",
-    "poweredBy": "Basiert auf {{engine}}",
-    "website": "Website",
-    "changelog": "Änderungsprotokoll"
+    "version": "Version"
   },
   "shortcuts": {
     "title": "Tastaturkurzbefehle",

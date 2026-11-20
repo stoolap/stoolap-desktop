@@ -1,10 +1,4 @@
 {
-  "settings": {
-    "title": "設定",
-    "language": "言語",
-    "system": "システム（{{language}}）",
-    "languageHint": "「システム」はコンピュータの言語に従います。翻訳はGitHubで改善できます。"
-  },
   "actions": {
     "cancel": "キャンセル",
     "close": "閉じる",
@@ -17,11 +11,7 @@
     "ip": "内積"
   },
   "about": {
-    "tagline": "Stoolapのためのビジュアルなデータベース管理アプリ",
-    "version": "バージョン",
-    "poweredBy": "{{engine}} で動作",
-    "website": "Webサイト",
-    "changelog": "変更履歴"
+    "version": "バージョン"
   },
   "shortcuts": {
     "title": "キーボードショートカット",

@@ -49,6 +49,28 @@ import { Tip } from "@/components/ui/tip";
  * the user drags. Filtering comes before the global search, sizing before
  * resizing, as the features depend on each other.
  */
+/**
+ * A column's starting width: its header's or its widest value's in the
+ * first rows, whichever is wider, measured in the grid's own fonts (the
+ * monospace one differs by system). Kept to 60–400px: a long text still
+ * opens in full on a click. The user's resizing overrides it.
+ */
+const SAMPLE_ROWS = 100;
+let measure: CanvasRenderingContext2D | null | undefined;
+function columnWidth(header: string, values: string[]): number {
+  measure ??= document.createElement("canvas").getContext("2d");
+  if (!measure) return 150;
+  // As .font-data and the header cell (.text-xs, medium) are set in globals.css
+  measure.font = `13px "SF Mono", SFMono-Regular, ui-monospace, Menlo, Monaco, Consolas, monospace`;
+  // Monospace: the longest value is the widest
+  const longest = values.reduce((a, b) => (b.length > a.length ? b : a), "");
+  const valueWidth = measure.measureText(longest).width + 24 + 2;
+  measure.font = `500 14px ${getComputedStyle(document.body).fontFamily}`;
+  // Its padding and room for the sort arrow
+  const headerWidth = measure.measureText(header).width + 24 + 20;
+  return Math.round(Math.min(400, Math.max(60, valueWidth, headerWidth)));
+}
+
 const features = tableFeatures({
   rowSortingFeature,
   columnFilteringFeature,
@@ -339,6 +361,19 @@ export function DataGrid({
     }
   }, [t]);
 
+  // Starting widths from the content. Not again for each page of the same
+  // columns (data tabs), which would make the columns jump.
+  const hasRows = rows.length > 0;
+  const columnKey = columns.join("\u0000");
+  const startWidths = useMemo(
+    () =>
+      columns.map((col, i) =>
+        columnWidth(col, rows.slice(0, SAMPLE_ROWS).map((row) => formatCellValue(row[i], i))),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
+    [columnKey, hasRows, formatCellValue],
+  );
+
   // Stable column defs with resizing
   const columnDefs = useMemo<ColumnDef<typeof features, unknown[]>[]>(
     () =>
@@ -346,7 +381,7 @@ export function DataGrid({
         id: String(i),
         header: col,
         accessorFn: (row) => row[i],
-        size: 150,
+        size: startWidths[i] ?? 150,
         minSize: 60,
         maxSize: 600,
         cell: ({ getValue, row: tableRow }) => {
@@ -548,6 +583,7 @@ export function DataGrid({
       })),
     [
       columns,
+      startWidths,
       onCellEdit,
       onFindSimilar,
       formatCellValue,

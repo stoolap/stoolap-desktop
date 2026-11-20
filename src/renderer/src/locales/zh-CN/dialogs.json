@@ -1,10 +1,4 @@
 {
-  "settings": {
-    "title": "设置",
-    "language": "语言",
-    "system": "系统（{{language}}）",
-    "languageHint": "“系统”会跟随电脑的语言。欢迎在 GitHub 上改进翻译。"
-  },
   "actions": {
     "cancel": "取消",
     "close": "关闭",
@@ -17,11 +11,7 @@
     "ip": "内积"
   },
   "about": {
-    "tagline": "Stoolap 可视化数据库管理应用",
-    "version": "版本",
-    "poweredBy": "由 {{engine}} 驱动",
-    "website": "网站",
-    "changelog": "更新日志"
+    "version": "版本"
   },
   "shortcuts": {
     "title": "键盘快捷键",

@@ -267,8 +267,7 @@ export async function checkForUpdate(): Promise<
 
 /** Relaunch the app (typically called after downloadAndInstall). */
 export async function relaunchApp(): Promise<void> {
-  const { relaunch } = await import("@tauri-apps/plugin-process");
-  await relaunch();
+  await invoke("relaunch");
 }
 
 // --- Opening databases and SQL files from outside the window ---

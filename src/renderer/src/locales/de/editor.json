@@ -33,8 +33,6 @@
     "ok": "OK",
     "bookmarks": "Lesezeichen",
     "removeBookmark": "Lesezeichen {{name}} entfernen",
-    "statsRows_one": "{{count}} Zeile | {{time}} ms",
-    "statsRows_other": "{{count}} Zeilen | {{time}} ms",
     "statsChanges": "{{count}} betroffen | {{time}} ms"
   },
   "sqlEditor": {

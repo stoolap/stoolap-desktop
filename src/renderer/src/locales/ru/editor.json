@@ -33,10 +33,6 @@
     "ok": "ОК",
     "bookmarks": "Закладки",
     "removeBookmark": "Удалить закладку {{name}}",
-    "statsRows_one": "{{count}} строка | {{time}} мс",
-    "statsRows_few": "{{count}} строки | {{time}} мс",
-    "statsRows_many": "{{count}} строк | {{time}} мс",
-    "statsRows_other": "{{count}} строки | {{time}} мс",
     "statsChanges": "Затронуто: {{count}} | {{time}} мс"
   },
   "sqlEditor": {

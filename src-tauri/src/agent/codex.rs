@@ -50,9 +50,58 @@ const DISABLED: &[&str] = &[
     "daemon_auto_start",
 ];
 
-/// The `codex` executable, looked for like `claude`
+/// The `codex` executable, looked for like `claude`, then the one inside
+/// the Codex app, which many install instead of the CLI
 pub fn find() -> Option<PathBuf> {
-    super::claude_code::find_named(NAMES, "codex")
+    super::claude_code::find_named(NAMES, "codex").or_else(in_app)
+}
+
+#[cfg(target_os = "macos")]
+fn in_app() -> Option<PathBuf> {
+    let app = "Applications/Codex.app/Contents/Resources/codex";
+    let home = std::env::var_os("HOME").map(|h| PathBuf::from(h).join(app));
+    [Some(PathBuf::from("/").join(app)), home].into_iter().flatten().find(|p| p.is_file())
+}
+
+/// The Codex app from the Microsoft Store: its folder carries the version, so
+/// ask Windows where the installed package is
+#[cfg(windows)]
+fn in_app() -> Option<PathBuf> {
+    use std::os::windows::ffi::OsStringExt;
+    use std::ptr::null_mut;
+    use windows_sys::Win32::Storage::Packaging::Appx::{GetPackagePathByFullName, GetPackagesByPackageFamily};
+
+    let wide = |s: &str| s.encode_utf16().chain([0]).collect::<Vec<u16>>();
+    let family = wide("OpenAI.Codex_2p2nqsd0c76g0");
+    let (mut count, mut len) = (0u32, 0u32);
+    // SAFETY: the first call only reports the sizes; the second gets buffers
+    // of those sizes; each path call does the same
+    unsafe {
+        GetPackagesByPackageFamily(family.as_ptr(), &mut count, null_mut(), &mut len, null_mut());
+        if count == 0 {
+            return None;
+        }
+        let mut names = vec![null_mut(); count as usize];
+        let mut buf = vec![0u16; len as usize];
+        if GetPackagesByPackageFamily(family.as_ptr(), &mut count, names.as_mut_ptr(), &mut len, buf.as_mut_ptr()) != 0 {
+            return None;
+        }
+        names.into_iter().find_map(|name| {
+            let mut n = 0u32;
+            GetPackagePathByFullName(name, &mut n, null_mut());
+            let mut path = vec![0u16; n as usize];
+            if n == 0 || GetPackagePathByFullName(name, &mut n, path.as_mut_ptr()) != 0 {
+                return None;
+            }
+            let dir = PathBuf::from(std::ffi::OsString::from_wide(&path[..n as usize - 1]));
+            Some(dir.join(r"app\resources\codex.exe")).filter(|p| p.is_file())
+        })
+    }
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn in_app() -> Option<PathBuf> {
+    None
 }
 
 /// `codex --version`, e.g. "codex-cli 0.163.0"

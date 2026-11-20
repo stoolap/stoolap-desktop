@@ -1,10 +1,9 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window and the Settings and About windows",
+  "description": "Capability for the main window and the About window",
   "windows": [
     "main",
-    "settings",
     "about"
   ],
   "permissions": [
@@ -28,8 +27,6 @@
     "notification:allow-notify",
     "core:menu:default",
     "window-state:default",
-    "updater:default",
-    "process:default",
-    "process:allow-restart"
+    "updater:default"
   ]
 }

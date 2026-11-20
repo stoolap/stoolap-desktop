@@ -33,7 +33,6 @@
     "ok": "OK",
     "bookmarks": "Markah",
     "removeBookmark": "Hapus markah {{name}}",
-    "statsRows_other": "{{count}} baris | {{time}}ms",
     "statsChanges": "{{count}} terpengaruh | {{time}}ms"
   },
   "sqlEditor": {

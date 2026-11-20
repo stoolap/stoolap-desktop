@@ -1,10 +1,4 @@
 {
-  "settings": {
-    "title": "Ayarlar",
-    "language": "Dil",
-    "system": "Sistem ({{language}})",
-    "languageHint": "Sistem, bilgisayarınızın dilini izler. Çeviriler GitHub'da iyileştirilebilir."
-  },
   "actions": {
     "cancel": "İptal",
     "close": "Kapat",
@@ -17,11 +11,7 @@
     "ip": "İç Çarpım"
   },
   "about": {
-    "tagline": "Stoolap için görsel veritabanı yönetim uygulaması",
-    "version": "Sürüm",
-    "poweredBy": "{{engine}} ile çalışır",
-    "website": "Web sitesi",
-    "changelog": "Değişiklik günlüğü"
+    "version": "Sürüm"
   },
   "shortcuts": {
     "title": "Klavye Kısayolları",

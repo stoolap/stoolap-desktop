@@ -52,3 +52,39 @@ pub fn get_stoolap_version() -> String {
     //   "stoolap {VERSION} (commit: {GIT_COMMIT}, built: {BUILD_TIME})"
     stoolap::common::version_info()
 }
+
+/// Restart the app after an update. On macOS Tauri restarts with `open -n`,
+/// which starts a second instance while this one still runs: the Dock shows it
+/// as a new icon, apart from the one kept in the Dock. Instead, a shell waits
+/// for this process to end and then opens the bundle as a normal launch.
+#[tauri::command]
+pub fn relaunch(app: AppHandle) {
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::{Command, Stdio};
+        // …/Stoolap.app/Contents/MacOS/<binary>
+        let bundle = std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.ancestors().nth(3).map(|p| p.to_path_buf()))
+            .filter(|p| p.extension().is_some_and(|e| e == "app"));
+        if let Some(bundle) = bundle {
+            let script = format!(
+                "while kill -0 {} 2>/dev/null; do sleep 0.1; done; exec /usr/bin/open \"$0\"",
+                std::process::id()
+            );
+            let spawned = Command::new("/bin/sh")
+                .arg("-c")
+                .arg(script)
+                .arg(&bundle)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn();
+            if spawned.is_ok() {
+                app.exit(0);
+                return;
+            }
+        }
+    }
+    app.restart();
+}

@@ -90,7 +90,7 @@ export function ConnectDialog({ open, onOpenChange }: ConnectDialogProps) {
         </DialogHeader>
 
         <form
-          className="space-y-4 py-2"
+          className="space-y-4 pt-2"
           onSubmit={(e) => {
             e.preventDefault();
             if (!loading && (mode === "memory" || path)) handleConnect();

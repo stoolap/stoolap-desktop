@@ -33,7 +33,6 @@
     "ok": "OK",
     "bookmarks": "ブックマーク",
     "removeBookmark": "ブックマーク{{name}}を削除",
-    "statsRows_other": "{{count}}行 | {{time}}ms",
     "statsChanges": "{{count}}行に影響 | {{time}}ms"
   },
   "sqlEditor": {

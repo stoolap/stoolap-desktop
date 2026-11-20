@@ -33,9 +33,6 @@
     "ok": "OK",
     "bookmarks": "Segnalibri",
     "removeBookmark": "Rimuovi segnalibro {{name}}",
-    "statsRows_one": "{{count}} riga | {{time}} ms",
-    "statsRows_other": "{{count}} righe | {{time}} ms",
-    "statsRows_many": "{{count}} righe | {{time}} ms",
     "statsChanges": "{{count}} interessate | {{time}} ms"
   },
   "sqlEditor": {

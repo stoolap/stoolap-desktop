@@ -1,10 +1,4 @@
 {
-  "settings": {
-    "title": "Ustawienia",
-    "language": "Język",
-    "system": "Systemowy ({{language}})",
-    "languageHint": "Opcja systemowa używa języka Twojego komputera. Tłumaczenia można ulepszać na GitHubie."
-  },
   "actions": {
     "cancel": "Anuluj",
     "close": "Zamknij",
@@ -17,11 +11,7 @@
     "ip": "Iloczyn skalarny"
   },
   "about": {
-    "tagline": "Wizualna aplikacja do zarządzania bazami danych Stoolap",
-    "version": "Wersja",
-    "poweredBy": "Napędzane przez {{engine}}",
-    "website": "Strona internetowa",
-    "changelog": "Lista zmian"
+    "version": "Wersja"
   },
   "shortcuts": {
     "title": "Skróty klawiszowe",

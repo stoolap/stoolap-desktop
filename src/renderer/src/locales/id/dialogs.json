@@ -1,10 +1,4 @@
 {
-  "settings": {
-    "title": "Pengaturan",
-    "language": "Bahasa",
-    "system": "Sistem ({{language}})",
-    "languageHint": "Sistem mengikuti bahasa komputer Anda. Terjemahan dapat diperbaiki di GitHub."
-  },
   "actions": {
     "cancel": "Batal",
     "close": "Tutup",
@@ -17,11 +11,7 @@
     "ip": "Hasil Kali Dalam"
   },
   "about": {
-    "tagline": "Aplikasi manajemen basis data visual untuk Stoolap",
-    "version": "Versi",
-    "poweredBy": "Didukung oleh {{engine}}",
-    "website": "Situs web",
-    "changelog": "Catatan perubahan"
+    "version": "Versi"
   },
   "shortcuts": {
     "title": "Pintasan Papan Ketik",
