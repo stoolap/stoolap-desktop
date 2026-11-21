@@ -4,6 +4,18 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.12
+
+### Look and feel
+- On macOS 27 the sidebar runs to the window's edges with a line on its right, as in the system's own apps. On earlier versions it stays a card, now inset evenly from the window's edges, with corners that match the window's.
+- The active tab always shows its close button; other tabs show it when the pointer is over them.
+
+### Editor
+- A mouse wheel scrolls the row of statement results sideways when it is full, as it does the tabs.
+
+### Windows
+- The agent no longer flashes a command window on screen each time it runs.
+
 ## v0.5.11
 
 ### Look and feel

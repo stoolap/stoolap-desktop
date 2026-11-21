@@ -24,6 +24,9 @@ import { Tip } from "@/components/ui/tip";
 const SIDEBAR_WIDTH_DEFAULT = 240;
 const EDITOR_HEIGHT_DEFAULT = 220;
 const IS_MAC = navigator.userAgent.includes("Mac");
+// From macOS 27 a sidebar runs to the window's edges, a line on its right
+// (as Mail's); before, it is a card inset from them
+const SIDEBAR_CARD = IS_MAC && Number(document.documentElement.dataset.macos) < 27;
 
 export function AppShell() {
   const { t } = useTranslation("layout");
@@ -53,7 +56,7 @@ export function AppShell() {
   const agentOpen = useAgentStore((s) => s.open);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   // macOS: room right of the sidebar's card when the agent isn't against it
-  const sidebarGap = IS_MAC && !agentOpen ? 4 : 0;
+  const sidebarGap = SIDEBAR_CARD && !agentOpen ? 9 : 0;
   // The panels' toggles: on macOS by the traffic lights (as Mail's),
   // elsewhere at the tab row's start
   const toggles = (
@@ -212,15 +215,24 @@ export function AppShell() {
         )}
       >
         {IS_MAC ? (
-          // A card inset from the window's edges, the traffic lights inside
-          // it (trafficLightPosition in tauri.macos.conf.json)
-          // The window's background around it; when the agent isn't against
+          // The traffic lights inside it (trafficLightPosition in
+          // tauri.macos.conf.json). Before macOS 27 a card inset 9px from the
+          // window's edges, its corners set by eye against the window's; the
+          // window's background around it, and when the agent isn't against
           // it, a little on the right too, added outside the card's width
           <div
             style={{ width: sidebarWidth + sidebarGap, paddingRight: sidebarGap }}
-            className="h-full bg-background p-2"
+            className={cn(
+              "h-full",
+              SIDEBAR_CARD ? "bg-background p-[9px]" : "bg-sidebar border-r border-border/60 pt-[9px]",
+            )}
           >
-            <div className="h-full flex flex-col overflow-hidden rounded-[18px] border border-border/60 bg-sidebar">
+            <div
+              className={cn(
+                "h-full flex flex-col overflow-hidden",
+                SIDEBAR_CARD && "rounded-[13px] border border-border/60 bg-sidebar",
+              )}
+            >
               <div data-tauri-drag-region className="h-[30px] shrink-0 flex items-center justify-end pr-2">
                 {toggles}
               </div>

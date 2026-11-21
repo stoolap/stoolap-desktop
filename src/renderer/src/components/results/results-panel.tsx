@@ -7,7 +7,7 @@ import { AlertCircle, CheckCircle2, PenLine, Sparkles, Table2, Terminal } from "
 import { Button } from "@/components/ui/button";
 import { useAgentStore } from "@/stores/agent-store";
 import { useModKey } from "@/hooks/use-mod-key";
-import { cn } from "@/lib/utils";
+import { cn, scrollSideways } from "@/lib/utils";
 import { isExplain } from "@/lib/sql-utils";
 import { Tip } from "@/components/ui/tip";
 
@@ -40,6 +40,7 @@ export function ResultsPanel() {
         role="tablist"
         aria-label={t("results.statementResults")}
         className="flex shrink-0 items-end gap-0.5 overflow-x-auto border-b border-border bg-muted/40 px-1.5 pt-1 scrollbar-none"
+        onWheel={scrollSideways}
       >
         {results.map((r, i) => {
           const [Icon, detail] =

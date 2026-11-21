@@ -86,6 +86,7 @@ impl Ant {
             .env_remove("ANTHROPIC_AUTH_TOKEN")
             .env_remove("ANTHROPIC_PROFILE")
             .stdin(Stdio::null());
+        super::claude_code::no_console(&mut cmd);
         cmd
     }
 
