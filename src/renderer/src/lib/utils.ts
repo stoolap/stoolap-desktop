@@ -58,3 +58,9 @@ export function escapeCSV(v: unknown): string {
 export function basename(path: string): string {
   return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
 }
+
+/** onWheel for a row that only scrolls sideways: a mouse wheel turns up and
+ * down, so its turn moves the row across. A sideways swipe scrolls it as is. */
+export function scrollSideways(e: React.WheelEvent<HTMLElement>) {
+  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) e.currentTarget.scrollLeft += e.deltaY;
+}

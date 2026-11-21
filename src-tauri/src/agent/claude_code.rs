@@ -85,7 +85,20 @@ pub fn version(path: &Path) -> Option<String> {
 pub(super) fn command(path: &Path) -> std::process::Command {
     let mut cmd = std::process::Command::new(path);
     cmd.env("PATH", child_path(path));
+    no_console(&mut cmd);
     cmd
+}
+
+/// Windows gives a console program started from a windowed app a console
+/// window of its own, which flashes up at each run: start it without one.
+#[cfg_attr(not(windows), allow(unused_variables))]
+pub(super) fn no_console(cmd: &mut std::process::Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
 }
 
 fn child_path(path: &Path) -> std::ffi::OsString {
@@ -125,9 +138,8 @@ pub async fn run(
     })
     .to_string();
     let allowed = format!("mcp__{}", super::mcp::SERVER_NAME);
-    let mut cmd = tokio::process::Command::new(args.claude);
-    cmd.env("PATH", child_path(args.claude))
-        .current_dir(args.workdir)
+    let mut cmd = tokio::process::Command::from(command(args.claude));
+    cmd.current_dir(args.workdir)
         .args(["-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages"])
         .args(["--model", args.model])
         // No built-in tools (shell, files, web): only the database tools below

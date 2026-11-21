@@ -114,6 +114,10 @@ export async function getVersion(): Promise<string> {
   return tauriGetVersion();
 }
 
+export async function getMacosVersion(): Promise<number> {
+  return invoke("macos_version");
+}
+
 export async function getStoolapVersion(): Promise<string> {
   return invoke("get_stoolap_version");
 }

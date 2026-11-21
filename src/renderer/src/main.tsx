@@ -60,7 +60,7 @@ function applyAccentColor(hex: string) {
 applySystemTheme();
 
 // Read system accent color and apply
-import { getAccentColor, onAccentColorChanged, initNotifications } from "@/lib/native";
+import { getAccentColor, getMacosVersion, onAccentColorChanged, initNotifications } from "@/lib/native";
 getAccentColor().then(applyAccentColor);
 
 // Request notification permission at startup (non-blocking)
@@ -76,9 +76,14 @@ onAccentColorChanged(applyAccentColor);
 const label = getCurrentWindow().label;
 
 // The app loads once the translations have, so its stores and first frame
-// are already in the user's language
-initI18n()
-  .catch(() => {})
+// are already in the user's language; and once macOS's version is known, which
+// sets the window's layout (data-macos, read by the app shell)
+Promise.all([
+  initI18n().catch(() => {}),
+  getMacosVersion()
+    .then((v) => { document.documentElement.dataset.macos = String(v); })
+    .catch(() => {}),
+])
   .then(() => {
     followLanguage();
     return label === "main"

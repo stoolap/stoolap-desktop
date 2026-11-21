@@ -53,6 +53,17 @@ pub fn get_stoolap_version() -> String {
     stoolap::common::version_info()
 }
 
+/// macOS's major version (0 elsewhere): the window's layout follows it
+#[tauri::command]
+pub fn macos_version() -> u32 {
+    #[cfg(target_os = "macos")]
+    if let Ok(out) = std::process::Command::new("/usr/bin/sw_vers").arg("-productVersion").output() {
+        let version = String::from_utf8_lossy(&out.stdout);
+        return version.trim().split('.').next().and_then(|m| m.parse().ok()).unwrap_or(0);
+    }
+    0
+}
+
 /// Restart the app after an update. On macOS Tauri restarts with `open -n`,
 /// which starts a second instance while this one still runs: the Dock shows it
 /// as a new icon, apart from the one kept in the Dock. Instead, a shell waits

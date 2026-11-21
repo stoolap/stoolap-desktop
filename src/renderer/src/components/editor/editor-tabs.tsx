@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Plus, X, Table2, FileCode, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, scrollSideways } from "@/lib/utils";
 import { Tip } from "@/components/ui/tip";
 
 export function EditorTabs() {
@@ -56,10 +56,7 @@ export function EditorTabs() {
         ref={tabListRef}
         role="tablist"
         className="flex min-w-0 items-center gap-1 self-stretch overflow-x-auto scrollbar-none"
-        // A mouse wheel only scrolls up and down; the row can only go sideways
-        onWheel={(e) => {
-          if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) e.currentTarget.scrollLeft += e.deltaY;
-        }}
+        onWheel={scrollSideways}
       >
         {tabs.map((tab) => (
           <Tooltip key={tab.id}>
@@ -116,7 +113,11 @@ export function EditorTabs() {
                 )}
                 {tabs.length > 1 && (
                   <button
-                    className="ml-1 rounded p-0.5 opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:bg-foreground/10"
+                    className={cn(
+                      "ml-1 rounded p-0.5 group-hover:opacity-50 hover:!opacity-100 hover:bg-foreground/10",
+                      // The active tab always shows its close button
+                      activeTabId === tab.id ? "opacity-50" : "opacity-0",
+                    )}
                     onClick={(e) => {
                       e.stopPropagation();
                       cancelQuery(tab.id);

@@ -68,6 +68,7 @@ fn main() {
             commands::system::get_version,
             commands::system::get_stoolap_version,
             commands::system::relaunch,
+            commands::system::macos_version,
             set_recent_databases,
             i18n::get_language,
             // Agent
