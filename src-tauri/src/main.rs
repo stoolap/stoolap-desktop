@@ -94,6 +94,11 @@ fn main() {
             app.on_menu_event(on_menu_event);
             if let Some(window) = app.get_webview_window("main") {
                 match_background_to_theme(&window, window.theme().ok());
+                // Made hidden (tauri.conf.json) and shown here, once the
+                // window-state plugin has given it its saved size: shown at
+                // once, it opened at the default size and then jumped
+                let _ = window.show();
+                let _ = window.set_focus();
             }
             Ok(())
         })

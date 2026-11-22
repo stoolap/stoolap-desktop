@@ -504,8 +504,9 @@ TRUNCATE TABLE logs;
 
 **Important notes:**
 - TRUNCATE is faster than DELETE because it doesn't log individual row deletions
-- Unlike DELETE, TRUNCATE **cannot be rolled back**. ROLLBACK will not restore truncated rows
-- TRUNCATE will fail if another transaction has uncommitted changes on the table
+- TRUNCATE cannot run inside an explicit transaction, because ROLLBACK could not restore the rows it removes. Use `DELETE FROM table_name` there
+- TRUNCATE will fail if another transaction has updated or deleted rows of the table and not committed. A row another transaction inserted and commits after the TRUNCATE is kept
+- TRUNCATE restarts AUTO_INCREMENT at 1, unless another transaction holds an uncommitted inserted row; then numbering continues from where it was, so that row's id is not handed out again
 - TRUNCATE will fail if the table is referenced by foreign key constraints with existing child rows
 
 ### COPY FROM
@@ -699,6 +700,8 @@ SELECT DATE_TRUNC('day', order_date) as day,
 FROM orders
 GROUP BY DATE_TRUNC('day', order_date);
 ```
+
+Each column takes the type of its value in the first row, and TEXT when the query returns no row. The statement is one unit: when a row cannot be written, for example a later row whose value does not fit its column's type, the statement fails and leaves no table behind, inside an explicit transaction or outside one.
 
 ### ALTER TABLE
 

@@ -17,7 +17,7 @@
 
 Stoolap Desktop is a lightweight native database client for the [Stoolap](https://github.com/stoolap/stoolap) embedded SQL engine. It embeds the Rust engine directly — no server, no bundled Chromium, no Node runtime — so the download stays under 10 MB and the app talks to your database at in-process speed.
 
-Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 frontend) and React. Stoolap Desktop 0.5.12 embeds Stoolap 0.5.0 from crates.io, with the engine's jemalloc allocator.
+Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 frontend) and React. Stoolap Desktop 0.5.13 embeds Stoolap 0.5.1 from crates.io, with the engine's jemalloc allocator.
 
 ## Why Stoolap Desktop?
 
@@ -94,7 +94,7 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 
 ### Table & View Management
 - Create tables with a visual dialog: column types, constraints (`PRIMARY KEY`, `NOT NULL`, `UNIQUE`, `AUTO_INCREMENT`, `CHECK`), foreign keys with `ON DELETE` / `ON UPDATE` actions, and defaults
-- Alter tables (add / modify / drop columns)
+- Edit tables: add, rename, retype and drop columns; turn `NOT NULL` and `UNIQUE` on and off; set or remove a column's `DEFAULT` and `CHECK`; set the next `AUTO_INCREMENT` id. The SQL it will run shows before it runs
 - Create and drop views
 - DDL preview before any destructive action
 
@@ -106,7 +106,7 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 fron
 - HNSW index parameters (`metric`, `m`, `ef_construction`) are preserved in the backup and re-applied on restore
 
 ### Native Integration
-- macOS: the sidebar is a card inset from the window's edges with the traffic lights inside it, and slides open and shut; the tab row is the title bar (the window moves and zooms from its empty space); dialogs open as sheets under the title bar, with Cancel and Esc rather than an X; system accent color live-tracked, native context menus, proper app menu with `About`, `Check for Updates…`, `Language`, services submenu, quit
+- macOS: the sidebar holds the traffic lights and slides open and shut; on macOS 27 it runs to the window's edges, on earlier versions it is a card inset from them; the tab row is the title bar (the window moves and zooms from its empty space); dialogs open as sheets under the title bar, with Cancel and Esc rather than an X; system accent color live-tracked, native context menus, proper app menu with `About`, `Check for Updates…`, `Language`, services submenu, quit
 - About is the system's own panel on macOS, and a window of its own elsewhere
 - Windows: dialogs as Windows 11's, the buttons on a band along the bottom with the main one first
 - System notifications on long-running operations (backup complete, export finished, import complete), and for a query that ran 10 s or more while the window was in the background
