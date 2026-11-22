@@ -1,6 +1,6 @@
 # Stoolap 0.5 SQL guide
 
-Stoolap is an embedded SQL database (in-process; in-memory or one database directory) with MVCC transactions, a planner that uses statistics from ANALYZE, parallel execution, `AS OF` time travel and HNSW vector search. Its SQL is its own: close to PostgreSQL in places and MySQL in others (upserts, AUTO_INCREMENT). Everything below was checked against the 0.5.0 engine; where this guide and your habits from other databases disagree, this guide is right. For anything not covered, search the docs (search_stoolap_docs) before writing SQL that relies on it.
+Stoolap is an embedded SQL database (in-process; in-memory or one database directory) with MVCC transactions, a planner that uses statistics from ANALYZE, parallel execution, `AS OF` time travel and HNSW vector search. Its SQL is its own: close to PostgreSQL in places and MySQL in others (upserts, AUTO_INCREMENT). Everything below was checked against the 0.5.1 engine; where this guide and your habits from other databases disagree, this guide is right. For anything not covered, search the docs (search_stoolap_docs) before writing SQL that relies on it.
 
 - CREATE takes only TABLE, INDEX or VIEW: no schemas (`schema.table` fails), triggers, procedures, sequences, users or GRANT.
 - Identifiers fold to lower case even when quoted.
@@ -22,9 +22,10 @@ Stoolap is an embedded SQL database (in-process; in-memory or one database direc
 **Literals**: `'it''s'`; backslash escapes are processed (`'\n'`, `'\t'`, so write `'C:\\dir'`). `42`, `3.14`, `1e3`, `TRUE`/`FALSE`, `NULL`. `TIMESTAMP '2025-01-01 12:00:00'`, `DATE '2025-01-01'`.
 
 **Operators**: `= <> != < <= > >=`, `AND OR NOT XOR`, `+ - * / %`, `||`, `LIKE` (case-sensitive), `ILIKE`, `ESCAPE`, `GLOB`, `REGEXP`, `BETWEEN`, `IN`, `IS [NOT] NULL|TRUE|FALSE`, `IS [NOT] DISTINCT FROM`, `& | ^ ~ << >>`, `CASE`, `IIF(c,a,b)`.
-- `^` is XOR; power is `POWER(a,b)`. `7/2` = 3; use `7 * 1.0 / 2`. `x/0` = NULL. INTEGER overflow errors.
+- `^` is XOR; power is `POWER(a,b)`. `7/2` = 3; use `7 * 1.0 / 2`. `x/0` = NULL. INTEGER and FLOAT overflow error.
 - `'42' + 1` and `TRUE + 1` are NULL: CAST first. `n = '42'` works (text read as number).
 - BOOLEAN column: `b = 1` matches NOTHING; write `WHERE b` / `b = TRUE`. Inserting `1`/`0`/`'yes'` is fine.
+- A condition (WHERE, HAVING, ON, AND/OR/NOT, CASE WHEN, CHECK, FILTER, IIF) must be BOOLEAN, INTEGER (non-zero is true) or NULL. A FLOAT or TEXT there is an error: write `f <> 0`.
 - Case-insensitive: `ILIKE`, `LOWER(a) = LOWER(b)`, or `COLLATE(a,'NOCASE') = COLLATE(b,'NOCASE')` (also BINARY, NOACCENT).
 
 **CAST**: `CAST(x AS type)` only, no `(n)`. Bad text → NULL (`'3.7'`/`''` → INTEGER NULL); FLOAT→INTEGER truncates; text→BOOLEAN takes true/t/yes/y/1/false/f/no/n/0. TIMESTAMP→TEXT is `'2024-03-15T14:30:00+00:00'`. TIMESTAMP→INTEGER is NULL: use `EXTRACT(EPOCH FROM ts)`.
@@ -79,9 +80,11 @@ SELECT CAST('42' AS INTEGER) + 1 AS n, 7 * 1.0 / 2 AS f, POWER(2, 3) AS p, TIMES
 - A one-column PK must be INTEGER. For a TEXT key, add `id INTEGER PRIMARY KEY AUTO_INCREMENT` plus `code TEXT NOT NULL UNIQUE`. A composite `PRIMARY KEY(a,b)` takes any types.
 - `AUTO_INCREMENT` works only on an INTEGER PK. On any other column it silently stores NULL.
 - A rolled-back INSERT still uses up its AUTO_INCREMENT id: after `BEGIN; INSERT … RETURNING id; ROLLBACK` the next insert gets the following id, as with sequences elsewhere. Gaps in ids are normal; never rely on them being consecutive.
-- CHECK works on columns and on the table. FK: `c INTEGER REFERENCES p(id) ON DELETE|ON UPDATE CASCADE|SET NULL|RESTRICT|NO ACTION`, or `FOREIGN KEY (c) REFERENCES p(id)`. The target must be the PK or UNIQUE. One column only.
+- CHECK works on columns and on the table. A column takes one CHECK and one DEFAULT: join conditions with AND, or write table CHECKs. FK: `c INTEGER REFERENCES p(id) ON DELETE|ON UPDATE CASCADE|SET NULL|RESTRICT|NO ACTION`, or `FOREIGN KEY (c) REFERENCES p(id)`. The target must be the PK or UNIQUE. One column only.
 - Auto-created indexes: `unique_<t>_<col>`, `unique_<t>_0` (multi-column), `fk_<t>_<col>`.
-- ALTER takes one action: `ADD [COLUMN] c T [NOT NULL DEFAULT v]` | `DROP [COLUMN] c` | `RENAME COLUMN a TO b` | `MODIFY [COLUMN] c T [NOT NULL]` | `RENAME TO n` | `AUTO_INCREMENT = n` | `[DROP] CLUSTER BY`.
+- ALTER takes one action: `ADD [COLUMN] c T [NOT NULL] [DEFAULT v] [CHECK (..)]` | `DROP [COLUMN] c` | `RENAME COLUMN a TO b` | `MODIFY [COLUMN] c T [NOT NULL] [DEFAULT v] [CHECK (..)]` | `ALTER COLUMN c DROP DEFAULT` | `ALTER COLUMN c DROP CHECK` | `RENAME TO n` | `AUTO_INCREMENT = n` | `[DROP] CLUSTER BY`.
+  - MODIFY replaces the type, and the DEFAULT and CHECK it names; a DEFAULT or CHECK it leaves out stays, but NOT NULL left out is dropped.
+  - A new CHECK must hold for every row already in the table.
 - Indexes: `CREATE [UNIQUE] INDEX [IF NOT EXISTS] n ON t (c1, c2) [USING BTREE|HASH|BITMAP|HNSW] [WITH (m=32, ef_construction=400, ef_search=128, metric='cosine')]`.
   - Defaults: BTREE for INTEGER/FLOAT/TIMESTAMP/TEXT, BITMAP for BOOLEAN, HASH for JSON, HNSW for VECTOR.
   - One single-column index per column (a UNIQUE column already has one).
@@ -93,6 +96,8 @@ CREATE TABLE ord (id INTEGER PRIMARY KEY, cust_id INTEGER REFERENCES cust(id) ON
 INSERT INTO cust (email) VALUES ('a@x'), ('b@x') RETURNING id;
 ALTER TABLE cust ADD COLUMN tier TEXT NOT NULL DEFAULT 'basic';
 ALTER TABLE cust RENAME COLUMN tier TO level;
+ALTER TABLE cust MODIFY COLUMN tag TEXT DEFAULT 'none' CHECK (tag <> '');
+ALTER TABLE cust ALTER COLUMN tag DROP CHECK;
 CREATE INDEX idx_tag ON cust (tag) USING HASH;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_ct ON ord (cust_id, lo);
 DROP INDEX idx_tag ON cust;
@@ -104,7 +109,7 @@ DROP TABLE cust CASCADE;
 - RETURNING (aliases allowed) works on INSERT, UPDATE, DELETE and upsert. Use it to read AUTO_INCREMENT ids.
 - UPDATE and DELETE work on one table: join through subqueries. `DELETE FROM t AS x` is allowed. UPDATE takes no alias: write `t.col`.
 - `_rowid_` is the INTEGER PK, or an engine id when there is no PK. `SELECT *` hides it.
-- `TRUNCATE [TABLE] t` cannot be rolled back and resets AUTO_INCREMENT.
+- `TRUNCATE [TABLE] t` cannot be rolled back, is refused inside BEGIN, and resets AUTO_INCREMENT.
 - `COPY t FROM 'path' [WITH (FORMAT CSV|JSON, HEADER true, DELIMITER '|', NULL 'NA')]` only imports and cannot run inside BEGIN.
 - Views: `CREATE VIEW [IF NOT EXISTS] v AS ...`. They are read-only and take no parameters. Recreate one after its `SELECT *` table gains a column.
 
@@ -145,7 +150,7 @@ SELECT c.bal, h.bal AS old_bal FROM acct c JOIN acct AS OF TIMESTAMP NOW() AS h 
 **Introspection**
 - `SHOW TABLES`, `SHOW VIEWS`, `SHOW CREATE TABLE|VIEW x`.
 - `SHOW INDEXES FROM t` returns name, column, index_type, is_unique and options. The PK is not listed.
-- `DESCRIBE t` (or `DESC t`) returns Field, Type, Null, Key (PRI/UNI/MUL) and Default.
+- `DESCRIBE t` (or `DESC t`) returns Field, Type, Null, Key (PRI/UNI/MUL), Default and Extra (`auto_increment`, the column's CHECK). Table CHECKs show only in SHOW CREATE TABLE.
 - `ANALYZE [t]` fills `_sys_table_stats` and `_sys_column_stats`.
 - `PRAGMA x [= v]` reads or sets query_timeout (ms), checkpoint_interval, checkpoint, snapshot, vacuum, memory_stats or verify. An unknown PRAGMA is a silent no-op.
 - EXPLAIN returns one `plan` column with an indented tree; `else` lines are fallbacks.
@@ -161,14 +166,16 @@ PRAGMA query_timeout = 5000;
 EXPLAIN SELECT id FROM m WHERE v > 2;
 ```
 
-**0.5.0 changes**
+**0.5.0 and 0.5.1 changes**
 - A TEXT index without USING is now BTREE (it was HASH).
 - DROP TABLE is refused while an FK references the table; use `DROP TABLE t CASCADE`.
 - Table CHECK is now enforced.
-- ADD COLUMN refuses CHECK, UNIQUE, PK, AUTO_INCREMENT and REFERENCES. On a table with rows, NOT NULL needs a non-NULL DEFAULT.
+- ADD COLUMN refuses UNIQUE, PK, AUTO_INCREMENT and REFERENCES (MODIFY too). On a table with rows, NOT NULL needs a non-NULL DEFAULT.
 - DROP COLUMN and MODIFY refuse the PK and FK columns.
 - New: `ALTER TABLE t AUTO_INCREMENT = n`, `PRAGMA query_timeout`, `_rowid_`, UPDATE of an INTEGER PK.
 - Writing a column twice in one statement, or text after a statement, is now an error.
+- 0.5.1: a condition must be BOOLEAN or INTEGER; FLOAT arithmetic, SUM and AVG fail on overflow; TRUNCATE is refused inside BEGIN; a second PRIMARY KEY, CHECK or DEFAULT is refused; a recursive CTE fails after 10,000 iterations.
+- New in 0.5.1: DEFAULT and CHECK in ADD/MODIFY COLUMN, `ALTER COLUMN c DROP DEFAULT|DROP CHECK`, CHECK in DESCRIBE, GROUPING() in expressions, HAVING and ORDER BY, several named windows in one WINDOW clause.
 
 **Not supported / differs**
 - `SERIAL` and `IDENTITY`: use INTEGER PRIMARY KEY AUTO_INCREMENT.
@@ -176,10 +183,9 @@ EXPLAIN SELECT id FROM m WHERE v > 2;
 - Generated columns: put the expression in a view.
 - TEMP tables, `CREATE SCHEMA`, `schema.table`, sequences, `COMMENT ON`, composite FK, `ON DELETE SET DEFAULT`: not supported.
 - `CONSTRAINT name`: write the constraint without a name.
-- `ALTER COLUMN ...` and `CHANGE COLUMN`: use MODIFY COLUMN.
+- `ALTER COLUMN c SET DEFAULT|TYPE|NOT NULL` and `CHANGE COLUMN`: use MODIFY COLUMN. `ALTER COLUMN` takes only DROP DEFAULT and DROP CHECK.
 - `ADD CONSTRAINT`, `ADD PRIMARY KEY`, column `IF [NOT] EXISTS`, comma-separated actions: run one ALTER per action.
 - `RENAME a TO b`: write `RENAME COLUMN a TO b`.
-- ADD COLUMN `DEFAULT 0 NOT NULL` fails: write `NOT NULL DEFAULT 0`.
 - `DROP TABLE a, b`: one table per DROP.
 - Index `CONCURRENTLY`, `WHERE` (partial), expression and `DESC` indexes, and unnamed indexes: not supported.
 - `CREATE OR REPLACE VIEW`: use DROP VIEW IF EXISTS, then CREATE VIEW.
@@ -217,9 +223,9 @@ Names are case-insensitive. NULL in gives NULL out. Positions are 1-based.
 
 **System**: `VERSION()` `SLEEP(sec)` `CURRENT_TRANSACTION_ID()` (NULL outside a transaction).
 
-**Aggregate**: `COUNT(*)` `COUNT([DISTINCT] x)` `SUM` `AVG` `MIN` `MAX` `FIRST(x [ORDER BY k])` `LAST(...)` `MEDIAN` `STDDEV`=`STDDEV_SAMP` `STDDEV_POP` `VARIANCE`=`VAR_SAMP` `VAR_POP` · `STRING_AGG([DISTINCT] x[, sep] [ORDER BY k])`=`GROUP_CONCAT` (default separator ',', no SEPARATOR keyword) · `ARRAY_AGG([DISTINCT] x [ORDER BY k])` gives a JSON array as TEXT and skips NULLs. Every aggregate takes `FILTER (WHERE c)`. `GROUPING(col)` works with ROLLUP, CUBE and GROUPING SETS.
+**Aggregate**: `COUNT(*)` `COUNT([DISTINCT] x)` `SUM` `AVG` `MIN` `MAX` `FIRST(x [ORDER BY k])` `LAST(...)` `MEDIAN` `STDDEV`=`STDDEV_SAMP` `STDDEV_POP` `VARIANCE`=`VAR_SAMP` `VAR_POP` · `STRING_AGG([DISTINCT] x[, sep] [ORDER BY k])`=`GROUP_CONCAT` (default separator ',', no SEPARATOR keyword) · `ARRAY_AGG([DISTINCT] x [ORDER BY k])` gives a JSON array as TEXT and skips NULLs. Every aggregate takes `FILTER (WHERE c)`. `GROUPING(col)` works with ROLLUP, CUBE and GROUPING SETS, also inside expressions, HAVING and ORDER BY; `GROUPING(a, b)` gives one bit per argument.
 
-**Window** (OVER is required): `ROW_NUMBER()` `RANK()` `DENSE_RANK()` `NTILE(n)` `PERCENT_RANK()` `CUME_DIST()` `LAG(x[, off[, dflt]])` `LEAD(...)` `FIRST_VALUE(x)` `LAST_VALUE(x)` `NTH_VALUE(x, n)`, plus any aggregate. Frames: `ROWS|RANGE BETWEEN ... AND ...` with UNBOUNDED PRECEDING, n PRECEDING, CURRENT ROW, n FOLLOWING or UNBOUNDED FOLLOWING. With ORDER BY, the default frame ends at the current row, so `LAST_VALUE` needs an explicit full frame. `WINDOW w AS (...)` works. Not supported: GROUPS, EXCLUDE, IGNORE NULLS, QUALIFY (filter in an outer query instead).
+**Window** (OVER is required): `ROW_NUMBER()` `RANK()` `DENSE_RANK()` `NTILE(n)` `PERCENT_RANK()` `CUME_DIST()` `LAG(x[, off[, dflt]])` `LEAD(...)` `FIRST_VALUE(x)` `LAST_VALUE(x)` `NTH_VALUE(x, n)`, plus any aggregate. Frames: `ROWS|RANGE BETWEEN ... AND ...` with UNBOUNDED PRECEDING, n PRECEDING, CURRENT ROW, n FOLLOWING or UNBOUNDED FOLLOWING. With ORDER BY, the default frame ends at the current row, so `LAST_VALUE` needs an explicit full frame. `WINDOW w1 AS (...), w2 AS (...)` works. Not supported: GROUPS, EXCLUDE, IGNORE NULLS, QUALIFY (filter in an outer query instead).
 
 **Table-valued**: `GENERATE_SERIES(start, stop[, step])` in FROM returns the column `value` (rename it with `AS g(n)`). Both bounds are inclusive. It works with integers, floats, and dates with a step string ('1 day', '2 hours', '30 min', '1 month'). A step in the wrong direction gives 0 rows. Arguments cannot read other FROM tables (no LATERAL). In a SELECT list it returns a JSON array as TEXT.
 
@@ -268,7 +274,7 @@ SELECT d.day, COALESCE(SUM(o.total), 0) AS total FROM generate_series('2024-01-0
 - WHERE can use a SELECT alias. If it has the same name as a column, the column is used.
 - Joins: INNER, LEFT, RIGHT, FULL, CROSS, comma, `USING`, `NATURAL [LEFT|FULL]`. `JOIN` without `ON` is a cross join. A shared bare column name is an error.
 - Subqueries (scalar, IN, EXISTS, correlated) work anywhere. A scalar subquery with 2+ rows is an error. `NOT IN` over a NULL returns no rows.
-- CTEs: several, chained, `WITH x(c)`, in subqueries, before INSERT/UPDATE/DELETE. `WITH RECURSIVE` needs `UNION ALL` and stops silently after 10,000 iterations.
+- CTEs: several, chained, `WITH x(c)`, in subqueries, before INSERT/UPDATE/DELETE. `WITH RECURSIVE` needs `UNION ALL`, fails after 10,000 iterations, and takes no ORDER BY, LIMIT or OFFSET in the CTE.
 - `UNION|INTERSECT|EXCEPT [ALL]`. INTERSECT binds tighter.
 - GROUP BY on an alias, a position or an expression. HAVING can use a plain aggregate's alias. `COUNT(*) FILTER (WHERE ..)`, `STRING_AGG`, `GROUP_CONCAT`, `ROLLUP`, `CUBE`, `GROUPING SETS`, `GROUPING()`.
 - Windows: the usual functions, `WINDOW w`, `ROWS`/`RANGE` frames.

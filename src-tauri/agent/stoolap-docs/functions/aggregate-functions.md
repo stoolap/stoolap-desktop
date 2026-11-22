@@ -39,7 +39,7 @@ SELECT SUM(amount) FROM orders;
 SELECT category, SUM(amount) FROM orders GROUP BY category;
 ```
 
-SUM follows the arithmetic of `+`. Over INTEGER values it returns the exact INTEGER sum; a BOOLEAN counts as 1 or 0. A running total may pass beyond the INTEGER range and come back, but a final sum outside it is an `Integer overflow` error, as `a + b` is. Once any value is FLOAT, the sum is FLOAT. NULL values are skipped, and SUM of no values is NULL.
+SUM follows the arithmetic of `+`. Over INTEGER values it returns the exact INTEGER sum; a BOOLEAN counts as 1 or 0. A running total may pass beyond the INTEGER range and come back, but a final sum outside it is an `Integer overflow` error, as `a + b` is. Once any value is FLOAT, the sum is FLOAT, and a sum that finite values take past the FLOAT range is a `Float overflow in SUM` error, as `1e308 + 1e308` is; a value that is already infinite or NaN gives that sum, as it does to `+`. The order in which FLOAT values are added is not specified: a large input is summed in parts, possibly on several threads, and each part rounds on its own. So the last bits of a FLOAT sum may differ from adding the rows one by one, and for a sum within rounding of the FLOAT range's limit, whether it overflows may differ too. NULL values are skipped, and SUM of no values is NULL.
 
 ### AVG
 
@@ -52,7 +52,7 @@ SELECT AVG(price) FROM products;
 SELECT category, AVG(price) FROM products GROUP BY category;
 ```
 
-AVG always returns FLOAT. It divides the exact sum that SUM computes, so INTEGER values far beyond 2^53 average without first rounding each one.
+AVG always returns FLOAT. It divides the exact sum that SUM computes, so INTEGER values far beyond 2^53 average without first rounding each one, and FLOAT values whose sum leaves the FLOAT range are a `Float overflow in AVG` error.
 
 ### MIN
 
@@ -357,6 +357,8 @@ SELECT COUNT(DISTINCT category) FROM products;
 SELECT SUM(price) FILTER (WHERE in_stock) FROM products;
 SELECT STRING_AGG(name, ', ' ORDER BY name) FROM products;
 ```
+
+`FILTER` reads its condition by the rule every condition follows, given in [Conditions]({% link _docs/sql-features/operators-expressions.md %}#conditions): a row is read when the condition is `TRUE` or an INTEGER that is not zero, and any other type is an error.
 
 These modifiers belong to aggregate calls, an aggregate used as a window function included. On any other function they are an error, wherever the call stands, since no other call reads rows: `ABS(DISTINCT x)`, `UPPER(s ORDER BY id)` and `ABS(x) FILTER (WHERE x > 0)` each fail with `DISTINCT is allowed only in an aggregate call, and ABS is not an aggregate function` (or `ORDER BY`, `FILTER`, and the function's name). So does `ROW_NUMBER(DISTINCT x) OVER ()`. The statement is checked before it reads a row, so it fails even where the call would never be evaluated: in a branch of an OR its other side decides, in the SELECT list of an EXISTS, in a RETURNING list of a statement that changes no row, or under `LIMIT 0`. A column DEFAULT is checked when an INSERT computes it.
 

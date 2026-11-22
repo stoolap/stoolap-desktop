@@ -35,6 +35,7 @@ SKIP_PAGES = {
     "getting-started/installation",
     "getting-started/api-reference",
     "getting-started/stoolap-studio",
+    "getting-started/stoolap-desktop",
     "performance/ann-benchmarks",
 }
 

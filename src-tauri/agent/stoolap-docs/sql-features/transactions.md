@@ -111,7 +111,7 @@ BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 
 ## Transaction Behavior with DDL
 
-DDL statements are accepted inside an explicit transaction, but only CREATE TABLE is undone by ROLLBACK:
+DDL statements are accepted inside an explicit transaction, but only CREATE TABLE, with or without AS SELECT, is undone by ROLLBACK:
 
 ```sql
 BEGIN;
@@ -123,13 +123,13 @@ COMMIT;
 
 | Statement inside a transaction | On ROLLBACK |
 |--------------------------------|-------------|
-| `CREATE TABLE` | Table is removed |
+| `CREATE TABLE`, `CREATE TABLE ... AS SELECT` | Table and its rows are removed |
 | `ALTER TABLE`, `CREATE INDEX`, `CREATE VIEW`, `DROP INDEX`, `DROP VIEW` | Change persists |
 | `DROP TABLE` | Table definition returns, but its rows are lost (a warning is printed) |
-| `TRUNCATE TABLE` | Rows are lost |
+| `TRUNCATE TABLE` | Rejected: cannot run inside an explicit transaction |
 | `COPY ... FROM` | Rejected: cannot run inside an explicit transaction |
 
-Run schema changes, TRUNCATE and COPY outside explicit transactions when you need them to be reversible.
+Run schema changes outside explicit transactions when you need them to be reversible. To empty a table inside a transaction, use `DELETE FROM table_name`, which ROLLBACK undoes.
 
 ### Setting Default Isolation Level
 

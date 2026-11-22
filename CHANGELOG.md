@@ -4,6 +4,22 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.13
+
+Built on Stoolap 0.5.1.
+
+### Tables
+- Create Table and Edit Table are redone as one list of columns: each row holds the name, type, constraints as small tags (PK, NN, UQ, AI, FK, CK) and default, with a vector's size, a foreign key or a CHECK on a line under it. The SQL that will run is folded away under the list.
+- Create Table takes a CHECK on a column.
+- Edit Table can now turn NOT NULL and UNIQUE on and off, set or remove a column's default and CHECK, and set the id the next new row gets. A new column is added as a row in the list and takes a default and a CHECK too.
+- Changing a column's type in Edit Table keeps its NOT NULL. Before, it was dropped.
+
+### Agent
+- The agent's Stoolap guide and documentation are for Stoolap 0.5.1: a condition must be BOOLEAN or INTEGER, FLOAT overflow is an error, TRUNCATE can't run inside a transaction, and ALTER TABLE takes DEFAULT and CHECK.
+
+### Fixes
+- The window opens at the size and place it had when it was closed. Before, it opened at the default size and then jumped.
+
 ## v0.5.12
 
 ### Look and feel
