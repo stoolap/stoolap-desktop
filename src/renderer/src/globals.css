@@ -448,6 +448,35 @@ button, [role="button"], [role="tab"], [role="menuitem"],
   letter-spacing: 0 !important;
 }
 
+/* The app's own dialogs' buttons (OK, Cancel, Create…) at the system's
+   push button size, not the page's 36px: macOS' 28px with 13px text,
+   Windows 11's and GNOME's 32px with 14px */
+[data-slot="dialog-footer"] [data-slot="button"] {
+  height: 32px !important;
+  padding: 0 14px !important;
+  font-size: 14px !important;
+}
+html[data-platform="mac"] [data-slot="dialog-footer"] [data-slot="button"] {
+  height: 28px !important;
+  padding: 0 12px !important;
+  font-size: 13px !important;
+}
+/* Their fields and text at the same scale: the default-sized fields (h-9;
+   a grid's compact ones keep their own; matched as elements, as a tooltip
+   around one replaces its data-slot) and the text, labels among it */
+[data-slot="dialog-content"] :is(input, [role="combobox"]).h-9 {
+  height: 32px !important;
+  font-size: 14px !important;
+}
+[data-slot="dialog-content"] .text-sm,
+[data-slot="dialog-content"] [data-slot="label"] { font-size: 14px !important; }
+html[data-platform="mac"] [data-slot="dialog-content"] :is(input, [role="combobox"]).h-9 {
+  height: 28px !important;
+  font-size: 13px !important;
+}
+html[data-platform="mac"] [data-slot="dialog-content"] .text-sm,
+html[data-platform="mac"] [data-slot="dialog-content"] [data-slot="label"] { font-size: 13px !important; }
+
 /* Select / Dropdown */
 [data-slot="select-trigger"] {
   border-radius: 5px !important;
