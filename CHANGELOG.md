@@ -4,6 +4,14 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.14
+
+### Look and feel
+- On macOS the sidebar is tinted like the system's own: the accent color shows at its top and fades out, its edge is lighter, and in dark mode it is a little lighter than the content beside it. The sidebar and agent buttons by the window's controls take the same tint when the pointer is over them.
+
+### Fixes
+- In Vector Search the table, column and metric menus fill their columns, and a long column name is cut short instead of running over the next menu.
+
 ## v0.5.13
 
 Built on Stoolap 0.5.1.
