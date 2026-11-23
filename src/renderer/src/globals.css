@@ -568,7 +568,7 @@ html[data-platform="windows"] [data-slot="dialog-footer"] {
   background-image: linear-gradient(var(--toast-bar), var(--toast-bar));
   background-repeat: no-repeat;
   background-position: left bottom;
-  background-size: var(--toast-left) 2px;
+  background-size: var(--toast-left) 3px;
   animation: toast-countdown var(--toast-ms, 3000ms) linear forwards;
   --toast-bar: color-mix(in oklab, var(--foreground) 22%, transparent);
 }

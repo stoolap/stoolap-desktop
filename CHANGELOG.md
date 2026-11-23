@@ -14,6 +14,7 @@ before tagging; the release fails without one.
 - The line between the agent and the editor is thinner.
 - The status bar separates a database's name from its path with a thin line instead of a dash.
 - About no longer shows the tagline under the app's name.
+- Notices are taller, with room for their countdown bar, and their title no longer reads smaller than their text.
 
 ### Results
 - Search and Copy are in the toolbar above a result, and in a table's own toolbar, instead of at the bottom of the grid.
