@@ -15,6 +15,10 @@ before tagging; the release fails without one.
 ### Linux
 - The menu bar is drawn in the window with GNOME's look, in place of GTK's classic menu bar. Ctrl+O, Ctrl+N, Ctrl+Shift+S and Ctrl+L work while the page has the focus.
 
+### Updates
+- A new version is offered while the app stays open, not only at launch: when the window comes back to the front or on the hour, at most every four hours.
+- Each Later puts the next offer further off: a day, three days, a week, two weeks, then a month. Help > Check for Updates always checks at once.
+
 ### Fixes
 - A tooltip closes when a right-click menu opens and stays closed until the menu does.
 
