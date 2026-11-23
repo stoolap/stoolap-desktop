@@ -96,7 +96,7 @@ export function EditorTabs() {
                   />
                 ) : (
                   <span
-                    className="truncate max-w-[100px]"
+                    className="tab-title truncate max-w-[100px]"
                     onDoubleClick={(e) => {
                       if (tab.mode !== "data") {
                         e.stopPropagation();

@@ -30,9 +30,10 @@ export function QueryTimeoutSelect() {
     <Select value={String(ms)} onValueChange={(v) => setMs(Number(v))}>
       {/* The clock and the time alone; what it is in its tooltip */}
       <Tip label={full} side="top">
+        {/* Its arrow points up: the menu opens above it, in the status bar */}
         <SelectTrigger
           aria-label={full}
-          className="h-6 w-auto gap-1 px-2 text-xs border-0 bg-transparent shadow-none text-muted-foreground hover:text-foreground"
+          className="h-6 w-auto gap-1 px-2 text-xs border-0 bg-transparent shadow-none text-muted-foreground hover:text-foreground [&>svg:last-child]:rotate-180"
         >
           <Timer className="h-3 w-3" />
           <span>{ms === 0 ? "∞" : queryTimeoutLabel(ms)}</span>

@@ -32,8 +32,8 @@ const PAGE_MENUBAR = !IS_MAC;
 // From macOS 27 a sidebar runs to the window's edges, a line on its right
 // (as Mail's); before, it is a card inset from them
 const SIDEBAR_CARD = IS_MAC && Number(document.documentElement.dataset.macos) < 27;
-// The panel toggles' icons: larger on macOS, in their glass capsule (as Mail's)
-const ICON = IS_MAC ? "size-[18px]" : "h-3.5 w-3.5";
+// The panel toggles' icons, in one glass capsule (as Mail's), larger on macOS
+const ICON = IS_MAC ? "size-[18px]" : "size-4";
 
 export function AppShell() {
   const { t } = useTranslation("layout");
@@ -72,7 +72,7 @@ export function AppShell() {
   // The panels' toggles: on macOS by the traffic lights (as Mail's),
   // elsewhere at the tab row's start
   const toggles = (
-    <div className={cn("flex shrink-0 items-center gap-0.5", IS_MAC && "glass-pill")}>
+    <div className="glass-pill flex shrink-0 items-center gap-0.5">
       <SidebarToggle open={sidebarOpen} onToggle={toggleSidebar} />
       <AgentToggle />
     </div>
@@ -283,10 +283,13 @@ export function AppShell() {
               </div>
             </div>
           ) : (
-            // Room above the connection menu, which on macOS the window
-            // buttons' row gives it
-            <div style={{ width: sidebarWidth }} className="win-sidebar h-full border-r border-border/40 bg-sidebar pt-3">
-              <Sidebar />
+            // The toggles atop it at its right, as on macOS (where the
+            // window buttons share their row)
+            <div style={{ width: sidebarWidth }} className="win-sidebar h-full flex flex-col border-r border-border/40 bg-sidebar">
+              <div className="h-10 shrink-0 flex items-center justify-end pr-2 pt-2">{toggles}</div>
+              <div className="flex-1 min-h-0">
+                <Sidebar />
+              </div>
             </div>
           )}
         </div>
@@ -304,7 +307,7 @@ export function AppShell() {
         )}
 
         {/* Full height between the sidebar and the editor */}
-        <AgentDock leftmost={!sidebarOpen} toggles={togglesByLights} />
+        <AgentDock leftmost={!sidebarOpen} toggles={IS_MAC ? togglesByLights : toggles} />
 
         <div className={cn("win-content flex-1 min-w-0 flex flex-col bg-background", !agentOpen && "win-content-start")}>
           <div className="flex-1 flex overflow-hidden">
@@ -316,11 +319,15 @@ export function AppShell() {
             >
               {connections.length === 0 ? (
                 <>
-                  {/* The window's top edge, to move it by: no tab row here */}
-                  {IS_MAC && (
+                  {/* The window's top edge, to move it by: no tab row here (and
+                      where the toggles go with no panel open) */}
+                  {IS_MAC ? (
                     <div data-tauri-drag-region className="h-[46px] shrink-0 flex items-center pl-[96px]">
                       {!sidebarOpen && !agentOpen && togglesByLights}
                     </div>
+                  ) : (
+                    !sidebarOpen &&
+                    !agentOpen && <div className="h-10 shrink-0 flex items-center pl-2">{toggles}</div>
                   )}
                   <Welcome />
                 </>
@@ -332,9 +339,9 @@ export function AppShell() {
                       no panel is open */}
                   <div
                     data-tauri-drag-region
-                    className={cn("flex items-center", IS_MAC && "h-[46px]", IS_MAC && !sidebarOpen && !agentOpen && "pl-[96px]")}
+                    className={cn("flex items-center", IS_MAC ? "h-[46px]" : "h-10 pl-2", IS_MAC && !sidebarOpen && !agentOpen && "pl-[96px]")}
                   >
-                    {!IS_MAC && toggles}
+                    {!IS_MAC && !sidebarOpen && !agentOpen && toggles}
                     {/* On macOS the toggles sit by the traffic lights, in the
                         leftmost panel: here when none is open */}
                     {IS_MAC && !sidebarOpen && !agentOpen && togglesByLights}
@@ -475,7 +482,7 @@ function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () => void
       <Button
         variant="ghost"
         size="icon"
-        className={cn("shrink-0", IS_MAC ? "h-[30px] w-[34px]" : "h-7 w-7 rounded-none")}
+        className={cn("shrink-0", IS_MAC ? "h-[30px] w-[34px]" : "h-7 w-8")}
         onClick={onToggle}
         aria-label={label}
       >
@@ -494,7 +501,7 @@ function AgentToggle() {
       <Button
         variant="ghost"
         size="icon"
-        className={cn("shrink-0", IS_MAC ? "h-[30px] w-[34px]" : "h-7 w-7 rounded-none", open && "text-primary")}
+        className={cn("shrink-0", IS_MAC ? "h-[30px] w-[34px]" : "h-7 w-8", open && "text-primary")}
         onClick={toggle}
         aria-label={open ? t("agentToggle.hide") : t("agentToggle.show")}
         aria-pressed={open}

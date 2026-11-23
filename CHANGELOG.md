@@ -24,7 +24,11 @@ before tagging; the release fails without one.
 ### Look and feel
 - The app's own dialogs (Create Table, Backup, Connect…) have their buttons, fields and text at the system's size, no longer the page's larger one.
 - Query tabs are compact rounded pills, their icon, title and round close button in line.
-- The query timeout in the status bar is a clock and its time (5 min), the rest in its tooltip.
+- The query timeout in the status bar is a clock and its time (5 min), the rest in its tooltip, its arrow pointing up as its menu opens.
+
+### Windows and Linux
+- The sidebar and agent buttons share macOS's glass capsule and move as there: atop the sidebar, on the agent's header when the sidebar is closed, at the tab row's start with both closed.
+- The tab row and the agent's header are 40px, a tab's title in line with its icon.
 - Load Example Database has a book icon and in-memory databases a memory chip, no longer the agent's and a lightning bolt.
 - The start page's logo is larger and sits higher.
 - The example tab shows EXPLAIN on the vector search: the plan's NearestHnsw line is the HNSW index at work.

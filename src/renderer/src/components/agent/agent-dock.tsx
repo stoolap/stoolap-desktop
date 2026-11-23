@@ -61,7 +61,7 @@ export function AgentDock({ leftmost = false, toggles }: { leftmost?: boolean; t
       {/* win-content-start: the first panel after the sidebar (Windows 11) */}
       <div ref={panelRef} style={{ width }} className="win-content win-content-start shrink-0 overflow-hidden">
         {/* With the sidebar hidden, macOS' traffic lights sit at its top */}
-        <AgentPanel clearLights={IS_MAC && leftmost} toggles={IS_MAC && leftmost ? toggles : undefined} />
+        <AgentPanel clearLights={IS_MAC && leftmost} toggles={leftmost ? toggles : undefined} />
       </div>
       <div
         role="separator"
