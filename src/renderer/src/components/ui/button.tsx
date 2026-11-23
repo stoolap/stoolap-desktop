@@ -53,11 +53,13 @@ function Button({
 
   return (
     <Comp
-      data-slot="button"
       data-variant={variant}
       data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
+      // After the props: a trigger around the button (a tooltip's, a menu's)
+      // passes its own data-slot, which would take the button's look away
+      data-slot="button"
     />
   );
 }

@@ -40,17 +40,15 @@ import { toast } from "sonner";
 import { useModKey } from "@/hooks/use-mod-key";
 import { explainAll } from "@/lib/sql-utils";
 import { getEditorSelection } from "@/lib/editor-registry";
+import { setQueryGridActions } from "@/components/results/grid-actions";
 
 /** How long the user waited (for a script, the whole script's wait, not the
- * statement's engine time) and what changed. A result's row count is under
- * its grid, which also counts the rows a search leaves. */
+ * statement's engine time) and what changed. A result's row count and time
+ * are under its grid, whose Search and Copy take this place. */
 function resultStats(result: ApiResult | null, waited?: number) {
   if (!result) return null;
   if ("time" in result && waited !== undefined) result = { ...result, time: waited };
   if ("error" in result && result.error) return null;
-  if ("columns" in result) {
-    return `${result.time}ms`;
-  }
   if ("ddl" in result) {
     return `${result.ddl} | ${result.time}ms`;
   }
@@ -490,6 +488,8 @@ export function QueryToolbar() {
           {stats}
         </span>
       )}
+      {/* A result grid's Search and Copy */}
+      <div ref={setQueryGridActions} className="flex items-center gap-0.5" />
     </div>
   );
 }

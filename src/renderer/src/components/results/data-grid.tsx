@@ -42,6 +42,8 @@ import {
 } from "@/lib/vector-utils";
 import type { ForeignKeyInfo } from "@/lib/types";
 import { Tip } from "@/components/ui/tip";
+import { Button } from "@/components/ui/button";
+import { createPortal } from "react-dom";
 
 /**
  * What the grid uses of the table: sorting (by column type, the "auto"
@@ -97,6 +99,11 @@ interface DataGridProps {
   onFindSimilar?: (column: string, vectorValue: string) => void;
   serverSort?: { column: string; direction: "ASC" | "DESC" };
   onServerSort?: (column: string, direction: "ASC" | "DESC") => void;
+  /** Where Search and Copy go: a toolbar above the grid. Without one they
+   *  sit in its footer. */
+  actionsTarget?: HTMLElement | null;
+  /** How long the query took, shown by the row count */
+  time?: number;
 }
 
 function VectorHeatmap({ values }: { values: number[] }) {
@@ -157,6 +164,8 @@ export function DataGrid({
   onFindSimilar,
   serverSort,
   onServerSort,
+  actionsTarget,
+  time,
 }: DataGridProps) {
   const { t } = useTranslation("editor");
   const mod = useModKey();
@@ -660,6 +669,32 @@ export function DataGrid({
 
   const colCount = columns.length + (onDeleteRow ? 2 : 1);
 
+  // Search and Copy: in a toolbar above the grid, or in its footer
+  const actions = (
+    <>
+      <Tip label={t("grid.searchTitle", { mod })}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 gap-1 text-xs"
+          onClick={() => {
+            setSearchOpen(true);
+            requestAnimationFrame(() => searchInputRef.current?.focus());
+          }}
+        >
+          <Search className="h-3.5 w-3.5" />
+          {t("grid.search")}
+        </Button>
+      </Tip>
+      <Tip label={t(globalFilter ? "grid.copyVisibleRowsTitle" : "grid.copyRowsTitle", { mod })}>
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={handleCopy}>
+          <Copy className="h-3.5 w-3.5" />
+          {t("grid.copy")}
+        </Button>
+      </Tip>
+    </>
+  );
+
   return (
     <div
       ref={containerRef}
@@ -917,31 +952,14 @@ export function DataGrid({
         <span className="tabular-nums">
           {globalFilter
             ? t("grid.filteredRows", { shown: tableRows.length, count: rows.length })
-            : t("grid.rows", { count: rows.length })}
+            : // A query's result is a set, as MySQL says; a table's page is rows
+              t(time !== undefined ? "grid.rowsInSet" : "grid.rows", { count: rows.length })}
         </span>
         <div className="flex-1" />
-        <Tip label={t("grid.searchTitle", { mod })}>
-          <button
-            className="flex items-center gap-1 hover:text-foreground transition-colors"
-            onClick={() => {
-              setSearchOpen(true);
-              requestAnimationFrame(() => searchInputRef.current?.focus());
-            }}
-          >
-            <Search className="h-3 w-3" />
-            {t("grid.search")}
-          </button>
-        </Tip>
-        <Tip label={t(globalFilter ? "grid.copyVisibleRowsTitle" : "grid.copyRowsTitle", { mod })}>
-          <button
-            className="flex items-center gap-1 hover:text-foreground transition-colors"
-            onClick={handleCopy}
-          >
-            <Copy className="h-3 w-3" />
-            {t("grid.copy")}
-          </button>
-        </Tip>
+        {time !== undefined && <span className="tabular-nums">{t("grid.executedIn", { time })}</span>}
+        {!actionsTarget && actions}
       </div>
+      {actionsTarget && createPortal(actions, actionsTarget)}
 
       {/* Expanded cell overlay */}
       {expandedCell &&

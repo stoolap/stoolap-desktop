@@ -69,6 +69,8 @@
     "deleteRow": "行を削除",
     "filteredRows_other": "{{count}}行中 {{shown}}行",
     "rows_other": "{{count}}行",
+    "rowsInSet_other": "結果セット {{count}} 行",
+    "executedIn": "クエリ実行時間 {{time}} ms",
     "searchTitle": "検索（{{mod}}+F）",
     "search": "検索",
     "copyRowsTitle": "行をTSVとしてコピー（{{mod}}+C）",

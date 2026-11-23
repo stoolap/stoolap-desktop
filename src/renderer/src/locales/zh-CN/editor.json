@@ -69,6 +69,8 @@
     "deleteRow": "删除行",
     "filteredRows_other": "{{shown}} / {{count}} 行",
     "rows_other": "{{count}} 行",
+    "rowsInSet_other": "结果集中 {{count}} 行",
+    "executedIn": "查询耗时 {{time}} 毫秒",
     "searchTitle": "搜索（{{mod}}+F）",
     "search": "搜索",
     "copyRowsTitle": "将行复制为 TSV（{{mod}}+C）",

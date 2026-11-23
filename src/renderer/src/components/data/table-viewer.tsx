@@ -133,6 +133,8 @@ export function TableViewer({
 }: TableViewerProps) {
   const { t } = useTranslation("data");
   const activeId = useConnectionStore((s) => s.activeId);
+  // The toolbar spot the grid puts its Search and Copy in
+  const [gridActions, setGridActions] = useState<HTMLElement | null>(null);
   const addDataTab = useEditorStore((s) => s.addDataTab);
   const { data: foreignKeys } = useTableForeignKeys(table);
   const [offset, setOffset] = useState(0);
@@ -550,6 +552,8 @@ export function TableViewer({
         <span className="text-sm font-medium mr-1">{table}</span>
         <div className="toolbar-separator" />
         <div className="flex-1" />
+        {/* The grid's Search and Copy */}
+        <div ref={setGridActions} className="flex items-center gap-0.5" />
         <Button
           variant={showFilters ? "default" : "ghost"}
           size="sm"
@@ -919,6 +923,7 @@ export function TableViewer({
               orderBy ? { column: orderBy, direction: orderDir } : undefined
             }
             onServerSort={handleServerSort}
+            actionsTarget={gridActions}
           />
         ) : null}
       </div>

@@ -1,8 +1,4 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-// The objc crate's msg_send! macro expands to code gated on `cfg(cargo-clippy)`,
-// which newer rustc flags as an unknown cfg. Suppress crate-wide since the
-// #[allow] attribute doesn't cross macro-expansion boundaries.
-#![allow(unexpected_cfgs)]
 
 mod agent;
 mod commands;
@@ -360,14 +356,14 @@ const LANGUAGE_PREFIX: &str = "language:";
 /// the engine, as the About window elsewhere. The logo is passed in because
 /// a development build is no app bundle and would show a folder.
 #[cfg(target_os = "macos")]
-#[allow(deprecated)] // cocoa deprecates in favor of objc2 — migration is out of scope
 fn show_about_panel(app: &tauri::AppHandle) {
-    use cocoa::base::{id, nil};
-    use cocoa::foundation::{NSArray, NSData, NSDictionary, NSString};
-    use objc::{class, msg_send, sel, sel_impl};
-    // NSTextAlignmentCenter: 1 on Apple silicon, 2 on Intel
-    const CENTER: isize = if cfg!(target_arch = "aarch64") { 1 } else { 2 };
+    use objc2::runtime::AnyObject;
+    use objc2::{AllocAnyThread, MainThreadMarker};
+    use objc2_app_kit::{NSApplication, NSColor, NSFont, NSImage, NSMutableParagraphStyle, NSTextAlignment};
+    use objc2_foundation::{NSAttributedString, NSData, NSDictionary, NSString};
 
+    // Menu events arrive on the main thread, where AppKit must be called
+    let Some(mtm) = MainThreadMarker::new() else { return };
     let lang = i18n::current(app);
     let engine = engine_label(&commands::system::get_stoolap_version());
     let credits_text = format!(
@@ -381,55 +377,48 @@ fn show_about_panel(app: &tauri::AppHandle) {
         .map_or(2025, |d| 1970 + d.as_secs() / 31_556_952);
     // The mark without its tile, which would vanish on the white panel
     let logo = include_bytes!("../icons/about.png");
-    // SAFETY: plain AppKit calls on the main thread (menu events arrive there)
-    unsafe {
-        // Autoreleased: the panel keeps what it shows
-        let text = |s: &str| -> id { msg_send![NSString::alloc(nil).init_str(s), autorelease] };
-        let data = NSData::dataWithBytes_length_(nil, logo.as_ptr().cast(), logo.len() as u64);
-        let image: id = msg_send![class!(NSImage), alloc];
-        let image: id = msg_send![image, initWithData: data];
-        let image: id = msg_send![image, autorelease];
-        // Small, grey and centred, as macOS' own apps' credits
-        let style: id = msg_send![class!(NSMutableParagraphStyle), new];
-        let style: id = msg_send![style, autorelease];
-        let _: () = msg_send![style, setAlignment: CENTER];
-        let font: id = msg_send![class!(NSFont), systemFontOfSize: 11.0_f64];
-        let color: id = msg_send![class!(NSColor), secondaryLabelColor];
-        let attributes = NSDictionary::dictionaryWithObjects_forKeys_(
-            nil,
-            NSArray::arrayWithObjects(nil, &[style, font, color]),
-            NSArray::arrayWithObjects(nil, &[text("NSParagraphStyle"), text("NSFont"), text("NSColor")]),
-        );
-        let credits: id = msg_send![class!(NSAttributedString), alloc];
-        let credits: id = msg_send![credits, initWithString: text(&credits_text) attributes: attributes];
-        let credits: id = msg_send![credits, autorelease];
-        let keys = NSArray::arrayWithObjects(
-            nil,
-            &[
-                text("ApplicationName"),
-                text("ApplicationVersion"),
-                text("Version"),
-                text("Copyright"),
-                text("Credits"),
-                text("ApplicationIcon"),
-            ],
-        );
-        let values = NSArray::arrayWithObjects(
-            nil,
-            &[
-                text("Stoolap Desktop"),
-                text(&app.package_info().version.to_string()),
-                // Empty, or the bundle's build number follows in brackets
-                text(""),
-                text(&format!("© 2025–{year} Stoolap · Apache License 2.0")),
-                credits,
-                image,
-            ],
-        );
-        let options = NSDictionary::dictionaryWithObjects_forKeys_(nil, values, keys);
-        let ns_app: id = msg_send![class!(NSApplication), sharedApplication];
-        let _: () = msg_send![ns_app, orderFrontStandardAboutPanelWithOptions: options];
+    let text = NSString::from_str;
+
+    // Small, grey and centred, as macOS' own apps' credits
+    let style = NSMutableParagraphStyle::new();
+    style.setAlignment(NSTextAlignment::Center);
+    let (font, color) = (NSFont::systemFontOfSize(11.0), NSColor::secondaryLabelColor());
+    let attributes = NSDictionary::<NSString, AnyObject>::from_slices(
+        &[&*text("NSParagraphStyle"), &*text("NSFont"), &*text("NSColor")],
+        &[style.as_ref(), font.as_ref(), color.as_ref()],
+    );
+    // SAFETY: each attribute is the kind of object its key takes
+    let credits = unsafe {
+        NSAttributedString::initWithString_attributes(NSAttributedString::alloc(), &text(&credits_text), Some(&attributes))
+    };
+    let image = NSImage::initWithData(NSImage::alloc(), &NSData::with_bytes(logo));
+
+    let (name, version, build) = (text("Stoolap Desktop"), text(&app.package_info().version.to_string()), text(""));
+    let copyright = text(&format!("© 2025–{year} Stoolap · Apache License 2.0"));
+    let mut keys = vec![
+        text("ApplicationName"),
+        text("ApplicationVersion"),
+        text("Version"),
+        text("Copyright"),
+        text("Credits"),
+    ];
+    let mut values: Vec<&AnyObject> = vec![
+        name.as_ref(),
+        version.as_ref(),
+        // Empty, or the bundle's build number follows in brackets
+        build.as_ref(),
+        copyright.as_ref(),
+        credits.as_ref(),
+    ];
+    // Passed in: a development build is no app bundle and would show a folder
+    if let Some(image) = &image {
+        keys.push(text("ApplicationIcon"));
+        values.push(image.as_ref());
     }
+    let keys: Vec<&NSString> = keys.iter().map(|k| &**k).collect();
+    let options = NSDictionary::<NSString, AnyObject>::from_slices(&keys, &values);
+    // SAFETY: the options are the panel's documented keys with values of their kind
+    unsafe { NSApplication::sharedApplication(mtm).orderFrontStandardAboutPanelWithOptions(&options) };
 }
 
 /// "stoolap 0.5.0 (commit: <sha>, built: <time>)" as "Stoolap 0.5.0", with

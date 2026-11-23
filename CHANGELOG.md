@@ -4,6 +4,25 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.15
+
+### Look and feel
+- On macOS the sidebar and agent buttons by the window's controls share a glass capsule, as Mail's sidebar button is, and are larger. The traffic lights sit a little lower.
+- The sidebar's connection menu and table filter are rounded capsules that stand out from the sidebar, and the connection list opens as a frosted menu with the pointed row in the accent color.
+- The sidebar's text is a size smaller and stronger, with clearer counts and headings.
+- On macOS the sidebar loses its tint while the window is in the background, as the system's own apps do.
+- The line between the agent and the editor is thinner.
+
+### Results
+- Search and Copy are in the toolbar above a result, and in a table's own toolbar, instead of at the bottom of the grid.
+- Under a query's result the footer reads "10 rows in set", with how long the query took on its right.
+
+### Fixes
+- Buttons with a tooltip look like the other buttons. Before, the tooltip took their look away.
+- Long table, column and index names are cut in the middle exactly to fit, without a gap after the "…". Their tooltips open below the name instead of beside it.
+- On Windows the welcome screen shows its shortcuts as Ctrl+O and Ctrl+N instead of CtrlO and CtrlN.
+- The macOS About panel and accent color are read through objc2, which removes a build warning about code a future Rust will reject.
+
 ## v0.5.14
 
 ### Look and feel

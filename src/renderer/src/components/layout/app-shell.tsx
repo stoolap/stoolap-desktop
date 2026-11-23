@@ -27,6 +27,8 @@ const IS_MAC = navigator.userAgent.includes("Mac");
 // From macOS 27 a sidebar runs to the window's edges, a line on its right
 // (as Mail's); before, it is a card inset from them
 const SIDEBAR_CARD = IS_MAC && Number(document.documentElement.dataset.macos) < 27;
+// The panel toggles' icons: larger on macOS, in their glass capsule (as Mail's)
+const ICON = IS_MAC ? "size-[18px]" : "h-3.5 w-3.5";
 
 export function AppShell() {
   const { t } = useTranslation("layout");
@@ -60,7 +62,7 @@ export function AppShell() {
   // The panels' toggles: on macOS by the traffic lights (as Mail's),
   // elsewhere at the tab row's start
   const toggles = (
-    <div className="flex shrink-0 items-center gap-0.5">
+    <div className={cn("flex shrink-0 items-center gap-0.5", IS_MAC && "glass-pill")}>
       <SidebarToggle open={sidebarOpen} onToggle={toggleSidebar} />
       <AgentToggle />
     </div>
@@ -224,7 +226,7 @@ export function AppShell() {
             style={{ width: sidebarWidth + sidebarGap, paddingRight: sidebarGap }}
             className={cn(
               "h-full",
-              SIDEBAR_CARD ? "bg-background p-[9px]" : "mac-sidebar bg-sidebar border-r border-border/60 pt-[9px]",
+              SIDEBAR_CARD ? "bg-background p-[9px]" : "mac-sidebar bg-sidebar border-r border-border/60 pt-[10px]",
             )}
           >
             <div
@@ -233,7 +235,7 @@ export function AppShell() {
                 SIDEBAR_CARD && "mac-sidebar rounded-[13px] border border-border/60 bg-sidebar",
               )}
             >
-              <div data-tauri-drag-region className="h-[30px] shrink-0 flex items-center justify-end pr-2">
+              <div data-tauri-drag-region className="h-[34px] mb-3 shrink-0 flex items-center justify-end pr-2">
                 {toggles}
               </div>
               <div className="flex-1 min-h-0">
@@ -430,11 +432,11 @@ function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () => void
       <Button
         variant="ghost"
         size="icon"
-        className={cn("h-7 w-7 shrink-0", IS_MAC ? "rounded-md" : "rounded-none")}
+        className={cn("shrink-0", IS_MAC ? "h-[30px] w-[34px]" : "h-7 w-7 rounded-none")}
         onClick={onToggle}
         aria-label={label}
       >
-        {open ? <PanelLeftClose className="h-3.5 w-3.5" /> : <PanelLeft className="h-3.5 w-3.5" />}
+        {open ? <PanelLeftClose className={ICON} /> : <PanelLeft className={ICON} />}
       </Button>
     </Tip>
   );
@@ -449,12 +451,12 @@ function AgentToggle() {
       <Button
         variant="ghost"
         size="icon"
-        className={cn("h-7 w-7 shrink-0", IS_MAC ? "rounded-md" : "rounded-none", open && "text-primary")}
+        className={cn("shrink-0", IS_MAC ? "h-[30px] w-[34px]" : "h-7 w-7 rounded-none", open && "text-primary")}
         onClick={toggle}
         aria-label={open ? t("agentToggle.hide") : t("agentToggle.show")}
         aria-pressed={open}
       >
-        <Sparkles className="h-3.5 w-3.5" />
+        <Sparkles className={ICON} />
       </Button>
     </Tip>
   );

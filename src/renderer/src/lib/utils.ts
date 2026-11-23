@@ -64,3 +64,25 @@ export function basename(path: string): string {
 export function scrollSideways(e: React.WheelEvent<HTMLElement>) {
   if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) e.currentTarget.scrollLeft += e.deltaY;
 }
+
+/**
+ * `text` cut in the middle to the most of it that `fits`, as Finder does: the
+ * end keeps at least 7 characters, which often tell similar names apart
+ * (orders_2025, orders_2026), and the start gives way with "…".
+ */
+export function middleCut(text: string, fits: (s: string) => boolean): string {
+  if (fits(text)) return text;
+  const cut = (kept: number) => {
+    const tail = Math.min(kept, Math.max(Math.ceil(kept / 2), 7));
+    return text.slice(0, kept - tail) + "…" + text.slice(text.length - tail);
+  };
+  // The most characters kept that still fit (at least one)
+  let lo = 1;
+  let hi = text.length - 1;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (fits(cut(mid))) lo = mid;
+    else hi = mid - 1;
+  }
+  return cut(lo);
+}

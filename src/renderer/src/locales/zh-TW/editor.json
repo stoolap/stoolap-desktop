@@ -69,6 +69,8 @@
     "deleteRow": "刪除列",
     "filteredRows_other": "{{shown}} / {{count}} 列",
     "rows_other": "{{count}} 列",
+    "rowsInSet_other": "結果集中 {{count}} 列",
+    "executedIn": "查詢耗時 {{time}} 毫秒",
     "searchTitle": "搜尋（{{mod}}+F）",
     "search": "搜尋",
     "copyRowsTitle": "將資料列複製為 TSV（{{mod}}+C）",

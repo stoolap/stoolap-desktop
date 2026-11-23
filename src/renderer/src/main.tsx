@@ -77,6 +77,11 @@ onAccentColorChanged(applyAccentColor);
 // About is a window of its own on the same page (outside macOS)
 const label = getCurrentWindow().label;
 
+// A window in the background loses its sidebar's tint, as macOS's own do
+getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+  document.documentElement.classList.toggle("window-inactive", !focused);
+});
+
 // The app loads once the translations have, so its stores and first frame
 // are already in the user's language; and once macOS's version is known, which
 // sets the window's layout (data-macos, read by the app shell)
