@@ -51,6 +51,8 @@ function applyAccentColor(hex: string) {
   root.style.setProperty("--sidebar-primary", color);
   root.style.setProperty("--sidebar-ring", color);
   root.style.setProperty("--chart-1", color);
+  // As the system has it, for the tint of macOS's sidebar glass
+  root.style.setProperty("--system-accent", `#${rgb}`);
 
   // Store the raw hex for mode switches
   root.dataset.accentHex = hex;

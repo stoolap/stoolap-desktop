@@ -17,7 +17,7 @@
 
 Stoolap Desktop is a lightweight native database client for the [Stoolap](https://github.com/stoolap/stoolap) embedded SQL engine. It embeds the Rust engine directly — no server, no bundled Chromium, no Node runtime — so the download stays under 10 MB and the app talks to your database at in-process speed.
 
-Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 frontend) and React. Stoolap Desktop 0.5.13 embeds Stoolap 0.5.1 from crates.io, with the engine's jemalloc allocator.
+Built with [Tauri 2](https://v2.tauri.app/) (Rust backend + WebKit/WebView2 frontend) and React. Stoolap Desktop 0.5.14 embeds Stoolap 0.5.1 from crates.io, with the engine's jemalloc allocator.
 
 ## Why Stoolap Desktop?
 

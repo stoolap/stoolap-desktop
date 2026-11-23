@@ -175,6 +175,26 @@
   [role="separator"][aria-orientation="horizontal"] { cursor: row-resize; }
 }
 
+/* macOS's sidebar is tinted glass (Mail's, measured): the accent color shows
+   at its top and fades out, and its edge catches the light */
+html[data-platform="mac"] { --system-accent: #007aff; --sidebar-rim: rgba(0, 0, 0, 0.06); }
+html[data-platform="mac"].dark { --sidebar: #252627; --sidebar-rim: rgba(255, 255, 255, 0.12); }
+html[data-platform="mac"] .mac-sidebar {
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--system-accent) 8%, var(--sidebar)),
+    var(--sidebar) 220px
+  );
+  border-color: var(--sidebar-rim);
+}
+/* The toggles by the traffic lights sit on that tint: their hover takes it too */
+html[data-platform="mac"] .mac-sidebar [data-tauri-drag-region] button:hover {
+  background-color: color-mix(in srgb, var(--system-accent) 10%, rgba(0, 0, 0, 0.05)) !important;
+}
+html[data-platform="mac"].dark .mac-sidebar [data-tauri-drag-region] button:hover {
+  background-color: color-mix(in srgb, var(--system-accent) 10%, rgba(255, 255, 255, 0.08)) !important;
+}
+
 /* The interface at the size of macOS 26's sidebars (Mail, App Store):
    15px for primary text, 14px for secondary */
 .text-xs { font-size: 14px !important; line-height: 1.5 !important; }

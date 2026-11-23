@@ -224,13 +224,13 @@ export function AppShell() {
             style={{ width: sidebarWidth + sidebarGap, paddingRight: sidebarGap }}
             className={cn(
               "h-full",
-              SIDEBAR_CARD ? "bg-background p-[9px]" : "bg-sidebar border-r border-border/60 pt-[9px]",
+              SIDEBAR_CARD ? "bg-background p-[9px]" : "mac-sidebar bg-sidebar border-r border-border/60 pt-[9px]",
             )}
           >
             <div
               className={cn(
                 "h-full flex flex-col overflow-hidden",
-                SIDEBAR_CARD && "rounded-[13px] border border-border/60 bg-sidebar",
+                SIDEBAR_CARD && "mac-sidebar rounded-[13px] border border-border/60 bg-sidebar",
               )}
             >
               <div data-tauri-drag-region className="h-[30px] shrink-0 flex items-center justify-end pr-2">
