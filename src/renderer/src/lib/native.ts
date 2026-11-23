@@ -61,7 +61,8 @@ export async function showConfirmDialog(options: {
 // classic ones, so there the page draws the menu, where the click was
 const PAGE_MENUS = !navigator.platform.includes("Mac");
 let lastContextClick = { x: 0, y: 0 };
-if (PAGE_MENUS) {
+// (No window where tests import this, in Node)
+if (PAGE_MENUS && typeof window !== "undefined") {
   window.addEventListener("contextmenu", (e) => (lastContextClick = { x: e.clientX, y: e.clientY }), true);
 }
 
