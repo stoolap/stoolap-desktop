@@ -4,7 +4,7 @@
     "disconnect": "Trennen",
     "confirmDisconnect": "Verbindung zu „{{name}}“ trennen?",
     "disconnectDetail": "Nicht gespeicherte Abfragen und In-Memory-Daten gehen verloren.",
-    "noConnections": "Keine Verbindungen"
+    "database": "Datenbank"
   },
   "tableTree": {
     "schema": "Schema",

@@ -4,7 +4,7 @@
     "disconnect": "Verbinding verbreken",
     "confirmDisconnect": "Verbinding met \"{{name}}\" verbreken?",
     "disconnectDetail": "Niet-opgeslagen query's en in-memory gegevens gaan verloren.",
-    "noConnections": "Geen verbindingen"
+    "database": "Database"
   },
   "tableTree": {
     "schema": "Schema",

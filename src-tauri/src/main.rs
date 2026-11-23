@@ -3,7 +3,12 @@
 mod agent;
 mod commands;
 mod db;
+mod help;
 mod i18n;
+#[cfg(target_os = "macos")]
+mod macos_help;
+#[cfg(target_os = "macos")]
+mod macos_sidebar;
 mod sql_utils;
 
 use db::DbManager;
@@ -86,12 +91,18 @@ fn main() {
             agent::agent_reset,
             agent::agent_write_result,
             menu_select,
+            macos_sidebar,
+            help::docs_search,
         ])
         .setup(|app| {
             app.manage(RecentMenu(std::sync::Mutex::new(None)));
             i18n::init(app.handle());
             build_menu(app.handle())?;
             app.on_menu_event(on_menu_event);
+            #[cfg(target_os = "macos")]
+            macos_help::register();
+            // stoolap.io's search index, for the Help menu's search
+            tauri::async_runtime::spawn(help::load());
             if let Some(window) = app.get_webview_window("main") {
                 // Windows 11's Mica behind the window (tauri.windows.conf.json
                 // makes it transparent; on Windows 10 the page stays opaque)
@@ -100,6 +111,20 @@ fn main() {
                     use tauri::window::{Effect, EffectsBuilder};
                     let _ = window.set_effects(EffectsBuilder::new().effect(Effect::Mica).build());
                     MICA.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
+                // macOS: the sidebar material behind the window (Finder's and
+                // Mail's), the desktop blurred and its color taken up
+                // (tauri.macos.conf.json makes it transparent); it dims when
+                // the window isn't active, and turns solid with Reduce
+                // Transparency, as theirs do
+                // On macOS 26 and later AppKit draws the sidebar itself, as
+                // Finder's (macos_sidebar.rs), over the window's own background
+                #[cfg(target_os = "macos")]
+                if macos_sidebar::install(&window) {
+                    NATIVE_SIDEBAR.store(true, std::sync::atomic::Ordering::Relaxed);
+                } else {
+                    use tauri::window::{Effect, EffectsBuilder};
+                    let _ = window.set_effects(EffectsBuilder::new().effect(Effect::Sidebar).build());
                 }
                 match_background_to_theme(&window, window.theme().ok());
                 // Made hidden (tauri.conf.json) and shown here, once the
@@ -154,9 +179,21 @@ fn main() {
 /// globals.css) so a dark-mode launch does not flash white before the
 /// webview's first frame.
 fn match_background_to_theme(window: &tauri::WebviewWindow, theme: Option<tauri::Theme>) {
-    // Over Mica the page draws its own surfaces; the window shows through
+    // Over Mica or the macOS sidebar material the page draws its own
+    // surfaces; the window shows through
     #[cfg(windows)]
-    if MICA.load(std::sync::atomic::Ordering::Relaxed) && window.label() == "main" {
+    let backdrop = MICA.load(std::sync::atomic::Ordering::Relaxed);
+    #[cfg(target_os = "macos")]
+    let backdrop = true;
+    // AppKit's sidebar (macos_sidebar.rs) needs the window's own background,
+    // which follows the theme and the desktop picture by itself
+    #[cfg(target_os = "macos")]
+    if NATIVE_SIDEBAR.load(std::sync::atomic::Ordering::Relaxed) && window.label() == "main" {
+        return;
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    let backdrop = false;
+    if backdrop && window.label() == "main" {
         let _ = window.set_background_color(Some(tauri::window::Color(0, 0, 0, 0)));
         return;
     }
@@ -166,6 +203,10 @@ fn match_background_to_theme(window: &tauri::WebviewWindow, theme: Option<tauri:
     };
     let _ = window.set_background_color(Some(color));
 }
+
+/// AppKit draws the main window's sidebar (macos_sidebar.rs)
+#[cfg(target_os = "macos")]
+static NATIVE_SIDEBAR: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Mica is behind the main window: its page leaves the sidebar clear
 #[cfg(windows)]
@@ -223,6 +264,12 @@ fn build_menu(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
     // Not the predefined About item: macOS 26 gives that one an icon
     let about = MenuItemBuilder::with_id("about", t("about")).build(app_handle)?;
     let check_updates = MenuItemBuilder::with_id("check-updates", t("checkUpdates")).build(app_handle)?;
+    // As Mail's Help menu: the app's help (stoolap.io's docs) at Cmd+?, then
+    // Stoolap's release notes
+    let documentation = MenuItemBuilder::with_id("documentation", t("appHelp"))
+        .accelerator("CmdOrCtrl+Shift+/")
+        .build(app_handle)?;
+    let whats_new = MenuItemBuilder::with_id("whats-new", t("whatsNew")).build(app_handle)?;
 
     // Filled by the renderer through set_recent_databases; a rebuilt menu
     // gets the entries the last one had
@@ -302,12 +349,18 @@ fn build_menu(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
             .separator()
             .quit_with_text(t("quit"))
             .build()?;
+        let help_menu = SubmenuBuilder::with_id(app_handle, HELP_MENU, t("help"))
+            .item(&documentation)
+            .separator()
+            .item(&whats_new)
+            .build()?;
         MenuBuilder::new(app_handle)
             .item(&app_menu)
             .item(&file_menu)
             .item(&edit_menu)
             .item(&view_menu)
             .item(&window_menu)
+            .item(&help_menu)
             .build()?
     };
 
@@ -315,6 +368,9 @@ fn build_menu(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
     let menu = {
         // macOS has these in the app menu
         let help_menu = SubmenuBuilder::new(app_handle, t("help"))
+            .item(&documentation)
+            .item(&whats_new)
+            .separator()
             .item(&check_updates)
             .separator()
             .item(&about)
@@ -332,7 +388,15 @@ fn build_menu(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
     // the window, over Mica, and GTK's on Linux is the classic one: the page
     // draws it (WinMenubar) and sends its choices here (menu_select)
     #[cfg(target_os = "macos")]
-    app_handle.set_menu(menu)?;
+    {
+        app_handle.set_menu(menu)?;
+        // The app's Help menu, which macOS gives its search field (finding
+        // stoolap.io's pages too: macos_help.rs). Once the menu is the app's:
+        // before, there is no NSMenu of it to name
+        if let Some(tauri::menu::MenuItemKind::Submenu(help)) = app_handle.menu().and_then(|m| m.get(HELP_MENU)) {
+            help.set_as_help_menu_for_nsapp()?;
+        }
+    }
     #[cfg(not(target_os = "macos"))]
     let _ = menu;
     Ok(())
@@ -343,6 +407,17 @@ fn on_menu_event(app_handle: &tauri::AppHandle, event: tauri::menu::MenuEvent) {
 }
 
 /// An item of the page's own menu bar (Windows, Linux), done as the native menu's.
+/// The page's sidebar, for AppKit's behind it on macOS (macos_sidebar.rs):
+/// its width in points and whether it is open. Synchronous: it runs on the
+/// main thread, where AppKit's views are.
+#[tauri::command]
+fn macos_sidebar(width: f64, open: bool) {
+    #[cfg(target_os = "macos")]
+    macos_sidebar::set(width, open);
+    #[cfg(not(target_os = "macos"))]
+    let _ = (width, open);
+}
+
 /// Async: a synchronous command runs on the main thread, and opening a
 /// window (About) from there deadlocks on Windows.
 #[tauri::command]
@@ -350,8 +425,22 @@ async fn menu_select(app: tauri::AppHandle, id: String) {
     menu_action(&app, &id);
 }
 
+/// The Help menu's id (macOS sets it as the app's help menu)
+#[cfg(target_os = "macos")]
+const HELP_MENU: &str = "help";
+
 /// What a menu item does, by its id
 fn menu_action(app_handle: &tauri::AppHandle, id: &str) {
+    if id == "documentation" {
+        // The docs on stoolap.io, kept from the engine's repository
+        let _ = agent::agent_open_link(help::DOCS_URL.into());
+        return;
+    }
+    if id == "whats-new" {
+        // Stoolap's release notes, on its GitHub releases
+        let _ = agent::agent_open_link(help::CHANGELOG_URL.into());
+        return;
+    }
     if id == "about" {
         #[cfg(target_os = "macos")]
         show_about_panel(app_handle);

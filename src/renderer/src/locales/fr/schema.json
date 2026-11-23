@@ -4,7 +4,7 @@
     "disconnect": "Se déconnecter",
     "confirmDisconnect": "Se déconnecter de « {{name}} » ?",
     "disconnectDetail": "Les requêtes non enregistrées et les données en mémoire seront perdues.",
-    "noConnections": "Aucune connexion"
+    "database": "Base de données"
   },
   "tableTree": {
     "schema": "Schéma",

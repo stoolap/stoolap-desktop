@@ -21,6 +21,7 @@ import { PanelLeftClose, PanelLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as native from "@/lib/native";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 import { Tip } from "@/components/ui/tip";
 
 const SIDEBAR_WIDTH_DEFAULT = 240;
@@ -63,6 +64,11 @@ export function AppShell() {
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   // macOS: room right of the sidebar's card when the agent isn't against it
   const sidebarGap = SIDEBAR_CARD && !agentOpen ? 9 : 0;
+
+  // macOS: AppKit's sidebar behind the page (macos_sidebar.rs) keeps to ours
+  useEffect(() => {
+    if (IS_MAC) invoke("macos_sidebar", { width: sidebarWidth + sidebarGap, open: sidebarOpen }).catch(() => {});
+  }, [sidebarWidth, sidebarGap, sidebarOpen]);
   // The panels' toggles: on macOS by the traffic lights (as Mail's),
   // elsewhere at the tab row's start
   const toggles = (
@@ -71,6 +77,9 @@ export function AppShell() {
       <AgentToggle />
     </div>
   );
+  // With the sidebar closed they sit in a panel's header, by the lights: as
+  // low as in the sidebar's (its header row is taller than these 46px rows)
+  const togglesByLights = <div className="relative top-[5px]">{toggles}</div>;
   const transactionOpen = useConnectionStore((s) => (activeId ? !!s.openTransactions[activeId] : false));
 
   const setConnections = useConnectionStore((s) => s.setConnections);
@@ -265,7 +274,7 @@ export function AppShell() {
                   SIDEBAR_CARD && "mac-sidebar rounded-[13px] border border-border/60 bg-sidebar",
                 )}
               >
-                <div data-tauri-drag-region className="h-[34px] mb-3 shrink-0 flex items-center justify-end pr-2">
+                <div data-tauri-drag-region className="h-[34px] mb-3 pt-[2px] shrink-0 flex items-center justify-end pr-2">
                   {toggles}
                 </div>
                 <div className="flex-1 min-h-0">
@@ -295,7 +304,7 @@ export function AppShell() {
         )}
 
         {/* Full height between the sidebar and the editor */}
-        <AgentDock leftmost={!sidebarOpen} toggles={toggles} />
+        <AgentDock leftmost={!sidebarOpen} toggles={togglesByLights} />
 
         <div className={cn("win-content flex-1 min-w-0 flex flex-col bg-background", !agentOpen && "win-content-start")}>
           <div className="flex-1 flex overflow-hidden">
@@ -309,8 +318,8 @@ export function AppShell() {
                 <>
                   {/* The window's top edge, to move it by: no tab row here */}
                   {IS_MAC && (
-                    <div data-tauri-drag-region className="h-[46px] shrink-0 flex items-center pl-[88px]">
-                      {!sidebarOpen && !agentOpen && toggles}
+                    <div data-tauri-drag-region className="h-[46px] shrink-0 flex items-center pl-[96px]">
+                      {!sidebarOpen && !agentOpen && togglesByLights}
                     </div>
                   )}
                   <Welcome />
@@ -323,12 +332,12 @@ export function AppShell() {
                       no panel is open */}
                   <div
                     data-tauri-drag-region
-                    className={cn("flex items-center", IS_MAC && "h-[46px]", IS_MAC && !sidebarOpen && !agentOpen && "pl-[88px]")}
+                    className={cn("flex items-center", IS_MAC && "h-[46px]", IS_MAC && !sidebarOpen && !agentOpen && "pl-[96px]")}
                   >
                     {!IS_MAC && toggles}
                     {/* On macOS the toggles sit by the traffic lights, in the
                         leftmost panel: here when none is open */}
-                    {IS_MAC && !sidebarOpen && !agentOpen && toggles}
+                    {IS_MAC && !sidebarOpen && !agentOpen && togglesByLights}
                     <div className="flex-1 self-stretch overflow-hidden">
                       <EditorTabs />
                     </div>

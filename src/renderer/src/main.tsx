@@ -7,6 +7,8 @@ import "./globals.css";
 // Platform detection for platform-specific CSS (vibrancy, etc.)
 if (navigator.platform.includes("Mac")) {
   document.documentElement.dataset.platform = "mac";
+  // The main window is clear over the sidebar material (main.rs)
+  if (getCurrentWindow().label === "main") document.documentElement.dataset.backdrop = "";
 } else if (navigator.platform.includes("Win")) {
   document.documentElement.dataset.platform = "windows";
 } else {

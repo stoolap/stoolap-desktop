@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useConnection } from "@/hooks/use-connection";
 import { useHistoryStore } from "@/stores/history-store";
-import { Database, FolderOpen, Zap, Clock, X, Trash2 } from "lucide-react";
+import { Database, FolderOpen, MemoryStick, Clock, X, Trash2 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -103,7 +103,7 @@ export function ConnectDialog({ open, onOpenChange }: ConnectDialogProps) {
               onClick={() => setMode("memory")}
               className="flex-1"
             >
-              <Zap className="h-4 w-4 mr-1" />
+              <MemoryStick className="h-4 w-4 mr-1" />
               {t("connect.memory")}
             </Button>
             <Button

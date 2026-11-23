@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Database, X } from "lucide-react";
+import { Database, X, MemoryStick } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -43,14 +43,22 @@ export function Sidebar() {
 
   return (
     <div className="app-sidebar h-full flex flex-col">
-      {/* Connection header */}
-      <div className="px-2 pt-0.5 pb-1">
-        {connections.length > 0 ? (
-          <div className="flex items-center gap-0.5">
+      {/* Connection header: none without a connection, which the schema
+          tree below says */}
+      {connections.length > 0 && (
+        <div className="px-2 pt-0.5 pb-1">
+          <div className="px-2 pb-1 sidebar-heading text-xs font-semibold text-muted-foreground">{t("sidebar.database")}</div>
+          {/* The menu and Disconnect as one capsule, a hairline between */}
+          <div className="sidebar-field flex h-8 items-center">
             <Select value={activeId ?? ""} onValueChange={setActiveId}>
-              <SelectTrigger className="sidebar-field h-8 text-xs flex-1 border-none shadow-none pl-3 pr-2.5">
+              <SelectTrigger className="h-8 min-w-0 text-xs flex-1 border-none shadow-none bg-transparent dark:bg-transparent dark:hover:bg-transparent focus-visible:ring-0 pl-3 pr-2">
                 <div className="flex min-w-0 items-center gap-2">
-                  <Database className="h-3.5 w-3.5 text-primary shrink-0" />
+                  {/* In memory: New In-Memory Database's icon */}
+                  {activeConn?.type === "memory" ? (
+                    <MemoryStick className="h-3.5 w-3.5 text-primary shrink-0" />
+                  ) : (
+                    <Database className="h-3.5 w-3.5 text-primary shrink-0" />
+                  )}
                   <SelectValue placeholder={t("sidebar.selectConnection")} />
                 </div>
               </SelectTrigger>
@@ -66,11 +74,12 @@ export function Sidebar() {
             </Select>
             {activeConn && (
               <Tooltip>
+                <span aria-hidden className="h-4 w-px shrink-0 bg-foreground/15" />
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-5 w-5 shrink-0"
+                    className="mx-1 h-6 w-6 shrink-0"
                     aria-label={t("sidebar.disconnect")}
                     onClick={handleDisconnect}
                   >
@@ -81,13 +90,8 @@ export function Sidebar() {
               </Tooltip>
             )}
           </div>
-        ) : (
-          <div className="flex items-center gap-1.5 px-1.5 h-7 text-xs text-muted-foreground">
-            <Database className="h-3 w-3 shrink-0" />
-            {t("sidebar.noConnections")}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Schema tree */}
       <div className="flex-1 overflow-hidden">

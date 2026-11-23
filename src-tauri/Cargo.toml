@@ -1,6 +1,6 @@
 [package]
 name = "stoolap-desktop"
-version = "0.5.17"
+version = "0.5.18"
 edition = "2021"
 license = "Apache-2.0"
 
@@ -35,9 +35,10 @@ sys-locale = "0.3"
 windows-sys = { version = "0.61", features = ["Win32_Storage_Packaging_Appx", "Win32_System_Registry"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSAttributedString", "NSData", "NSDictionary", "NSString"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSAttributedString", "NSColor", "NSColorSpace", "NSFont", "NSImage", "NSParagraphStyle", "NSResponder", "NSText"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "block2", "NSAnimation", "NSAnimationContext", "NSApplication", "NSAttributedString", "NSColor", "NSColorSpace", "NSFont", "NSImage", "NSParagraphStyle", "NSResponder", "NSSplitView", "NSSplitViewController", "NSSplitViewItem", "NSText", "NSToolbar", "NSUserInterfaceItemSearching", "NSView", "NSViewController", "NSWindow"] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

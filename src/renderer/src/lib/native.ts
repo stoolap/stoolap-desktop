@@ -44,6 +44,17 @@ export async function showConfirmDialog(options: {
   confirmLabel?: string;
   destructive?: boolean;
 }): Promise<boolean> {
+  // macOS's alerts are headed by the question itself, the detail below it
+  // (the action's name is on the button already); elsewhere the title is
+  // the window's, so it stays the action's name and the question goes below
+  if (navigator.platform.includes("Mac")) {
+    return confirm(options.detail ?? "", {
+      title: options.message,
+      okLabel: options.confirmLabel || i18n.t("common:native.ok"),
+      cancelLabel: i18n.t("common:native.cancel"),
+      kind: options.destructive ? "warning" : "info",
+    });
+  }
   return confirm(
     options.detail
       ? `${options.message}\n\n${options.detail}`
@@ -127,6 +138,48 @@ export async function showContextMenu(
       }
     }, 100);
   });
+}
+
+/** An item of a menu opened under a control (popupMenuBelow) */
+export interface PopupItem {
+  /** A line between groups, or a dimmed heading */
+  type?: "separator" | "label";
+  label?: string;
+  enabled?: boolean;
+  /** Ticked: a Select's current value */
+  checked?: boolean;
+  run?: () => void;
+}
+
+/**
+ * The system's own menu (NSMenu on macOS) under a control, in place of one
+ * the page draws: the app's Select and DropdownMenu open this on macOS.
+ * Resolves once it has closed.
+ */
+export async function popupMenuBelow(items: PopupItem[], control: Element): Promise<void> {
+  const { Menu, MenuItem, CheckMenuItem, PredefinedMenuItem } = await import("@tauri-apps/api/menu");
+  const { LogicalPosition } = await import("@tauri-apps/api/dpi");
+  const menuItems = await Promise.all(
+    items.map((item) => {
+      if (item.type === "separator") return PredefinedMenuItem.new({ item: "Separator" });
+      // A long one (a conversation's title) cut, as the page's menus do
+      const label = item.label ?? "";
+      const text = label.length > 60 ? `${label.slice(0, 59)}…` : label;
+      const enabled = item.type !== "label" && item.enabled !== false;
+      const action = () => item.run?.();
+      return item.checked === undefined
+        ? MenuItem.new({ text, enabled, action })
+        : CheckMenuItem.new({ text, enabled, checked: item.checked, action });
+    }),
+  );
+  const menu = await Menu.new({ items: menuItems });
+  const rect = control.getBoundingClientRect();
+  setNativeMenuOpen(true);
+  try {
+    await menu.popup(new LogicalPosition(rect.left, rect.bottom + 4));
+  } finally {
+    setNativeMenuOpen(false);
+  }
 }
 
 // --- System ---

@@ -4,7 +4,7 @@
     "disconnect": "Від’єднатися",
     "confirmDisconnect": "Від’єднатися від «{{name}}»?",
     "disconnectDetail": "Незбережені запити й дані в пам’яті буде втрачено.",
-    "noConnections": "Немає з’єднань"
+    "database": "База даних"
   },
   "tableTree": {
     "schema": "Схема",

@@ -4,7 +4,7 @@
     "disconnect": "切断",
     "confirmDisconnect": "「{{name}}」から切断しますか？",
     "disconnectDetail": "保存されていないクエリとインメモリのデータは失われます。",
-    "noConnections": "接続がありません"
+    "database": "データベース"
   },
   "tableTree": {
     "schema": "スキーマ",

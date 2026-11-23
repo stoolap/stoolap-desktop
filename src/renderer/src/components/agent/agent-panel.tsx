@@ -350,7 +350,7 @@ export function AgentPanel({ clearLights = false, toggles }: { clearLights?: boo
         className={cn(
           "flex h-9 shrink-0 items-center gap-1 pl-3 pr-1",
           IS_MAC && "h-[46px]",
-          clearLights && "pl-[88px]",
+          clearLights && "pl-[96px]",
         )}
       >
         {toggles}

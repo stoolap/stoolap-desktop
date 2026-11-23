@@ -4,7 +4,7 @@
     "disconnect": "연결 해제",
     "confirmDisconnect": "\"{{name}}\" 연결을 해제하시겠습니까?",
     "disconnectDetail": "저장되지 않은 쿼리와 인메모리 데이터가 손실됩니다.",
-    "noConnections": "연결 없음"
+    "database": "데이터베이스"
   },
   "tableTree": {
     "schema": "스키마",

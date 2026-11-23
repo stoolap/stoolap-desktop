@@ -543,7 +543,7 @@ function TableNode({
           ))}
           {foreignKeys && foreignKeys.length > 0 && (
             <>
-              <div className="pl-5 pr-2 pt-1.5 pb-0.5 text-xs font-semibold text-muted-foreground">
+              <div className="pl-5 pr-2 pt-1.5 pb-0.5 sidebar-heading text-xs font-semibold text-muted-foreground">
                 {t("tableTree.foreignKeys")}
               </div>
               {foreignKeys.map((fk) => (
@@ -553,7 +553,7 @@ function TableNode({
           )}
           {indexes && indexes.length > 0 && (
             <>
-              <div className="pl-5 pr-2 pt-1.5 pb-0.5 text-xs font-semibold text-muted-foreground">
+              <div className="pl-5 pr-2 pt-1.5 pb-0.5 sidebar-heading text-xs font-semibold text-muted-foreground">
                 {t("tableTree.indexes")}
               </div>
               {indexes.map((idx) => {
@@ -658,7 +658,7 @@ export function TableTree() {
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between pl-4 pr-2.5 py-1">
-        <span className="text-xs font-semibold text-muted-foreground">
+        <span className="sidebar-heading text-xs font-semibold text-muted-foreground">
           {t("tableTree.schema")}
         </span>
         <div className="flex gap-0">
@@ -720,7 +720,7 @@ export function TableTree() {
           <div className="py-0.5">
             {filteredTables.length > 0 && (
               <>
-                <div className="px-4 pt-2 pb-1 text-xs font-semibold text-muted-foreground">
+                <div className="px-4 pt-2 pb-1 sidebar-heading text-xs font-semibold text-muted-foreground">
                   {t("tableTree.tables", {
                     shown: search && tables ? `${filteredTables.length}/${tables.length}` : filteredTables.length,
                   })}
@@ -737,7 +737,7 @@ export function TableTree() {
             )}
             {filteredViews.length > 0 && (
               <>
-                <div className="px-4 pt-3 pb-1 text-xs font-semibold text-muted-foreground">
+                <div className="px-4 pt-3 pb-1 sidebar-heading text-xs font-semibold text-muted-foreground">
                   {t("tableTree.views", {
                     shown: search && views ? `${filteredViews.length}/${views.length}` : filteredViews.length,
                   })}

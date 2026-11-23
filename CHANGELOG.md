@@ -4,6 +4,28 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.18
+
+### macOS
+- The sidebar is macOS's own: from macOS 26 AppKit draws it, Liquid Glass tinted from the desktop picture, as in Finder and Mail, and it slides open and shut with the page's.
+- The traffic lights sit where macOS puts them in its own apps, with the sidebar and agent buttons on their line.
+- Menus that open from a button (the database, the query timeout, the agent's model and its other menus, Export) are the system's own.
+- Alerts are headed by their question, with the detail below and the action on the button.
+
+### Help
+- A Help menu on every system: Stoolap Help (Cmd+? or Ctrl+?) opens the documentation, and What's New in Stoolap? the engine's release notes.
+- Search stoolap.io's documentation and blog from the Help menu: on macOS in its own Help search, on Windows and Linux in a search field at the top of the menu. A result opens its page on stoolap.io.
+
+### Sidebar
+- A Database heading over the database menu, and the menu and Disconnect share one capsule.
+- Section headings (Database, Schema, Tables, Views) are quieter.
+- With no database open, "No connection" shows once.
+
+### Look and feel
+- Load Example Database has a book icon and in-memory databases a memory chip, no longer the agent's and a lightning bolt.
+- The start page's logo is larger and sits higher.
+- The example tab shows EXPLAIN on the vector search: the plan's NearestHnsw line is the HNSW index at work.
+
 ## v0.5.17
 
 ### Windows and Linux

@@ -4,7 +4,7 @@
     "disconnect": "中斷連線",
     "confirmDisconnect": "要中斷與「{{name}}」的連線嗎？",
     "disconnectDetail": "未儲存的查詢和記憶體中的資料將會遺失。",
-    "noConnections": "沒有連線"
+    "database": "資料庫"
   },
   "tableTree": {
     "schema": "結構描述",
