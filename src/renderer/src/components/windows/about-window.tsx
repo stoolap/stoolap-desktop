@@ -49,7 +49,6 @@ export function AboutWindow({ onReady }: { onReady: () => void }) {
         draggable={false}
       />
       <h1 className="mt-3 text-base font-semibold">Stoolap Desktop</h1>
-      <p className="mt-0.5 text-xs text-muted-foreground">{t("native:aboutTagline")}</p>
 
       <div className="allow-select mt-4 text-xs leading-relaxed text-muted-foreground">
         <p>

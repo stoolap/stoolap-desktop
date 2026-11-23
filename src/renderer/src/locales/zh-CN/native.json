@@ -24,7 +24,6 @@
   "systemLanguage": "系统（{{language}}）",
   "minimize": "最小化",
   "about": "关于 Stoolap Desktop",
-  "aboutTagline": "Stoolap 可视化数据库管理应用",
   "poweredBy": "由 {{engine}} 驱动",
   "checkUpdates": "检查更新…",
   "services": "服务",

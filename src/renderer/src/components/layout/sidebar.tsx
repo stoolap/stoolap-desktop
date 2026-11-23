@@ -42,21 +42,21 @@ export function Sidebar() {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="app-sidebar h-full flex flex-col">
       {/* Connection header */}
       <div className="px-2 pt-0.5 pb-1">
         {connections.length > 0 ? (
           <div className="flex items-center gap-0.5">
             <Select value={activeId ?? ""} onValueChange={setActiveId}>
-              <SelectTrigger className="h-7 text-xs flex-1 border-none bg-transparent shadow-none px-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Database className="h-3 w-3 text-primary shrink-0" />
+              <SelectTrigger className="sidebar-field h-8 text-xs flex-1 border-none shadow-none pl-3 pr-2.5">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Database className="h-3.5 w-3.5 text-primary shrink-0" />
                   <SelectValue placeholder={t("sidebar.selectConnection")} />
                 </div>
               </SelectTrigger>
               {/* Below the button: aligned on the chosen item, the list
                   would rise over macOS' traffic lights */}
-              <SelectContent position="popper" sideOffset={4}>
+              <SelectContent position="popper" sideOffset={6} className="sidebar-menu">
                 {connections.map((conn) => (
                   <SelectItem key={conn.id} value={conn.id}>
                     <span className="text-xs">{conn.name}</span>
@@ -77,7 +77,7 @@ export function Sidebar() {
                     <X className="h-2.5 w-2.5 text-muted-foreground" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right">{t("sidebar.disconnect")}</TooltipContent>
+                <TooltipContent side="bottom">{t("sidebar.disconnect")}</TooltipContent>
               </Tooltip>
             )}
           </div>

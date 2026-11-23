@@ -69,6 +69,8 @@
     "deleteRow": "Hapus baris",
     "filteredRows_other": "{{shown}} dari {{count}} baris",
     "rows_other": "{{count}} baris",
+    "rowsInSet_other": "{{count}} baris dalam hasil",
+    "executedIn": "Kueri dijalankan dalam {{time}} ms",
     "searchTitle": "Cari ({{mod}}+F)",
     "search": "Cari",
     "copyRowsTitle": "Salin baris sebagai TSV ({{mod}}+C)",

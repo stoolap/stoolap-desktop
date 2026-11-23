@@ -24,7 +24,6 @@
   "systemLanguage": "System ({{language}})",
   "minimize": "Minimize",
   "about": "About Stoolap Desktop",
-  "aboutTagline": "Visual database management application for Stoolap",
   "poweredBy": "Powered by {{engine}}",
   "checkUpdates": "Check for Updates…",
   "services": "Services",

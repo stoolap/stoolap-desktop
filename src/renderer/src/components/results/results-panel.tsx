@@ -2,6 +2,7 @@
 import { Trans, useTranslation } from "react-i18next";
 import { useEditorStore } from "@/stores/editor-store";
 import { DataGrid } from "./data-grid";
+import { useQueryGridActions } from "./grid-actions";
 import { ExplainView } from "@/components/explain/explain-view";
 import { AlertCircle, CheckCircle2, PenLine, Sparkles, Table2, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -114,6 +115,9 @@ function ResultView() {
     return t?.results?.[t.resultIndex ?? -1]?.sql ?? t?.lastExecutedSql;
   });
   const mod = useModKey();
+  const gridActions = useQueryGridActions();
+  // How long the user waited: for a script, the whole script, as the toolbar had it
+  const waited = useEditorStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.resultsTime);
 
   if (!result) {
     return (
@@ -168,7 +172,12 @@ function ResultView() {
           </div>
         )}
         <div className="flex-1 overflow-hidden">
-          <DataGrid columns={result.columns} rows={result.rows} />
+          <DataGrid
+            columns={result.columns}
+            rows={result.rows}
+            actionsTarget={gridActions}
+            time={waited ?? result.time}
+          />
         </div>
       </div>
     );

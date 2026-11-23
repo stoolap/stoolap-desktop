@@ -43,11 +43,11 @@ export default function App() {
             unstyled: true,
             classNames: {
               toast:
-                "toast-countdown flex w-[340px] items-start gap-2.5 overflow-hidden rounded-xl border border-border/60 bg-popover/85 px-3.5 py-2.5 text-popover-foreground shadow-lg shadow-black/10 backdrop-blur-xl",
-              icon: "mt-px shrink-0",
+                "toast-countdown flex min-h-[56px] w-[340px] items-start gap-3 overflow-hidden rounded-xl border border-border/60 bg-popover/85 px-4 pt-3.5 pb-4 text-popover-foreground shadow-lg shadow-black/10 backdrop-blur-xl",
+              icon: "mt-0.5 shrink-0",
               content: "flex min-w-0 flex-col gap-0.5",
-              title: "text-[13px] font-medium leading-snug",
-              description: "text-xs leading-snug text-muted-foreground break-words",
+              title: "text-[14px] font-medium leading-snug",
+              description: "text-[13px] leading-snug text-muted-foreground break-words",
               actionButton:
                 "ml-auto shrink-0 rounded-md bg-button px-2 py-1 text-xs font-medium text-button-foreground",
               cancelButton: "shrink-0 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent",

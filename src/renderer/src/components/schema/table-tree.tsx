@@ -1,5 +1,5 @@
 
-import { useState, useMemo, type ComponentProps } from "react";
+import { useState, useMemo, useRef, useCallback, useLayoutEffect, type ComponentProps } from "react";
 import { useTranslation } from "react-i18next";
 import {
   useTables,
@@ -33,7 +33,7 @@ import {
   Waypoints,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn, errorMessage, quoteId } from "@/lib/utils";
+import { cn, errorMessage, middleCut, quoteId } from "@/lib/utils";
 import { locale } from "@/lib/i18n";
 import * as native from "@/lib/native";
 import { useQueryClient } from "@tanstack/react-query";
@@ -71,7 +71,9 @@ function ColumnItem({
       ) : (
         <Columns3 className="h-3 w-3 shrink-0 opacity-40" />
       )}
-      <MiddleTruncate text={col.field} className="font-data" />
+      <Tip label={col.field} side="bottom" delay={700}>
+        <MiddleTruncate text={col.field} className="font-data" />
+      </Tip>
       <span className="ml-auto text-xs opacity-50 shrink-0 font-data">
         {col.type}
       </span>
@@ -89,24 +91,43 @@ function ColumnItem({
   );
 }
 
+let measureContext: CanvasRenderingContext2D | null = null;
+
 /**
- * A name cut in the middle, as Finder does: its end, which often tells
- * similar names apart (orders_2025, orders_2026), stays and the start gives
- * way with "…". A short one is just cut at the end.
+ * A name cut in the middle, as Finder does (see middleCut), measured in its
+ * own font so the cut fills its room exactly. It takes the row's free width.
  */
-function MiddleTruncate({ text, className, ...props }: { text: string } & ComponentProps<"span">) {
-  const tail = 7;
-  if (text.length <= tail * 2) {
-    return (
-      <span className={cn("truncate", className)} {...props}>
-        {text}
-      </span>
-    );
-  }
+function MiddleTruncate({ text, className, ref, ...props }: { text: string } & ComponentProps<"span">) {
+  const own = useRef<HTMLSpanElement | null>(null);
+  const [shown, setShown] = useState(text);
+  // Its own ref, and the one a tooltip around it passes
+  const setRef = useCallback(
+    (node: HTMLSpanElement | null) => {
+      own.current = node;
+      if (typeof ref === "function") ref(node);
+      else if (ref) ref.current = node;
+    },
+    [ref],
+  );
+  useLayoutEffect(() => {
+    const el = own.current;
+    if (!el) return;
+    const fit = () => {
+      measureContext ??= document.createElement("canvas").getContext("2d");
+      const ctx = measureContext;
+      if (!ctx) return setShown(text);
+      ctx.font = getComputedStyle(el).font;
+      const width = el.clientWidth;
+      setShown(middleCut(text, (s) => ctx.measureText(s).width <= width));
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [text]);
   return (
-    <span className={cn("flex min-w-0", className)} {...props}>
-      <span className="truncate">{text.slice(0, -tail)}</span>
-      <span className="shrink-0">{text.slice(-tail)}</span>
+    <span ref={setRef} className={cn("min-w-0 flex-1 overflow-hidden whitespace-nowrap", className)} {...props}>
+      {shown}
     </span>
   );
 }
@@ -175,7 +196,9 @@ function IndexItem({
         ) : (
           <Hash className="h-2.5 w-2.5 shrink-0 opacity-40" />
         )}
-        <MiddleTruncate text={idx.indexName} className="font-data" />
+        <Tip label={idx.indexName} side="bottom" delay={700}>
+          <MiddleTruncate text={idx.indexName} className="font-data" />
+        </Tip>
         {idx.isUnique && (
           <span className="text-xs text-yellow-500 shrink-0 font-semibold">
             UQ
@@ -484,7 +507,7 @@ function TableNode({
         ) : (
           <Eye className="h-4 w-4 text-foreground/80 shrink-0" />
         )}
-        <Tip label={name} side="right" delay={700}>
+        <Tip label={name} side="bottom" delay={700}>
           <MiddleTruncate text={name} />
         </Tip>
         {type === "table" && rowCount !== undefined && (
@@ -664,12 +687,12 @@ export function TableTree() {
 
       <div className="px-2 pb-1">
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder={t("tableTree.filterPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-8 rounded-lg pl-8 text-xs border-0 bg-muted/40 shadow-none focus-visible:ring-1"
+            className="sidebar-field h-8 pl-8 text-xs border-0 shadow-none focus-visible:ring-1"
             aria-label={t("tableTree.filterLabel")}
           />
         </div>

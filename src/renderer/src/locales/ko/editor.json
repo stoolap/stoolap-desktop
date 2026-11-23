@@ -69,6 +69,8 @@
     "deleteRow": "행 삭제",
     "filteredRows_other": "{{count}}행 중 {{shown}}행",
     "rows_other": "{{count}}행",
+    "rowsInSet_other": "결과 집합 {{count}}행",
+    "executedIn": "쿼리 실행 시간 {{time}}ms",
     "searchTitle": "검색({{mod}}+F)",
     "search": "검색",
     "copyRowsTitle": "행을 TSV로 복사({{mod}}+C)",

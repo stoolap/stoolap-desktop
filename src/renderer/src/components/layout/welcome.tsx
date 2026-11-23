@@ -17,6 +17,8 @@ function requestAction(name: "open-database" | "new-memory-db" | "load-example")
 export function Welcome() {
   const { t } = useTranslation("layout");
   const mod = useModKey();
+  // ⌘O on macOS, Ctrl+O elsewhere, as each system writes its shortcuts
+  const shortcut = (key: string) => (mod === "Ctrl" ? `Ctrl+${key}` : `${mod}${key}`);
   const { connect } = useConnection();
   const recentConnections = useHistoryStore((s) => s.recentConnections);
   const recent = recentConnections.filter((e) => e.type === "file");
@@ -36,13 +38,13 @@ export function Welcome() {
   const actions = [
     {
       label: t("welcome.openDatabase"),
-      hint: `${mod}O`,
+      hint: shortcut("O"),
       icon: FolderOpen,
       run: () => requestAction("open-database"),
     },
     {
       label: t("welcome.newMemory"),
-      hint: `${mod}N`,
+      hint: shortcut("N"),
       icon: Zap,
       run: () => requestAction("new-memory-db"),
     },
