@@ -79,7 +79,8 @@
     "invalidThreshold": "잘못된 임계값입니다",
     "invalidAsOf": "잘못된 AS OF 타임스탬프입니다",
     "unsupportedFormat": "지원되지 않는 형식 '{{format}}'입니다. CSV 또는 JSON을 사용하십시오",
-    "pathEndsInBackslash": "\\로 끝나는 경로에서는 가져올 수 없습니다."
+    "pathEndsInBackslash": "\\로 끝나는 경로에서는 가져올 수 없습니다.",
+    "restoreStatement": "{{total}}개 중 {{n}}번째 문 ({{line}}행): {{start}}"
   },
   "steps": {
     "listed": "테이블({{tables}})과 뷰({{views}}) 목록을 확인함",

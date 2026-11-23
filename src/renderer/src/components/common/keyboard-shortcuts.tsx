@@ -5,6 +5,9 @@ import { useQueryExecution } from "@/hooks/use-query-execution";
 import { formatSQL } from "@/lib/sql-formatter";
 import { explainAll } from "@/lib/sql-utils";
 import { getEditorSelection } from "@/lib/editor-registry";
+import { emit } from "@tauri-apps/api/event";
+
+const IS_WINDOWS = document.documentElement.dataset.platform === "windows";
 
 export function KeyboardShortcuts() {
   const { executeQuery, isConnected } = useQueryExecution();
@@ -30,6 +33,21 @@ export function KeyboardShortcuts() {
       const mod = e.metaKey || e.ctrlKey;
       const currentTabs = tabsRef.current;
       const currentActiveTabId = activeTabIdRef.current;
+
+      // Windows: the menu's own shortcuts never reach it while the page has
+      // the focus (WebView2 keeps the keys), so the page sends the menu's
+      // event itself. On macOS the menu takes them before the page.
+      if (IS_WINDOWS && e.ctrlKey && !e.altKey && !e.metaKey) {
+        const key = e.key.toLowerCase();
+        const menuEvent = e.shiftKey
+          ? { s: "menu:backup" }[key]
+          : { o: "menu:open-database", n: "menu:new-memory-db", l: "menu:toggle-agent" }[key];
+        if (menuEvent) {
+          e.preventDefault();
+          emit(menuEvent);
+          return;
+        }
+      }
 
       // Ctrl/Cmd+T - New tab
       if (mod && e.key === "t" && !e.shiftKey) {

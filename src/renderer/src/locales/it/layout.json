@@ -34,5 +34,11 @@
     "openFailed": "Impossibile aprire {{name}}",
     "createFailed": "Impossibile creare il database",
     "dropHint": "Trascina qui una cartella di database o un file .sql per aprirlo"
+  },
+  "closeWithTransaction": {
+    "title": "Chiudere con una transazione aperta?",
+    "message": "C’è ancora una transazione aperta su {{names}}.",
+    "detail": "Chiudendo, tutto ciò che ha modificato viene annullato.",
+    "confirm": "Chiudi"
   }
 }

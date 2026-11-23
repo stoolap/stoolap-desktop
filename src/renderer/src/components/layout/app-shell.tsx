@@ -19,6 +19,7 @@ import { useTableColumns, useEditorSchema } from "@/hooks/use-schema";
 import { PanelLeftClose, PanelLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as native from "@/lib/native";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Tip } from "@/components/ui/tip";
 
 const SIDEBAR_WIDTH_DEFAULT = 240;
@@ -83,6 +84,29 @@ export function AppShell() {
       /* localStorage unavailable */
     }
   }, []);
+
+  // Closing the window rolls back an open transaction: ask first, naming
+  // the databases it is open on
+  useEffect(() => {
+    const win = getCurrentWindow();
+    const unlisten = win.onCloseRequested(async (event) => {
+      const { connections, openTransactions } = useConnectionStore.getState();
+      const names = connections.filter((c) => openTransactions[c.id]).map((c) => c.name);
+      if (names.length === 0) return;
+      event.preventDefault();
+      const close = await native.showConfirmDialog({
+        title: t("closeWithTransaction.title"),
+        message: t("closeWithTransaction.message", { names: names.join(", ") }),
+        detail: t("closeWithTransaction.detail"),
+        confirmLabel: t("closeWithTransaction.confirm"),
+        destructive: true,
+      });
+      if (close) await win.destroy();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [t]);
 
   // On mount: close Example DB, then sync connections
   useEffect(() => {
@@ -244,7 +268,9 @@ export function AppShell() {
             </div>
           </div>
         ) : (
-          <div style={{ width: sidebarWidth }} className="h-full border-r border-border/40 bg-sidebar">
+          // Room above the connection menu, which on macOS the window
+          // buttons' row gives it
+          <div style={{ width: sidebarWidth }} className="h-full border-r border-border/40 bg-sidebar pt-4">
             <Sidebar />
           </div>
         )}

@@ -34,5 +34,11 @@
     "openFailed": "{{name}}을(를) 열 수 없습니다",
     "createFailed": "데이터베이스를 생성하지 못했습니다",
     "dropHint": "데이터베이스 폴더나 .sql 파일을 놓아서 엽니다"
+  },
+  "closeWithTransaction": {
+    "title": "트랜잭션이 열린 채로 닫을까요?",
+    "message": "{{names}}에 아직 열린 트랜잭션이 있습니다.",
+    "detail": "닫으면 변경 내용이 모두 롤백됩니다.",
+    "confirm": "닫기"
   }
 }

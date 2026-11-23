@@ -79,7 +79,8 @@
     "invalidThreshold": "Valor de limite inválido",
     "invalidAsOf": "Data/hora de AS OF inválida",
     "unsupportedFormat": "Formato '{{format}}' não suportado; use CSV ou JSON",
-    "pathEndsInBackslash": "Não é possível importar de um caminho que termina com \\."
+    "pathEndsInBackslash": "Não é possível importar de um caminho que termina com \\.",
+    "restoreStatement": "Instrução {{n}} de {{total}}, linha {{line}}: {{start}}"
   },
   "steps": {
     "listed": "Listou as tabelas ({{tables}}) e as views ({{views}})",

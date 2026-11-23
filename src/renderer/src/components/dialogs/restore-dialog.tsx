@@ -1,9 +1,9 @@
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { errorMessage, basename } from "@/lib/utils";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { readTextFile } from "@tauri-apps/plugin-fs";
+import { listen } from "@tauri-apps/api/event";
 import {
   Dialog,
   DialogContent,
@@ -19,8 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, FileInput, FileUp } from "lucide-react";
 import { toast } from "sonner";
 import * as api from "@/lib/api-client";
-import { splitStatements } from "@/lib/sql-utils";
-import { restoreStatements } from "@/lib/restore";
+import * as native from "@/lib/native";
 
 interface RestoreDialogProps {
   open: boolean;
@@ -33,9 +32,9 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
   const connections = useConnectionStore((s) => s.connections);
   const activeConn = connections.find((c) => c.id === activeId);
   const queryClient = useQueryClient();
-  const [fileName, setFileName] = useState("");
-  const [fileContent, setFileContent] = useState("");
+  const [filePath, setFilePath] = useState("");
   const [statementCount, setStatementCount] = useState(0);
+  const [reading, setReading] = useState(false);
   const [useTransaction, setUseTransaction] = useState(true);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
@@ -44,8 +43,7 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
   const abortRef = useRef(false);
 
   const resetAndClose = () => {
-    setFileName("");
-    setFileContent("");
+    setFilePath("");
     setStatementCount(0);
     setUseTransaction(true);
     setLoading(false);
@@ -55,6 +53,26 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
     onOpenChange(false);
   };
 
+  // The dump is read in the backend, by its path: a large one (90 MB) would
+  // not make it through the web view whole
+  const chooseFile = useCallback(
+    async (path: string) => {
+      setError("");
+      setFilePath(path);
+      setStatementCount(0);
+      setReading(true);
+      try {
+        setStatementCount(await api.restoreCount(path));
+      } catch {
+        setFilePath("");
+        setError(t("restore.readFailed"));
+      } finally {
+        setReading(false);
+      }
+    },
+    [t],
+  );
+
   const handleFileSelect = async () => {
     const selected = await openDialog({
       multiple: false,
@@ -63,49 +81,33 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
         { name: t("common:fileTypes.all"), extensions: ["*"] },
       ],
     });
-    if (typeof selected !== "string") return;
-    try {
-      setError("");
-      const content = await readTextFile(selected);
-      const name = basename(selected) || "restore.sql";
-      setFileName(name);
-      setFileContent(content);
-      setStatementCount(splitStatements(content).length);
-    } catch {
-      setError(t("restore.readFailed"));
-    }
+    if (typeof selected === "string") chooseFile(selected);
   };
 
-  const loadFile = useCallback((file: File) => {
-    setError("");
-    const reader = new FileReader();
-    reader.onload = () => {
-      const content = reader.result as string;
-      setFileName(file.name);
-      setFileContent(content);
-      setStatementCount(splitStatements(content).length);
-    };
-    reader.onerror = () => {
-      setError(t("restore.readFailed"));
-    };
-    reader.readAsText(file);
-  }, [t]);
+  // A file dropped on the window while this is open (the window takes drops,
+  // so the drop area's own events never see a file)
+  useEffect(() => {
+    if (!open) return;
+    return native.onDragDrop({
+      over: (active) => setDragOver(active && !loading),
+      drop: (paths) => {
+        if (!loading && paths[0]) chooseFile(paths[0]);
+      },
+    });
+  }, [open, loading, chooseFile]);
 
   const handleRestore = async () => {
-    if (!activeId || !fileContent) return;
+    if (!activeId || !filePath) return;
     setLoading(true);
     setError("");
     abortRef.current = false;
+    setProgress({ current: 0, total: statementCount });
 
-    const statements = splitStatements(fileContent);
-    setProgress({ current: 0, total: statements.length });
-
+    const unlisten = await listen<{ done: number; total: number }>("restore:progress", (e) =>
+      setProgress({ current: e.payload.done, total: e.payload.total }),
+    );
     try {
-      await restoreStatements((sql) => api.runSql(activeId, sql), statements, {
-        useTransaction,
-        aborted: () => abortRef.current,
-        onProgress: (done) => setProgress({ current: done, total: statements.length }),
-      });
+      const count = await api.restoreFile(activeId, filePath, useTransaction);
 
       queryClient.invalidateQueries({ queryKey: ["tables", activeId] });
       queryClient.invalidateQueries({ queryKey: ["views", activeId] });
@@ -115,13 +117,14 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
       queryClient.invalidateQueries({ queryKey: ["rowcount", activeId] });
       queryClient.invalidateQueries({ queryKey: ["ddl", activeId] });
 
-      const msg = t("restore.complete", { count: statements.length });
-      import("@/lib/native").then((n) => n.notify(t("restore.notifyTitle"), msg));
+      const msg = t("restore.complete", { count });
+      native.notify(t("restore.notifyTitle"), msg);
       toast.success(msg);
       resetAndClose();
     } catch (e) {
-      setError(errorMessage(e));
+      setError(abortRef.current ? t("common:errors.restoreCancelled") : errorMessage(e));
     } finally {
+      unlisten();
       setLoading(false);
     }
   };
@@ -129,6 +132,7 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
   const handleCancel = () => {
     if (loading) {
       abortRef.current = true;
+      api.cancelRestore();
     } else {
       resetAndClose();
     }
@@ -172,25 +176,14 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
             <div
               className={`flex items-center justify-center border-2 border-dashed rounded-lg p-6 cursor-pointer transition-colors ${dragOver ? "border-primary bg-primary/10" : "hover:border-primary/50 hover:bg-muted/30"}`}
               onClick={!loading ? handleFileSelect : undefined}
-              onDragOver={(e) => {
-                e.preventDefault();
-                if (!loading) setDragOver(true);
-              }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragOver(false);
-                if (loading) return;
-                const file = e.dataTransfer.files?.[0];
-                if (file) loadFile(file);
-              }}
             >
-              {fileName ? (
+              {filePath ? (
                 <div className="text-center">
                   <FileUp className="h-8 w-8 mx-auto mb-2 text-primary" />
-                  <p className="text-sm font-medium">{fileName}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t("restore.detected", { count: statementCount })}
+                  <p className="text-sm font-medium">{basename(filePath)}</p>
+                  <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground mt-1">
+                    {reading && <Loader2 className="h-3 w-3 animate-spin" />}
+                    {reading ? t("restore.reading") : t("restore.detected", { count: statementCount })}
                   </p>
                 </div>
               ) : (
@@ -238,7 +231,7 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
             </div>
           )}
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive whitespace-pre-wrap break-words">{error}</p>}
         </div>
 
         <DialogFooter>
@@ -247,7 +240,7 @@ export function RestoreDialog({ open, onOpenChange }: RestoreDialogProps) {
           </Button>
           <Button
             onClick={handleRestore}
-            disabled={loading || !fileContent || !activeId}
+            disabled={loading || reading || !filePath || !activeId}
           >
             {loading ? t("restore.restoring") : t("restore.restore")}
           </Button>

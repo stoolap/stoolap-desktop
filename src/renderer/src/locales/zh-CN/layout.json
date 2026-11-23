@@ -34,5 +34,11 @@
     "openFailed": "无法打开 {{name}}",
     "createFailed": "创建数据库失败",
     "dropHint": "拖放数据库文件夹或 .sql 文件以打开"
+  },
+  "closeWithTransaction": {
+    "title": "在事务未结束时关闭？",
+    "message": "{{names}} 上仍有未结束的事务。",
+    "detail": "关闭将回滚它所做的全部更改。",
+    "confirm": "关闭"
   }
 }

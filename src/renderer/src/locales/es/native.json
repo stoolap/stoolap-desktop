@@ -79,7 +79,8 @@
     "invalidThreshold": "Valor de umbral no válido",
     "invalidAsOf": "Marca de tiempo de AS OF no válida",
     "unsupportedFormat": "Formato '{{format}}' no compatible; usa CSV o JSON",
-    "pathEndsInBackslash": "No se puede importar desde una ruta que termina en \\."
+    "pathEndsInBackslash": "No se puede importar desde una ruta que termina en \\.",
+    "restoreStatement": "Sentencia {{n}} de {{total}}, línea {{line}}: {{start}}"
   },
   "steps": {
     "listed": "Se listaron las tablas ({{tables}}) y las vistas ({{views}})",

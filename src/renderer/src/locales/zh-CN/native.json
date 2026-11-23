@@ -79,7 +79,8 @@
     "invalidThreshold": "阈值无效",
     "invalidAsOf": "AS OF 时间戳无效",
     "unsupportedFormat": "不支持的格式 '{{format}}'，请使用 CSV 或 JSON",
-    "pathEndsInBackslash": "无法从以 \\ 结尾的路径导入。"
+    "pathEndsInBackslash": "无法从以 \\ 结尾的路径导入。",
+    "restoreStatement": "第 {{n}} 条语句（共 {{total}} 条），第 {{line}} 行：{{start}}"
   },
   "steps": {
     "listed": "已列出表（{{tables}}）和视图（{{views}}）",

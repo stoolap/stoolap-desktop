@@ -34,5 +34,11 @@
     "openFailed": "Não foi possível abrir {{name}}",
     "createFailed": "Falha ao criar o banco de dados",
     "dropHint": "Solte uma pasta de banco de dados ou um arquivo .sql para abrir"
+  },
+  "closeWithTransaction": {
+    "title": "Fechar com uma transação aberta?",
+    "message": "Ainda há uma transação aberta em {{names}}.",
+    "detail": "Ao fechar, tudo o que ela alterou é desfeito.",
+    "confirm": "Fechar"
   }
 }

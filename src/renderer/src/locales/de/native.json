@@ -79,7 +79,8 @@
     "invalidThreshold": "Ungültiger Schwellenwert",
     "invalidAsOf": "Ungültiger Zeitstempel für AS OF",
     "unsupportedFormat": "Nicht unterstütztes Format '{{format}}', verwenden Sie CSV oder JSON",
-    "pathEndsInBackslash": "Aus einem Pfad, der auf \\ endet, kann nicht importiert werden."
+    "pathEndsInBackslash": "Aus einem Pfad, der auf \\ endet, kann nicht importiert werden.",
+    "restoreStatement": "Anweisung {{n}} von {{total}}, Zeile {{line}}: {{start}}"
   },
   "steps": {
     "listed": "Tabellen ({{tables}}) und Views ({{views}}) aufgelistet",

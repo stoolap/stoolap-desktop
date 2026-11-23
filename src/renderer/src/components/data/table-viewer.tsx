@@ -450,7 +450,9 @@ export function TableViewer({
     );
   };
 
-  const handleExportAllCSV = async () => {
+  // Every row the filters leave, in pages straight to the file: CSV, or JSON
+  // as an array of objects (a row on a line)
+  const handleExportAll = async (format: "csv" | "json") => {
     if (!activeId) return;
     const PAGE_SIZE = 50_000;
     const { save } = await import("@tauri-apps/plugin-dialog");
@@ -468,8 +470,12 @@ export function TableViewer({
 
     const ts = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
     const path = await save({
-      defaultPath: `${table}_${ts}.csv`,
-      filters: [{ name: t("tableViewer.csvFiles"), extensions: ["csv"] }],
+      defaultPath: `${table}_${ts}.${format}`,
+      filters: [
+        format === "csv"
+          ? { name: t("tableViewer.csvFiles"), extensions: ["csv"] }
+          : { name: t("tableViewer.jsonFiles"), extensions: ["json"] },
+      ],
     });
     if (!path) return;
 
@@ -484,19 +490,26 @@ export function TableViewer({
           activeId, table, off, PAGE_SIZE,
           orderBy, orderDir, filters, appliedAsOf,
         );
-        let csvChunk = "";
-        if (isFirst) {
-          csvChunk = chunk.columns.map(escapeCSV).join(",") + "\n";
+        let text = "";
+        if (format === "csv") {
+          if (isFirst) text = chunk.columns.map(escapeCSV).join(",") + "\n";
+          if (chunk.rows.length > 0) {
+            text += chunk.rows.map((r) => r.map(escapeCSV).join(",")).join("\n") + "\n";
+          }
+        } else {
+          const lines = chunk.rows.map((row) =>
+            JSON.stringify(Object.fromEntries(chunk.columns.map((col, i) => [col, row[i]]))),
+          );
+          if (isFirst) text = "[";
+          if (lines.length > 0) text += (totalExported > 0 ? ",\n  " : "\n  ") + lines.join(",\n  ");
         }
-        if (chunk.rows.length > 0) {
-          csvChunk += chunk.rows.map((r) => r.map(escapeCSV).join(",")).join("\n") + "\n";
-          totalExported += chunk.rows.length;
-        }
+        totalExported += chunk.rows.length;
         // Write to disk: first chunk creates file, rest append
-        await writeTextFile(path, csvChunk, isFirst ? undefined : { append: true });
+        await writeTextFile(path, text, isFirst ? undefined : { append: true });
         isFirst = false;
         if (chunk.rows.length < PAGE_SIZE) break;
       }
+      if (format === "json") await writeTextFile(path, totalExported > 0 ? "\n]\n" : "]\n", { append: true });
       const msg = t("tableViewer.exported", { count: totalExported, rows: totalExported.toLocaleString(locale()) });
       native.notify(t("tableViewer.exportComplete"), msg);
       toast.success(msg);
@@ -626,27 +639,30 @@ export function TableViewer({
           )}
           {importing ? t("tableViewer.importing") : t("tableViewer.import")}
         </Button>
-        {data && data.rows.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1">
-                <FileOutput className="h-3.5 w-3.5" />
-                {t("tableViewer.export")}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={handleExportCSV}>
-                {t("tableViewer.exportPageCsv")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportJSON}>
-                {t("tableViewer.exportPageJson")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportAllCSV}>
-                {t("tableViewer.exportAllCsv")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        {/* Always there, off when there is nothing to export, so the toolbar
+            does not shift under the pointer */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-1" disabled={!data || data.rows.length === 0}>
+              <FileOutput className="h-3.5 w-3.5" />
+              {t("tableViewer.export")}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={handleExportCSV}>
+              {t("tableViewer.exportPageCsv")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportJSON}>
+              {t("tableViewer.exportPageJson")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExportAll("csv")}>
+              {t("tableViewer.exportAllCsv")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExportAll("json")}>
+              {t("tableViewer.exportAllJson")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button
           variant="ghost"
           size="icon"

@@ -191,9 +191,12 @@ export function Toolbar() {
   useEffect(() => {
     const cleanups = [
       native.onOpenPath((path) => openPathsRef.current([path])),
+      // Restore takes a dump dropped while it is open
       native.onDragDrop({
-        over: setDragOver,
-        drop: (paths) => openPathsRef.current(paths),
+        over: (active) => setDragOver(active && !restoreOpenRef.current),
+        drop: (paths) => {
+          if (!restoreOpenRef.current) openPathsRef.current(paths);
+        },
       }),
     ];
     return () => cleanups.forEach((c) => c());
@@ -331,6 +334,8 @@ LIMIT 5;`;
   newMemoryRef.current = handleNewMemory;
   const openPathsRef = useRef(openPaths);
   openPathsRef.current = openPaths;
+  const restoreOpenRef = useRef(restoreOpen);
+  restoreOpenRef.current = restoreOpen;
 
   return (
     <>

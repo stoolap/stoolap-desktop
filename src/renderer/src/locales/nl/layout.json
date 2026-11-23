@@ -34,5 +34,11 @@
     "openFailed": "Kan {{name}} niet openen",
     "createFailed": "Kan database niet maken",
     "dropHint": "Sleep een databasemap of een .sql-bestand hierheen om het te openen"
+  },
+  "closeWithTransaction": {
+    "title": "Sluiten met een open transactie?",
+    "message": "Er is nog een transactie open op {{names}}.",
+    "detail": "Bij het sluiten wordt alles wat ze wijzigde teruggedraaid.",
+    "confirm": "Sluiten"
   }
 }

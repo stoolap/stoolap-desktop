@@ -27,16 +27,24 @@ export function useViews() {
   });
 }
 
+/** A table's columns as a query: the hook's, and for reading them once
+ *  (queryClient.fetchQuery) when a table that was never opened needs them */
+export function columnsQuery(activeId: string | null, table: string | null, type: "table" | "view") {
+  return {
+    queryKey: ["columns", activeId, table, type],
+    queryFn: () => api.describeTable(activeId!, table!, type),
+    staleTime: SCHEMA_STALE_TIME,
+  };
+}
+
 export function useTableColumns(
   table: string | null,
   type: "table" | "view" = "table",
 ) {
   const activeId = useConnectionStore((s) => s.activeId);
   return useQuery({
-    queryKey: ["columns", activeId, table, type],
-    queryFn: () => api.describeTable(activeId!, table!, type),
+    ...columnsQuery(activeId, table, type),
     enabled: !!activeId && !!table,
-    staleTime: SCHEMA_STALE_TIME,
   });
 }
 

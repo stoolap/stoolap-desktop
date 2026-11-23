@@ -79,7 +79,8 @@
     "invalidThreshold": "Nilai ambang tidak valid",
     "invalidAsOf": "Stempel waktu AS OF tidak valid",
     "unsupportedFormat": "Format '{{format}}' tidak didukung, gunakan CSV atau JSON",
-    "pathEndsInBackslash": "Tidak dapat mengimpor dari jalur yang diakhiri dengan \\."
+    "pathEndsInBackslash": "Tidak dapat mengimpor dari jalur yang diakhiri dengan \\.",
+    "restoreStatement": "Pernyataan {{n}} dari {{total}}, baris {{line}}: {{start}}"
   },
   "steps": {
     "listed": "Menampilkan daftar tabel ({{tables}}) dan view ({{views}})",

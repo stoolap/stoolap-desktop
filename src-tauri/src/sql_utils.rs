@@ -49,24 +49,48 @@ pub fn strip_comments(sql: &str) -> String {
 
 /// Split SQL into statements at the semicolons the engine sees.
 pub fn split_statements(sql: &str) -> Vec<String> {
+    split_statements_at(sql).into_iter().map(|s| s.sql).collect()
+}
+
+/// A statement and where it starts in the text it was split from
+#[derive(Debug, Clone, PartialEq)]
+pub struct Located {
+    pub sql: String,
+    /// 1-based
+    pub line: usize,
+    /// 1-based, in characters
+    pub column: usize,
+}
+
+/// Split SQL into statements, each with the line and column it starts at,
+/// so an error in one can point into the whole text (a restored dump).
+pub fn split_statements_at(sql: &str) -> Vec<Located> {
     let mut statements = Vec::new();
+    // Where the counting got to: a byte offset and its line, read once
+    let mut counted = (0, 1);
+    let mut push = |text_start: usize, text_end: usize| {
+        let text = &sql[text_start..text_end];
+        let stmt = text.trim();
+        if stmt.is_empty() {
+            return;
+        }
+        let start = text_start + (text.len() - text.trim_start().len());
+        counted.1 += sql[counted.0..start].matches('\n').count();
+        counted.0 = start;
+        let line_start = sql[..start].rfind('\n').map_or(0, |i| i + 1);
+        let column = sql[line_start..start].chars().count() + 1;
+        statements.push(Located { sql: stmt.to_string(), line: counted.1, column });
+    };
     let mut at = 0;
     for t in tokens(sql) {
         if t.token_type == TokenType::Punctuator && &*t.literal == ";" {
             let end = t.position.offset as usize;
-            push_statement(&mut statements, &sql[at..end]);
+            push(at, end);
             at = end + 1;
         }
     }
-    push_statement(&mut statements, &sql[at..]);
+    push(at, sql.len());
     statements
-}
-
-fn push_statement(statements: &mut Vec<String>, text: &str) {
-    let stmt = text.trim();
-    if !stmt.is_empty() {
-        statements.push(stmt.to_string());
-    }
 }
 
 /// An unquoted word token (keyword or plain identifier) spelling `word`
@@ -169,6 +193,14 @@ fn classify_with_body(sql: &str) -> StatementType {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn statements_know_where_they_start() {
+        let sql = "-- dump\nCREATE TABLE t (a INTEGER);\n\nINSERT INTO t VALUES (1);  INSERT INTO t\nVALUES (2);";
+        let at: Vec<(usize, usize)> = split_statements_at(sql).iter().map(|s| (s.line, s.column)).collect();
+        // The comment belongs to the first statement, which starts at it
+        assert_eq!(at, [(1, 1), (4, 1), (4, 28)]);
+    }
 
     #[test]
     fn keeps_non_ascii_text() {

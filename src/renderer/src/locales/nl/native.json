@@ -79,7 +79,8 @@
     "invalidThreshold": "Ongeldige drempelwaarde",
     "invalidAsOf": "Ongeldige tijdstempel voor AS OF",
     "unsupportedFormat": "Niet-ondersteunde indeling '{{format}}', gebruik CSV of JSON",
-    "pathEndsInBackslash": "Kan niet importeren uit een pad dat eindigt op \\."
+    "pathEndsInBackslash": "Kan niet importeren uit een pad dat eindigt op \\.",
+    "restoreStatement": "Statement {{n}} van {{total}}, regel {{line}}: {{start}}"
   },
   "steps": {
     "listed": "Tabellen ({{tables}}) en views ({{views}}) opgesomd",

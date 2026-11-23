@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { Trans, useTranslation } from "react-i18next";
 import {
   Dialog,
@@ -15,6 +16,7 @@ import { useConnectionStore } from "@/stores/connection-store";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { errorMessage } from "@/lib/utils";
+import { locale } from "@/lib/i18n";
 import { parseForeignKeys } from "@/lib/fk-parser";
 import * as api from "@/lib/api-client";
 import {
@@ -42,12 +44,15 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
   });
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState("");
+  // The rows of the table being written, while there are any
+  const [rows, setRows] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState("");
 
   const resetAndClose = () => {
     setOptions({ ...DEFAULT_DUMP_OPTIONS });
     setLoading(false);
     setProgress("");
+    setRows(null);
     setError("");
     onOpenChange(false);
   };
@@ -67,8 +72,15 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
 
     const ts = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
     const connName = activeConn.name.replace(/\s+/g, "_").toLowerCase();
+    const fileName = `${connName}_${ts}.sql`;
+    // In Documents: without a folder the dialog opens in the last one used,
+    // often the database's own, where a dump does not belong
+    const { documentDir, join } = await import("@tauri-apps/api/path");
+    const defaultPath = await documentDir()
+      .then((dir) => join(dir, fileName))
+      .catch(() => fileName);
     const path = await save({
-      defaultPath: `${connName}_${ts}.sql`,
+      defaultPath,
       filters: [{ name: t("common:fileTypes.sql"), extensions: ["sql"] }],
     });
     if (!path) {
@@ -112,23 +124,17 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
           await writeChunk(section);
 
           if (options.data) {
-            const PAGE = 10000;
-            let pageOffset = 0;
-            // Stream each page of rows straight to disk — never materialize the
-            // whole table in memory.
-            // eslint-disable-next-line no-constant-condition
-            while (true) {
-              const page = await api.fetchTableInserts(
-                activeId,
-                tableName,
-                pageOffset,
-                PAGE,
-              );
-              if (page.rows > 0) await writeChunk(page.sql + "\n");
-              if (page.rows < PAGE) break;
-              pageOffset += PAGE;
+            // The backend appends the rows to the file itself
+            const unlisten = await listen<{ done: number; total: number }>("backup:progress", (e) =>
+              setRows(e.payload),
+            );
+            try {
+              const count = await api.backupRows(activeId, tableName, path);
+              await writeChunk(count > 0 ? "\n\n" : "\n");
+            } finally {
+              unlisten();
+              setRows(null);
             }
-            await writeChunk("\n");
           }
 
           if (options.indexes) {
@@ -237,9 +243,27 @@ export function BackupDialog({ open, onOpenChange }: BackupDialogProps) {
           </div>
 
           {progress && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-              <span className="truncate">{progress}</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                <span className="truncate">{progress}</span>
+                {rows && rows.total > 0 && (
+                  <span className="ml-auto shrink-0 tabular-nums">
+                    {t("backup.rowsProgress", {
+                      done: rows.done.toLocaleString(locale()),
+                      total: rows.total.toLocaleString(locale()),
+                    })}
+                  </span>
+                )}
+              </div>
+              {rows && rows.total > 0 && (
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-150"
+                    style={{ width: `${Math.round((rows.done / rows.total) * 100)}%` }}
+                  />
+                </div>
+              )}
             </div>
           )}
 

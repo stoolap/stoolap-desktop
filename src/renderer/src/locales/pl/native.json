@@ -79,7 +79,8 @@
     "invalidThreshold": "Nieprawidłowa wartość progu",
     "invalidAsOf": "Nieprawidłowy znacznik czasu AS OF",
     "unsupportedFormat": "Nieobsługiwany format '{{format}}', użyj CSV lub JSON",
-    "pathEndsInBackslash": "Nie można importować ze ścieżki zakończonej znakiem \\."
+    "pathEndsInBackslash": "Nie można importować ze ścieżki zakończonej znakiem \\.",
+    "restoreStatement": "Instrukcja {{n}} z {{total}}, wiersz {{line}}: {{start}}"
   },
   "steps": {
     "listed": "Pobrano listę tabel ({{tables}}) i widoków ({{views}})",
