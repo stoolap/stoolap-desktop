@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import * as api from "@/lib/api-client";
 import * as native from "@/lib/native";
 import { splitStatements } from "@/lib/sql-utils";
+import { CHECK_EVERY, decline, loadSnooze, mayOffer, saveSnooze } from "@/lib/update-schedule";
 import { FolderOpen } from "lucide-react";
 
 const EXAMPLE_SQL = `-- Create tables
@@ -144,6 +145,8 @@ export function Toolbar() {
   const [backupOpen, setBackupOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
+  // Opened by the app, not from the menu: its Later puts the next offer off
+  const updateOffered = useRef(false);
   const { connections, activeId, setActiveId, connect } = useConnection();
   const addTab = useEditorStore((s) => s.addTab);
   const setActiveTab = useEditorStore((s) => s.setActiveTab);
@@ -174,7 +177,10 @@ export function Toolbar() {
       native.onMenuLoadExample(() => loadExampleRef.current()),
       native.onMenuBackup(() => setBackupOpen(true)),
       native.onMenuRestore(() => setRestoreOpen(true)),
-      native.onMenuCheckUpdates(() => setUpdateOpen(true)),
+      native.onMenuCheckUpdates(() => {
+        updateOffered.current = false;
+        setUpdateOpen(true);
+      }),
     ];
     return () => cleanups.forEach((c) => c());
   }, []);
@@ -202,21 +208,46 @@ export function Toolbar() {
     return () => cleanups.forEach((c) => c());
   }, []);
 
-  // Silent auto-check on launch. Wait a few seconds so the first-paint feels
-  // instant, then only pop the dialog if an update is actually available —
-  // users who are up-to-date don't see anything.
+  // Silent checks: a few seconds after launch (so the first paint is
+  // instant), then while the app stays open, at most every few hours, when
+  // the window comes back to the front or on the hour. The dialog shows only
+  // when there is an update and no Later is still holding it back
+  // (update-schedule); it never comes up while the user is typing elsewhere.
   useEffect(() => {
-    const timer = setTimeout(async () => {
+    let lastCheck = 0;
+    const check = async (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastCheck < CHECK_EVERY) return;
       try {
+        const version = await native.getVersion();
+        if (!mayOffer(loadSnooze(), version, now)) return;
+        lastCheck = now;
         const result = await native.checkForUpdate();
-        if (result.available) setUpdateOpen(true);
+        if (result.available) {
+          updateOffered.current = true;
+          setUpdateOpen(true);
+        }
       } catch {
-        // Network failure, signature mismatch, etc. — silently ignore on
-        // auto-check; the user can still trigger a manual check from the menu.
+        // Network failure, signature mismatch, etc.: ignored here; Help →
+        // Check for Updates shows them
       }
-    }, 3000);
-    return () => clearTimeout(timer);
+    };
+    const timer = setTimeout(() => check(true), 3000);
+    const hourly = setInterval(() => check(), 60 * 60 * 1000);
+    const onFocus = () => check();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(hourly);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
+
+  const handleUpdateLater = async () => {
+    if (!updateOffered.current) return;
+    updateOffered.current = false;
+    saveSnooze(decline(loadSnooze(), await native.getVersion(), Date.now()));
+  };
 
   const handleLoadExample = async () => {
     const existing = connections.find((c) => c.name === "Example DB");
@@ -351,7 +382,7 @@ LIMIT 5;`;
       <ShortcutsHelpDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <BackupDialog open={backupOpen} onOpenChange={setBackupOpen} />
       <RestoreDialog open={restoreOpen} onOpenChange={setRestoreOpen} />
-      <UpdateDialog open={updateOpen} onOpenChange={setUpdateOpen} />
+      <UpdateDialog open={updateOpen} onOpenChange={setUpdateOpen} onLater={handleUpdateLater} />
     </>
   );
 }

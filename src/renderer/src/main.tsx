@@ -9,6 +9,8 @@ if (navigator.platform.includes("Mac")) {
   document.documentElement.dataset.platform = "mac";
 } else if (navigator.platform.includes("Win")) {
   document.documentElement.dataset.platform = "windows";
+} else {
+  document.documentElement.dataset.platform = "linux";
 }
 
 // No browser menu (Back, Reload, Inspect…) on a right-click: the app shows

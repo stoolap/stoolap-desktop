@@ -25,11 +25,18 @@ type Status =
 interface UpdateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Closed with an update offered and not taken (Later, the X, Esc) */
+  onLater?: () => void;
 }
 
-export function UpdateDialog({ open, onOpenChange }: UpdateDialogProps) {
+export function UpdateDialog({ open, onOpenChange: setOpen, onLater }: UpdateDialogProps) {
   const { t } = useTranslation("dialogs");
   const [status, setStatus] = useState<Status>({ kind: "checking" });
+
+  const onOpenChange = (next: boolean) => {
+    if (!next && status.kind === "available") onLater?.();
+    setOpen(next);
+  };
 
   const runCheck = useCallback(async () => {
     setStatus({ kind: "checking" });
