@@ -1,4 +1,5 @@
 
+import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef } from "react";
 import { useEditorStore } from "@/stores/editor-store";
 import { useQueryExecution } from "@/hooks/use-query-execution";
@@ -46,6 +47,12 @@ export function KeyboardShortcuts() {
         if (menuEvent) {
           e.preventDefault();
           emit(menuEvent);
+          return;
+        }
+        // Help → Stoolap Desktop Help (Ctrl+?, Shift and /)
+        if (e.key === "?") {
+          e.preventDefault();
+          invoke("menu_select", { id: "documentation" }).catch(() => {});
           return;
         }
       }

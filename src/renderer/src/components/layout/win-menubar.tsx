@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Menubar } from "radix-ui";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Check, ChevronRight } from "lucide-react";
+import { Check, ChevronRight, FileText } from "lucide-react";
 import { useHistoryStore } from "@/stores/history-store";
 import { LANGUAGES, type LanguageInfo } from "@/lib/i18n";
 
@@ -133,6 +133,10 @@ export function WinMenubar() {
         <Item onSelect={() => getCurrentWindow().minimize()}>{t("minimize")}</Item>
       </Menu>
       <Menu label={t("help")}>
+        <HelpSearch />
+        <Item onSelect={() => select("documentation")} shortcut="Ctrl+?">{t("appHelp")}</Item>
+        <Item onSelect={() => select("whats-new")}>{t("whatsNew")}</Item>
+        <Separator />
         <Item onSelect={() => select("check-updates")}>{t("checkUpdates")}</Item>
         <Separator />
         <Item onSelect={() => select("about")}>{t("about")}</Item>
@@ -167,17 +171,20 @@ function Item({
   onSelect,
   shortcut,
   checked,
+  icon,
   disabled,
 }: {
   children: ReactNode;
   onSelect?: () => void;
   shortcut?: string;
   checked?: boolean;
+  /** In the tick's column (a search result's page) */
+  icon?: ReactNode;
   disabled?: boolean;
 }) {
   return (
     <Menubar.Item className="win-flyout-item" onSelect={onSelect} disabled={disabled}>
-      <span className="win-flyout-check">{checked && <Check className="h-4 w-4" />}</span>
+      <span className="win-flyout-check">{checked ? <Check className="h-4 w-4" /> : icon}</span>
       <span className="flex-1 truncate">{children}</span>
       {shortcut && <span className="win-flyout-shortcut">{shortcut}</span>}
     </Menubar.Item>
@@ -198,6 +205,53 @@ function Sub({ label, children }: { label: string; children: ReactNode }) {
         </Menubar.SubContent>
       </Menubar.Portal>
     </Menubar.Sub>
+  );
+}
+
+/**
+ * The Help menu's search, as macOS's: the documentation's pages for what is
+ * typed (help.rs), listed below it to open on stoolap.io. Focused as the
+ * menu opens; the Down arrow moves to the results.
+ */
+function HelpSearch() {
+  const { t } = useTranslation("native");
+  const [query, setQuery] = useState("");
+  const [hits, setHits] = useState<{ title: string; url: string }[]>([]);
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => input.current?.focus(), []);
+  useEffect(() => {
+    invoke<{ title: string; url: string }[]>("docs_search", { query })
+      .then(setHits)
+      .catch(() => setHits([]));
+  }, [query]);
+  return (
+    <>
+      <div className="px-1 pt-1 pb-1.5">
+        <input
+          ref={input}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          // The menu's own keys (type-to-select, arrows) stay out of the
+          // field; Down moves to the results and Escape closes the menu
+          onKeyDown={(e) => {
+            if (e.key !== "ArrowDown" && e.key !== "Escape") e.stopPropagation();
+          }}
+          placeholder={t("searchDocs")}
+          aria-label={t("searchDocs")}
+          className="win-search w-full"
+        />
+      </div>
+      {hits.map((hit) => (
+        <Item
+          key={hit.url}
+          icon={<FileText className="h-4 w-4 opacity-60" />}
+          onSelect={() => invoke("agent_open_link", { url: hit.url }).catch(() => {})}
+        >
+          {hit.title}
+        </Item>
+      ))}
+      {hits.length > 0 && <Separator />}
+    </>
   );
 }
 

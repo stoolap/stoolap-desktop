@@ -65,8 +65,11 @@ export function EditorTabs() {
                 role="tab"
                 aria-selected={activeTabId === tab.id}
                 className={cn(
-                  // Pills on the toolbar, as macOS 26's tabs
-                  "group my-1.5 flex items-center self-stretch gap-1.5 rounded-lg px-3 py-1 text-xs cursor-pointer shrink-0",
+                  // Pills on the toolbar, as macOS 26's tabs: as tall as
+                  // what they hold, icon, title and close button in line
+                  "group flex h-7 items-center gap-1.5 rounded-full pl-2.5 text-xs cursor-pointer shrink-0",
+                  // The close button's room on the right, or the pill's own
+                  tabs.length > 1 ? "pr-1" : "pr-3",
                   activeTabId === tab.id
                     ? "bg-foreground/10 text-foreground"
                     : "text-muted-foreground/70 hover:text-foreground/80 hover:bg-foreground/5",
@@ -74,9 +77,9 @@ export function EditorTabs() {
                 onClick={() => setActiveTab(tab.id)}
               >
                 {tab.mode === "data" ? (
-                  <Table2 className="h-4 w-4 text-blue-400 shrink-0" />
+                  <Table2 className="h-3.5 w-3.5 text-blue-400 shrink-0" />
                 ) : (
-                  <FileCode className="h-4 w-4 shrink-0 opacity-50" />
+                  <FileCode className="h-3.5 w-3.5 shrink-0 opacity-50" />
                 )}
                 {renamingId === tab.id ? (
                   <input
@@ -93,7 +96,7 @@ export function EditorTabs() {
                   />
                 ) : (
                   <span
-                    className="truncate max-w-[100px]"
+                    className="tab-title truncate max-w-[100px]"
                     onDoubleClick={(e) => {
                       if (tab.mode !== "data") {
                         e.stopPropagation();
@@ -114,7 +117,7 @@ export function EditorTabs() {
                 {tabs.length > 1 && (
                   <button
                     className={cn(
-                      "ml-1 rounded p-0.5 group-hover:opacity-50 hover:!opacity-100 hover:bg-foreground/10",
+                      "flex h-[18px] w-[18px] items-center justify-center rounded-full group-hover:opacity-60 hover:!opacity-100 hover:bg-foreground/10",
                       // The active tab always shows its close button
                       activeTabId === tab.id ? "opacity-50" : "opacity-0",
                     )}
@@ -125,7 +128,7 @@ export function EditorTabs() {
                     }}
                     aria-label={t("tabs.close", { title: tab.title })}
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-3 w-3" />
                   </button>
                 )}
               </div>

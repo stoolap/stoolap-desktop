@@ -300,6 +300,14 @@ FROM knowledge_base
 ORDER BY distance
 LIMIT 5;
 
+-- EXPLAIN: the k-NN query above finds its neighbours through the HNSW
+-- index (NearestHnsw), not by scanning every row
+EXPLAIN SELECT title,
+       VEC_DISTANCE_COSINE(embedding, '[0.41, 0.37, 0.36, 0.40, 0.06, 0.08, 0.03, 0.05, 0.03, 0.04, 0.02, 0.04, 0.11, 0.12, 0.08, 0.10]') AS distance
+FROM knowledge_base
+ORDER BY distance
+LIMIT 5;
+
 -- Hybrid search: similar articles within Developer category only
 SELECT title, content,
        VEC_DISTANCE_COSINE(embedding, '[0.24, 0.20, 0.18, 0.22, 0.06, 0.05, 0.05, 0.04, 0.03, 0.05, 0.03, 0.03, 0.40, 0.40, 0.39, 0.35]') AS distance

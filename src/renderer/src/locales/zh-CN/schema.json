@@ -4,7 +4,7 @@
     "disconnect": "断开连接",
     "confirmDisconnect": "断开与“{{name}}”的连接？",
     "disconnectDetail": "未保存的查询和内存中的数据将会丢失。",
-    "noConnections": "没有连接"
+    "database": "数据库"
   },
   "tableTree": {
     "schema": "结构",

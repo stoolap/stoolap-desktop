@@ -10,11 +10,11 @@
 //!
 //! Progress streams to the renderer as `agent:event` events.
 
-mod api;
+pub(crate) mod api;
 mod claude_code;
 mod codex;
 mod console;
-mod docs_index;
+pub(crate) mod docs_index;
 mod mcp;
 mod openai;
 mod partial_json;

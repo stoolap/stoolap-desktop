@@ -4,7 +4,7 @@
     "disconnect": "Desconectar",
     "confirmDisconnect": "¿Desconectar de \"{{name}}\"?",
     "disconnectDetail": "Se perderán las consultas sin guardar y los datos en memoria.",
-    "noConnections": "No hay conexiones"
+    "database": "Base de datos"
   },
   "tableTree": {
     "schema": "Esquema",

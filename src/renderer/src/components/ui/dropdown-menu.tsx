@@ -4,11 +4,62 @@ import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
+import * as native from "@/lib/native";
+import { NATIVE_MENUS, menuControl, menuRole, readItems, textOf } from "./native-menu";
 
 function DropdownMenu({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
-  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
+  const [open, setOpen] = React.useState(false);
+  if (!NATIVE_MENUS) return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
+  // macOS: the system's menu (native-menu.ts)
+  const onOpenChange = (next: boolean) => {
+    const control = next ? menuControl() : null;
+    const items = control && readMenuItems(props.children);
+    if (control && items) native.popupMenuBelow(items, control);
+    else setOpen(next);
+  };
+  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} open={open} onOpenChange={onOpenChange} />;
+}
+
+/** A DropdownMenu's items for the system's menu, or null if it holds others */
+function readMenuItems(children: React.ReactNode) {
+  return readItems(children, (el) => {
+    const role = menuRole(el);
+    if (role === "trigger") return "skip";
+    if (role === "separator") return { type: "separator" };
+    if (role === "label") return { type: "label", label: textOf(el.props.children as React.ReactNode) };
+    if (role === "item") {
+      const { onSelect, onClick } = el.props as {
+        onSelect?: (e: Event) => void;
+        onClick?: (e: React.MouseEvent) => void;
+      };
+      return {
+        label: textOf(el.props.children as React.ReactNode),
+        enabled: !el.props.disabled,
+        run: () => {
+          onSelect?.(new Event("select"));
+          onClick?.({} as React.MouseEvent);
+        },
+      };
+    }
+    if (role === "checkbox") {
+      const { checked, onCheckedChange } = el.props as {
+        checked?: boolean;
+        onCheckedChange?: (checked: boolean) => void;
+      };
+      return {
+        label: textOf(el.props.children as React.ReactNode),
+        enabled: !el.props.disabled,
+        checked: !!checked,
+        run: () => onCheckedChange?.(!checked),
+      };
+    }
+    if (role === "unsupported") return "unsupported";
+    // A line of text in the list ("No conversations yet"): a dimmed one
+    if (el.type === "div" || el.type === "p") return { type: "label", label: textOf(el.props.children as React.ReactNode) };
+    return undefined;
+  });
 }
 
 function DropdownMenuPortal({
@@ -236,6 +287,15 @@ function DropdownMenuSubContent({
     />
   );
 }
+
+// What each part is in the system's menu (readMenuItems)
+DropdownMenuTrigger.menuRole = "trigger";
+DropdownMenuLabel.menuRole = "label";
+DropdownMenuItem.menuRole = "item";
+DropdownMenuCheckboxItem.menuRole = "checkbox";
+DropdownMenuSeparator.menuRole = "separator";
+DropdownMenuSub.menuRole = "unsupported";
+DropdownMenuRadioGroup.menuRole = "unsupported";
 
 export {
   DropdownMenu,

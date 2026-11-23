@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Database, FolderOpen, Sparkles, Zap } from "lucide-react";
+import { BookOpen, Database, FolderOpen, MemoryStick } from "lucide-react";
 import { StoolapLogo } from "@/components/common/stoolap-logo";
 import { useConnection } from "@/hooks/use-connection";
 import { useModKey } from "@/hooks/use-mod-key";
@@ -45,23 +45,23 @@ export function Welcome() {
     {
       label: t("welcome.newMemory"),
       hint: shortcut("N"),
-      icon: Zap,
+      icon: MemoryStick,
       run: () => requestAction("new-memory-db"),
     },
     {
       label: t("welcome.loadExample"),
       hint: "",
-      icon: Sparkles,
+      icon: BookOpen,
       run: () => requestAction("load-example"),
     },
   ];
 
   return (
     <div className="flex-1 overflow-auto bg-background">
-      <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-16">
+      <div className="mx-auto flex max-w-md flex-col gap-8 px-6 pt-8 pb-16">
         <div className="flex flex-col items-center gap-2 text-center">
-          <img src="/icon.png" alt="" width={208} height={208} className="rounded-[3rem]" draggable={false} />
-          <StoolapLogo height={36} className="text-foreground" />
+          <img src="/icon.png" alt="" width={256} height={256} className="rounded-[3.5rem]" draggable={false} />
+          <StoolapLogo height={46} className="text-foreground" />
           <p className="text-sm text-muted-foreground">
             {t("welcome.intro")}
           </p>

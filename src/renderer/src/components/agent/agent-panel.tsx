@@ -348,9 +348,10 @@ export function AgentPanel({ clearLights = false, toggles }: { clearLights?: boo
       <div
         data-tauri-drag-region={IS_MAC || undefined}
         className={cn(
-          "flex h-9 shrink-0 items-center gap-1 pl-3 pr-1",
-          IS_MAC && "h-[46px]",
-          clearLights && "pl-[88px]",
+          // As tall as the tab row beside it: 46px on macOS, 40px elsewhere
+          "flex shrink-0 items-center gap-1 pl-3 pr-1",
+          IS_MAC ? "h-[46px]" : "h-10",
+          clearLights && "pl-[96px]",
         )}
       >
         {toggles}

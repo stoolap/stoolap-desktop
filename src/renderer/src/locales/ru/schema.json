@@ -4,7 +4,7 @@
     "disconnect": "Отключиться",
     "confirmDisconnect": "Отключиться от \"{{name}}\"?",
     "disconnectDetail": "Несохраненные запросы и данные в памяти будут потеряны.",
-    "noConnections": "Нет подключений"
+    "database": "База данных"
   },
   "tableTree": {
     "schema": "Схема",

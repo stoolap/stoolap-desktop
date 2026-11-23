@@ -4,7 +4,7 @@
     "disconnect": "Bağlantıyı kes",
     "confirmDisconnect": "\"{{name}}\" bağlantısı kesilsin mi?",
     "disconnectDetail": "Kaydedilmemiş sorgular ve bellek içi veriler kaybolacak.",
-    "noConnections": "Bağlantı yok"
+    "database": "Veritabanı"
   },
   "tableTree": {
     "schema": "Şema",

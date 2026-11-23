@@ -4,7 +4,7 @@
     "disconnect": "Rozłącz",
     "confirmDisconnect": "Rozłączyć z \"{{name}}\"?",
     "disconnectDetail": "Niezapisane zapytania i dane w pamięci zostaną utracone.",
-    "noConnections": "Brak połączeń"
+    "database": "Baza danych"
   },
   "tableTree": {
     "schema": "Schemat",

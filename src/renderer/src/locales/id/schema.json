@@ -4,7 +4,7 @@
     "disconnect": "Putuskan",
     "confirmDisconnect": "Putuskan koneksi dari \"{{name}}\"?",
     "disconnectDetail": "Kueri yang belum disimpan dan data dalam memori akan hilang.",
-    "noConnections": "Tidak ada koneksi"
+    "database": "Basis data"
   },
   "tableTree": {
     "schema": "Skema",

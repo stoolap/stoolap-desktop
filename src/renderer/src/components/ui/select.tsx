@@ -4,11 +4,48 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Select as SelectPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
+import * as native from "@/lib/native";
+import { NATIVE_MENUS, menuControl, menuRole, readItems, textOf } from "./native-menu";
 
 function Select({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />;
+  const [open, setOpen] = React.useState(false);
+  if (!NATIVE_MENUS) return <SelectPrimitive.Root data-slot="select" {...props} />;
+  // macOS: the system's menu, its current value ticked (native-menu.ts)
+  const onOpenChange = (next: boolean) => {
+    const control = next ? menuControl() : null;
+    const items = control && readSelectItems(props.children, props.value, props.onValueChange);
+    if (control && items) native.popupMenuBelow(items, control);
+    else setOpen(next);
+  };
+  return <SelectPrimitive.Root data-slot="select" {...props} open={open} onOpenChange={onOpenChange} />;
+}
+
+/** A Select's items for the system's menu, or null if it holds others */
+function readSelectItems(
+  children: React.ReactNode,
+  value: string | undefined,
+  onValueChange: ((value: string) => void) | undefined,
+) {
+  return readItems(children, (el) => {
+    const role = menuRole(el);
+    if (role === "trigger") return "skip";
+    if (role === "separator") return { type: "separator" };
+    if (role === "label") return { type: "label", label: textOf(el.props.children as React.ReactNode) };
+    if (role === "item") {
+      const v = el.props.value as string;
+      return {
+        label: textOf(el.props.children as React.ReactNode),
+        enabled: !el.props.disabled,
+        checked: v === value,
+        run: () => onValueChange?.(v),
+      };
+    }
+    // A note in the list (a <p>): the system's menu has no place for it
+    if (el.type === "p") return "skip";
+    return undefined;
+  });
 }
 
 function SelectGroup({
@@ -177,6 +214,12 @@ function SelectScrollDownButton({
     </SelectPrimitive.ScrollDownButton>
   );
 }
+
+// What each part is in the system's menu (readSelectItems)
+SelectTrigger.menuRole = "trigger";
+SelectLabel.menuRole = "label";
+SelectItem.menuRole = "item";
+SelectSeparator.menuRole = "separator";
 
 export {
   Select,

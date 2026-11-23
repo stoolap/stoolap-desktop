@@ -4,7 +4,7 @@
     "disconnect": "Disconnect",
     "confirmDisconnect": "Disconnect from \"{{name}}\"?",
     "disconnectDetail": "Unsaved queries and in-memory data will be lost.",
-    "noConnections": "No connections"
+    "database": "Database"
   },
   "tableTree": {
     "schema": "Schema",
