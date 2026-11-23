@@ -4,6 +4,11 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.19
+
+### macOS
+- Stoolap Desktop is signed with a Developer ID and notarized by Apple: it opens without the "unidentified developer" warning, and macOS can check that it is the app as released.
+
 ## v0.5.18
 
 ### macOS
