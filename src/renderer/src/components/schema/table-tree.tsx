@@ -5,6 +5,7 @@ import {
   useTables,
   useViews,
   useTableColumns,
+  columnsQuery,
   useTableIndexes,
   useTableForeignKeys,
   useTableRowCount,
@@ -42,6 +43,7 @@ import * as api from "@/lib/api-client";
 import type { ColumnInfo, IndexInfo, ForeignKeyInfo } from "@/lib/types";
 import { Tip } from "@/components/ui/tip";
 import { indexQuery } from "@/lib/sql-utils";
+import { generateTableIndexes } from "@/lib/sql-dump";
 
 /** Build a valid example vector string from a VECTOR(N) type. */
 function exampleVector(type: string): string {
@@ -155,9 +157,12 @@ function IndexItem({
   const handleQueryUsingIndex = () => {
     if (isHnsw) {
       const vec = colType ? exampleVector(colType) : "[0.1]";
+      // The index's own metric, so the query can use it ("metric=l2, m=16, …")
+      const metric = /metric=(\w+)/i.exec(idx.options ?? "")?.[1]?.toUpperCase() ?? "COSINE";
+      const fn = ["L2", "COSINE", "IP"].includes(metric) ? `VEC_DISTANCE_${metric}` : "VEC_DISTANCE_COSINE";
       addTab(
         t("tableTree.tabKnn", { column: idx.columnName }),
-        `-- Replace the query vector with your own\nSELECT *, VEC_DISTANCE_COSINE(${quoteId(idx.columnName)}, '${vec}') AS distance\nFROM ${quoteId(tableName)}\nORDER BY distance\nLIMIT 10`,
+        `-- Replace the query vector with your own\nSELECT *, ${fn}(${quoteId(idx.columnName)}, '${vec}') AS distance\nFROM ${quoteId(tableName)}\nORDER BY distance\nLIMIT 10`,
       );
     } else {
       addTab(idx.indexName, indexQuery(tableName, idx.indexName, idx.columns, typeOf));
@@ -321,7 +326,10 @@ function TableNode({
     if (!activeId) return;
     try {
       const ddl = await api.fetchDDL(activeId, name, type);
-      addTab(t("tableTree.tabDdl", { name }), ddl);
+      // The table's indexes too, as a backup writes them: without them the
+      // DDL would rebuild the table without its indexes
+      const indexes = type === "table" ? generateTableIndexes(name, await api.fetchIndexes(activeId, name)) : "";
+      addTab(t("tableTree.tabDdl", { name }), indexes ? `${ddl};\n\n${indexes}` : ddl);
     } catch (e) {
       toast.error(t("tableTree.ddlFailed"), {
         description: errorMessage(e),
@@ -377,11 +385,11 @@ function TableNode({
     }
   };
 
-  const handleInsertRow = () => {
+  const handleInsertRow = (cols = columns) => {
     addTab(
       t("tableTree.tabInsert", { name }),
-      columns
-        ? `INSERT INTO ${quoteId(name)} (${columns.map((c) => quoteId(c.field)).join(", ")})\nVALUES (${columns.map((c, i) => `$${i + 1} /* ${c.type} */`).join(", ")})`
+      cols
+        ? `INSERT INTO ${quoteId(name)} (${cols.map((c) => quoteId(c.field)).join(", ")})\nVALUES (${cols.map((c, i) => `$${i + 1} /* ${c.type} */`).join(", ")})`
         : `INSERT INTO ${quoteId(name)} VALUES ()`,
     );
   };
@@ -390,7 +398,14 @@ function TableNode({
     e.preventDefault();
     e.stopPropagation();
 
-    const hasVectorCols = columns?.some((c) =>
+    // The columns are loaded when the table is opened; one never opened reads
+    // them now, for its vector search item and its Insert Row template
+    const cols =
+      columns ??
+      (activeId
+        ? await queryClient.fetchQuery(columnsQuery(activeId, name, type)).catch(() => undefined)
+        : undefined);
+    const hasVectorCols = cols?.some((c) =>
       c.type.toUpperCase().startsWith("VECTOR"),
     );
 
@@ -442,7 +457,7 @@ function TableNode({
         setVecSearchOpen(true);
         break;
       case "insert":
-        handleInsertRow();
+        handleInsertRow(cols);
         break;
       case "createIndex":
         setIndexOpen(true);

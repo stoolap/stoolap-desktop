@@ -34,5 +34,11 @@
     "openFailed": "無法打開 {{name}}",
     "createFailed": "無法建立資料庫",
     "dropHint": "拖放資料庫資料夾或 .sql 檔案以打開"
+  },
+  "closeWithTransaction": {
+    "title": "在交易未結束時關閉？",
+    "message": "{{names}} 上仍有未結束的交易。",
+    "detail": "關閉將復原它所做的所有變更。",
+    "confirm": "關閉"
   }
 }

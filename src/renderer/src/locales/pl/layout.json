@@ -34,5 +34,11 @@
     "openFailed": "Nie można otworzyć: {{name}}",
     "createFailed": "Nie udało się utworzyć bazy danych",
     "dropHint": "Upuść folder bazy danych lub plik .sql, aby go otworzyć"
+  },
+  "closeWithTransaction": {
+    "title": "Zamknąć z otwartą transakcją?",
+    "message": "W {{names}} wciąż jest otwarta transakcja.",
+    "detail": "Zamknięcie wycofa wszystkie jej zmiany.",
+    "confirm": "Zamknij"
   }
 }

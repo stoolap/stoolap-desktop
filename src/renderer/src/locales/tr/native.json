@@ -79,7 +79,8 @@
     "invalidThreshold": "Geçersiz eşik değeri",
     "invalidAsOf": "Geçersiz AS OF zaman damgası",
     "unsupportedFormat": "Desteklenmeyen biçim: '{{format}}'. CSV veya JSON kullanın",
-    "pathEndsInBackslash": "\\ ile biten bir yoldan içe aktarılamaz."
+    "pathEndsInBackslash": "\\ ile biten bir yoldan içe aktarılamaz.",
+    "restoreStatement": "{{total}} ifadeden {{n}}. ifade, satır {{line}}: {{start}}"
   },
   "steps": {
     "listed": "Tablolar ({{tables}}) ve görünümler ({{views}}) listelendi",

@@ -79,7 +79,8 @@
     "invalidThreshold": "臨界值無效",
     "invalidAsOf": "AS OF 時間戳記無效",
     "unsupportedFormat": "不支援的格式 '{{format}}'，請使用 CSV 或 JSON",
-    "pathEndsInBackslash": "無法從以 \\ 結尾的路徑匯入。"
+    "pathEndsInBackslash": "無法從以 \\ 結尾的路徑匯入。",
+    "restoreStatement": "第 {{n}} 條陳述式（共 {{total}} 條），第 {{line}} 行：{{start}}"
   },
   "steps": {
     "listed": "已列出資料表（{{tables}}）和檢視（{{views}}）",

@@ -34,5 +34,11 @@
     "openFailed": "Açılamadı: {{name}}",
     "createFailed": "Veritabanı oluşturulamadı",
     "dropHint": "Açmak için bir veritabanı klasörü veya .sql dosyası bırakın"
+  },
+  "closeWithTransaction": {
+    "title": "Açık bir transaction varken kapatılsın mı?",
+    "message": "{{names}} üzerinde hâlâ açık bir transaction var.",
+    "detail": "Kapatınca yaptığı tüm değişiklikler geri alınır.",
+    "confirm": "Kapat"
   }
 }

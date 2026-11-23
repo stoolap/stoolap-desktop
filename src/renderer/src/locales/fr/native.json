@@ -79,7 +79,8 @@
     "invalidThreshold": "Valeur de seuil non valide",
     "invalidAsOf": "Horodatage AS OF non valide",
     "unsupportedFormat": "Format '{{format}}' non pris en charge, utilisez CSV ou JSON",
-    "pathEndsInBackslash": "Impossible d'importer depuis un chemin qui se termine par \\."
+    "pathEndsInBackslash": "Impossible d'importer depuis un chemin qui se termine par \\.",
+    "restoreStatement": "Instruction {{n}} sur {{total}}, ligne {{line}} : {{start}}"
   },
   "steps": {
     "listed": "Tables ({{tables}}) et vues ({{views}}) listées",

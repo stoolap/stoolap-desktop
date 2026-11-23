@@ -79,7 +79,8 @@
     "invalidThreshold": "Invalid threshold value",
     "invalidAsOf": "Invalid AS OF timestamp",
     "unsupportedFormat": "Unsupported format '{{format}}', use CSV or JSON",
-    "pathEndsInBackslash": "Can't import from a path that ends with \\."
+    "pathEndsInBackslash": "Can't import from a path that ends with \\.",
+    "restoreStatement": "Statement {{n}} of {{total}}, line {{line}}: {{start}}"
   },
   "steps": {
     "listed": "Listed tables ({{tables}}) and views ({{views}})",

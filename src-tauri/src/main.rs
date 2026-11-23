@@ -52,13 +52,16 @@ fn main() {
             commands::schema::db_ddl,
             // Data
             commands::data::db_table_rows,
-            commands::data::db_table_inserts,
+            commands::data::db_backup_rows,
             commands::data::db_table_count,
             commands::data::db_insert_row,
             commands::data::db_insert_rows,
             commands::data::db_update_row,
             commands::data::db_delete_row,
             commands::data::db_import_file,
+            commands::restore::db_restore_count,
+            commands::restore::db_restore,
+            commands::restore::db_restore_cancel,
             // System
             commands::system::get_accent_color,
             commands::system::get_version,

@@ -132,14 +132,11 @@ export interface TableCountResult {
   time: number;
 }
 
-/** One page of a table's rows as INSERT statements (a line each), for a SQL backup. */
-export async function fetchTableInserts(
-  connId: string,
-  table: string,
-  offset: number,
-  limit: number,
-): Promise<{ sql: string; rows: number }> {
-  return invoke("db_table_inserts", { connId, table, offset, limit });
+/** Append a table's rows to the dump at `path` as INSERT statements (a line
+ *  each), written by the backend straight from the engine; progress arrives
+ *  as `backup:progress` events. Returns how many rows there were. */
+export async function backupRows(connId: string, table: string, path: string): Promise<number> {
+  return invoke("db_backup_rows", { connId, table, path });
 }
 
 export async function fetchTableRows(
@@ -207,6 +204,22 @@ export async function importFile(
   hasHeader: boolean,
 ): Promise<{ rows: number; time: number }> {
   return invoke("db_import_file", { connId, table, filePath, format, hasHeader });
+}
+
+/** How many statements a SQL dump holds; read and split in the backend */
+export async function restoreCount(path: string): Promise<number> {
+  return invoke("db_restore_count", { path });
+}
+
+/** Run a SQL dump on the connection in the backend, which reads it there and
+ *  reports progress as `restore:progress` events; returns how many statements
+ *  ran. Throws "cancelled" after cancelRestore. */
+export async function restoreFile(connId: string, path: string, useTransaction: boolean): Promise<number> {
+  return invoke("db_restore", { connId, path, useTransaction });
+}
+
+export async function cancelRestore(): Promise<void> {
+  return invoke("db_restore_cancel");
 }
 
 export async function deleteRow(

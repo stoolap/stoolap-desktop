@@ -34,5 +34,11 @@
     "openFailed": "Impossible d'ouvrir {{name}}",
     "createFailed": "Impossible de créer la base de données",
     "dropHint": "Déposez un dossier de base de données ou un fichier .sql pour l'ouvrir"
+  },
+  "closeWithTransaction": {
+    "title": "Fermer avec une transaction ouverte ?",
+    "message": "Une transaction est encore ouverte sur {{names}}.",
+    "detail": "La fermeture annule tout ce qu’elle a modifié.",
+    "confirm": "Fermer"
   }
 }

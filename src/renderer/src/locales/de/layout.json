@@ -34,5 +34,11 @@
     "openFailed": "{{name}} konnte nicht geöffnet werden",
     "createFailed": "Datenbank konnte nicht erstellt werden",
     "dropHint": "Datenbankordner oder .sql-Datei hierher ziehen, um sie zu öffnen"
+  },
+  "closeWithTransaction": {
+    "title": "Mit offener Transaktion schließen?",
+    "message": "Auf {{names}} ist noch eine Transaktion offen.",
+    "detail": "Beim Schließen wird alles zurückgesetzt, was sie geändert hat.",
+    "confirm": "Schließen"
   }
 }

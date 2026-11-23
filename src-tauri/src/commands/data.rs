@@ -226,25 +226,49 @@ pub async fn db_table_rows(
     })
 }
 
-#[derive(Serialize)]
-pub struct TableInserts {
-    sql: String,
-    rows: usize,
-}
-
-/// One page of a table's rows as INSERT statements, for a SQL backup. Made
-/// here from the engine's values, so JSON and 64-bit integers stay exact.
+/// A table's rows as INSERT statements, for a SQL backup, reporting progress
+/// as `backup:progress` events. Made here from the engine's values, so JSON
+/// and 64-bit integers stay exact.
 #[tauri::command]
-pub async fn db_table_inserts(
+pub async fn db_backup_rows(
+    app: tauri::AppHandle,
     state: State<'_, DbManager>,
     conn_id: String,
     table: String,
-    offset: i64,
-    limit: i64,
-) -> Result<TableInserts, String> {
+    path: String,
+) -> Result<usize, String> {
+    use tauri::Emitter;
+    // Appended to the dump the renderer has begun at `path`, straight from
+    // the engine to the file: a million rows never pass through the web view
     let db = state.get_db(&conn_id)?;
-    let (sql, rows) = crate::db::table_inserts(&db, &table, offset, limit)?;
-    Ok(TableInserts { sql, rows })
+    tauri::async_runtime::spawn_blocking(move || {
+        let total = DbManager::query_on(&db, &format!("SELECT COUNT(*) FROM {}", quote_id(&table)), None)?
+            .rows
+            .first()
+            .and_then(|r| r.first())
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as usize;
+        let file = std::fs::OpenOptions::new().append(true).open(&path).map_err(|e| e.to_string())?;
+        let mut out = std::io::BufWriter::new(file);
+        // About a hundred updates over the table, and the last one
+        let step = (total / 100).max(1000);
+        let progress = |done: usize| {
+            if done.is_multiple_of(step) || done == total {
+                let _ = app.emit("backup:progress", BackupProgress { done, total });
+            }
+        };
+        let count = crate::db::write_table_inserts(&db, &table, &mut out, progress)?;
+        std::io::Write::flush(&mut out).map_err(|e| e.to_string())?;
+        Ok(count)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(Clone, Serialize)]
+struct BackupProgress {
+    done: usize,
+    total: usize,
 }
 
 #[tauri::command]

@@ -79,7 +79,8 @@
     "invalidThreshold": "Неприпустиме порогове значення",
     "invalidAsOf": "Неприпустима позначка часу AS OF",
     "unsupportedFormat": "Непідтримуваний формат '{{format}}', використовуйте CSV або JSON",
-    "pathEndsInBackslash": "Не можна імпортувати зі шляху, що закінчується на \\."
+    "pathEndsInBackslash": "Не можна імпортувати зі шляху, що закінчується на \\.",
+    "restoreStatement": "Інструкція {{n}} з {{total}}, рядок {{line}}: {{start}}"
   },
   "steps": {
     "listed": "Отримано список таблиць ({{tables}}) і представлень ({{views}})",

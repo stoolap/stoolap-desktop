@@ -68,6 +68,9 @@ export function generateTableIndexes(
   for (const idx of indexes) {
     // Skip primary key auto-indexes (recreated by DDL)
     if (idx.indexName.startsWith("pk_")) continue;
+    // And a UNIQUE column's own index, which the engine names
+    // unique_<table>_<column> and the CREATE TABLE recreates
+    if (idx.isUnique && idx.columns.length === 1 && idx.indexName === `unique_${tableName}_${idx.columns[0]}`) continue;
     // Deduplicate by index name
     if (seen.has(idx.indexName)) continue;
     seen.add(idx.indexName);

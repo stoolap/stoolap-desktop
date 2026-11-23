@@ -34,5 +34,11 @@
     "openFailed": "Could not open {{name}}",
     "createFailed": "Failed to create database",
     "dropHint": "Drop a database folder or a .sql file to open it"
+  },
+  "closeWithTransaction": {
+    "title": "Close with a transaction open?",
+    "message": "A transaction is still open on {{names}}.",
+    "detail": "Closing rolls back everything it changed.",
+    "confirm": "Close"
   }
 }

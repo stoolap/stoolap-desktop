@@ -79,7 +79,8 @@
     "invalidThreshold": "しきい値が無効です",
     "invalidAsOf": "AS OFのタイムスタンプが無効です",
     "unsupportedFormat": "'{{format}}'はサポートされていない形式です。CSVまたはJSONを使用してください",
-    "pathEndsInBackslash": "\\で終わるパスからはインポートできません。"
+    "pathEndsInBackslash": "\\で終わるパスからはインポートできません。",
+    "restoreStatement": "{{total}} 件中 {{n}} 件目の文 ({{line}} 行目): {{start}}"
   },
   "steps": {
     "listed": "テーブル（{{tables}}）とビュー（{{views}}）を一覧表示しました",

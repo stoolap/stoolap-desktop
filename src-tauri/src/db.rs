@@ -465,24 +465,29 @@ pub fn sql_literal(val: Option<&Value>) -> String {
 
 /// INSERT statements for one page of `table`'s rows, for a SQL backup,
 /// and how many rows they hold.
-pub fn table_inserts(db: &Database, table: &str, offset: i64, limit: i64) -> Result<(String, usize), String> {
+/// Write a table's rows to `out` as INSERT statements, one per line, from a
+/// single read of the table (one snapshot, each row once), calling `progress`
+/// with the rows written so far. Returns how many there were.
+pub fn write_table_inserts(
+    db: &Database,
+    table: &str,
+    out: &mut impl std::io::Write,
+    mut progress: impl FnMut(usize),
+) -> Result<usize, String> {
     let quote_id = |id: &str| format!("\"{}\"", id.replace('"', "\"\""));
     let table = quote_id(table);
-    let sql = format!("SELECT * FROM {table} LIMIT {} OFFSET {}", limit.max(0), offset.max(0));
-    let rows = db.query(&sql, ()).map_err(|e| e.to_string())?;
+    let rows = db.query(&format!("SELECT * FROM {table}"), ()).map_err(|e| e.to_string())?;
     let columns: Vec<String> = rows.columns().iter().map(|c| quote_id(c)).collect();
     let head = format!("INSERT INTO {table} ({}) VALUES (", columns.join(", "));
-    let mut out = String::new();
     let mut count = 0;
     for row in rows {
         let row = row.map_err(|e| e.to_string())?;
         let values: Vec<String> = (0..columns.len()).map(|i| sql_literal(row.get_value(i))).collect();
-        out.push_str(&head);
-        out.push_str(&values.join(", "));
-        out.push_str(");\n");
+        writeln!(out, "{head}{});", values.join(", ")).map_err(|e| e.to_string())?;
         count += 1;
+        progress(count);
     }
-    Ok((out, count))
+    Ok(count)
 }
 
 #[cfg(test)]
@@ -554,8 +559,11 @@ mod tests {
             Some(vec![json!("C:\\ and a\\nb and it's"), json!(r#"{"text":"a\nb","path":"C:\\"}"#)]),
         )
         .unwrap();
-        let (sql, count) = table_inserts(&src, "t", 0, 100).unwrap();
-        assert_eq!(count, 5);
+        let mut out = Vec::new();
+        let mut written = 0;
+        let count = write_table_inserts(&src, "t", &mut out, |n| written = n).unwrap();
+        assert_eq!((count, written), (5, 5));
+        let sql = String::from_utf8(out).unwrap();
 
         let dst = Database::open_in_memory().unwrap();
         DbManager::execute_on(&dst, schema, None).unwrap();

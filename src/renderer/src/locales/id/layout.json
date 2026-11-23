@@ -34,5 +34,11 @@
     "openFailed": "Tidak dapat membuka {{name}}",
     "createFailed": "Gagal membuat basis data",
     "dropHint": "Letakkan folder basis data atau file .sql untuk membukanya"
+  },
+  "closeWithTransaction": {
+    "title": "Tutup saat transaksi masih terbuka?",
+    "message": "Masih ada transaksi terbuka di {{names}}.",
+    "detail": "Menutup akan membatalkan semua perubahannya.",
+    "confirm": "Tutup"
   }
 }

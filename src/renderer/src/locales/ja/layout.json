@@ -34,5 +34,11 @@
     "openFailed": "{{name}}を開けませんでした",
     "createFailed": "データベースを作成できませんでした",
     "dropHint": "データベースフォルダまたは.sqlファイルをドロップして開きます"
+  },
+  "closeWithTransaction": {
+    "title": "トランザクションが開いたまま閉じますか？",
+    "message": "{{names}} でトランザクションがまだ開いています。",
+    "detail": "閉じると、その変更はすべてロールバックされます。",
+    "confirm": "閉じる"
   }
 }
