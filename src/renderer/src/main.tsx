@@ -80,6 +80,8 @@ const label = getCurrentWindow().label;
 // A window in the background loses its sidebar's tint, as macOS's own do
 getCurrentWindow().onFocusChanged(({ payload: focused }) => {
   document.documentElement.classList.toggle("window-inactive", !focused);
+  // An accent changed while the app was in the background shows on return
+  if (focused) getAccentColor().then(applyAccentColor).catch(() => {});
 });
 
 // The app loads once the translations have, so its stores and first frame

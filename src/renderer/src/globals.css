@@ -216,6 +216,102 @@ html[data-platform="mac"].dark .glass-pill button:hover {
   background-color: color-mix(in srgb, var(--system-accent) 10%, rgba(255, 255, 255, 0.08)) !important;
 }
 
+/* Windows 11: Mica, the window's own backdrop, shows through the sidebar;
+   the editor, results and panels keep their surfaces */
+html[data-mica], html[data-mica] body { background: transparent; }
+html[data-mica] .win-sidebar { background: transparent; border-right-color: transparent; }
+/* The content beside it as a card on Mica, as in File Explorer: a hairline
+   along its top (the agent's panel and the editor both), and the first of
+   them with its top-left corner rounded and a hairline on its left */
+html[data-mica] .win-content {
+  border-top: 1px solid var(--border);
+  /* The hairline drawn over the panel's own surface, so it reads the same
+     on each of them, whatever is behind the window */
+  background-color: var(--background);
+}
+html[data-mica] .win-content-start {
+  border-top-left-radius: 12px;
+  border-left: 1px solid var(--border);
+  /* What it holds keeps inside the rounded corner */
+  overflow: hidden;
+}
+
+/* Windows 11's menu bar and menus (WinMenubar), at WinUI's MenuBar and
+   MenuFlyout measures: Segoe UI Variable 14px, 32px rows with 4px corners,
+   an opaque 8px-cornered flyout that slides down as it opens */
+.win-menu {
+  --win-hover: rgba(0, 0, 0, 0.0373);
+  --win-flyout-bg: #f9f9f9;
+  --win-flyout-stroke: rgba(0, 0, 0, 0.0578);
+  --win-secondary: rgba(0, 0, 0, 0.6);
+  --win-divider: rgba(0, 0, 0, 0.0803);
+  --win-text: rgba(0, 0, 0, 0.85);
+  color: var(--win-text);
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+}
+.dark .win-menu {
+  --win-hover: rgba(255, 255, 255, 0.0605);
+  --win-flyout-bg: #2c2c2c;
+  --win-flyout-stroke: rgba(255, 255, 255, 0.08);
+  --win-secondary: rgba(255, 255, 255, 0.6);
+  --win-divider: rgba(255, 255, 255, 0.0837);
+  --win-text: rgba(255, 255, 255, 0.88);
+}
+.win-menu-button {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 4px;
+  outline: none;
+}
+.win-menu-button:hover,
+.win-menu-button:focus-visible,
+.win-menu-button[data-state="open"] { background: var(--win-hover); }
+.win-flyout {
+  z-index: 50;
+  min-width: 220px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--win-flyout-stroke);
+  background: var(--win-flyout-bg);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.14);
+  color: var(--win-text);
+  animation: win-flyout-down 250ms cubic-bezier(0, 0, 0, 1);
+}
+.win-flyout[data-side="right"] { animation-name: win-flyout-right; }
+@keyframes win-flyout-down {
+  from { opacity: 0; transform: translateY(-12px); }
+}
+@keyframes win-flyout-right {
+  from { opacity: 0; transform: translateX(-12px); }
+}
+.win-flyout-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 31px and 2px over and under (shared with the next row): 33px from row
+     to row as Paint's, with a gap between highlights */
+  height: 31px;
+  margin: 2px 0;
+  padding: 0 12px;
+  border-radius: 4px;
+  outline: none;
+  cursor: default;
+  user-select: none;
+}
+.win-flyout-item[data-highlighted],
+.win-flyout-item[data-state="open"] { background: var(--win-hover); }
+.win-flyout-item[data-disabled] { opacity: 0.4; }
+/* The icon column of Paint's menus, holding a tick where one is due */
+.win-flyout-check { display: flex; width: 20px; flex-shrink: 0; justify-content: center; }
+.win-flyout-shortcut { margin-left: 24px; font-size: 12px; color: var(--win-secondary); }
+/* Edge to edge, across the flyout's padding; the rows' 2px margins give it
+   room either side, so a highlight never touches it */
+.win-flyout-separator { height: 1px; margin: 0 -4px; background: var(--win-divider); }
+@media (prefers-reduced-motion: reduce) {
+  .win-flyout { animation: none; }
+}
+
 /* The interface at the size of macOS 26's sidebars (Mail, App Store):
    15px for primary text, 14px for secondary */
 .text-xs { font-size: 14px !important; line-height: 1.5 !important; }
@@ -266,6 +362,17 @@ html[data-platform="mac"].dark .glass-pill button:hover {
   color: #ffffff;
 }
 .sidebar-menu [data-slot="select-item"][data-highlighted] svg { color: #ffffff; }
+/* Windows: its text at the system's softer black and white and regular
+   weight; macOS' strong text spreads on Windows' rendering */
+html[data-platform="windows"] .app-sidebar {
+  --foreground: rgba(0, 0, 0, 0.85);
+  --muted-foreground: rgba(0, 0, 0, 0.56);
+  font-weight: 400;
+}
+html[data-platform="windows"].dark .app-sidebar {
+  --foreground: rgba(255, 255, 255, 0.88);
+  --muted-foreground: rgba(255, 255, 255, 0.6);
+}
 .app-sidebar .text-xs { font-size: 13px !important; }
 .app-sidebar .text-sm { font-size: 14px !important; }
 
@@ -358,27 +465,29 @@ button, [role="button"], [role="tab"], [role="menuitem"],
    ═══════════════════════════════════════ */
 /* Thin overlay bars on macOS only: elsewhere a mouse wheel scrolls down, not
    across, and a faint 8px bar is too hard to find and drag */
-html[data-platform="mac"] ::-webkit-scrollbar { width: 8px; height: 8px; }
-html[data-platform="mac"] ::-webkit-scrollbar-track { background: transparent; }
-html[data-platform="mac"] ::-webkit-scrollbar-thumb {
+/* Thin scrollbars with a rounded thumb and no arrows, as macOS and Windows 11
+   draw theirs (Windows' classic ones are 17px wide) */
+html:is([data-platform="mac"], [data-platform="windows"]) ::-webkit-scrollbar { width: 8px; height: 8px; }
+html:is([data-platform="mac"], [data-platform="windows"]) ::-webkit-scrollbar-track { background: transparent; }
+html:is([data-platform="mac"], [data-platform="windows"]) ::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.15);
   border-radius: 4px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
-html[data-platform="mac"] ::-webkit-scrollbar-thumb:hover {
+html:is([data-platform="mac"], [data-platform="windows"]) ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.3);
   background-clip: content-box;
 }
-html[data-platform="mac"].dark ::-webkit-scrollbar-thumb {
+html:is([data-platform="mac"], [data-platform="windows"]).dark ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   background-clip: content-box;
 }
-html[data-platform="mac"].dark ::-webkit-scrollbar-thumb:hover {
+html:is([data-platform="mac"], [data-platform="windows"]).dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
   background-clip: content-box;
 }
-html[data-platform="mac"] ::-webkit-scrollbar-corner { background: transparent; }
+html:is([data-platform="mac"], [data-platform="windows"]) ::-webkit-scrollbar-corner { background: transparent; }
 
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }

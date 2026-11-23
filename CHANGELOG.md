@@ -4,6 +4,34 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.16
+
+### Windows 11
+- The window has Windows 11's Mica behind it, tinted from the desktop, through the menu bar and the sidebar; the editor and the agent sit on it as one card with a rounded corner.
+- The menu bar is drawn in the window, as Paint's and Notepad's are, with menus at Windows 11's measures that slide open. Alt or F10 moves to it, and the arrow keys move along it.
+- Buttons, selections and ticks take Windows' accent color, and a new one shows when you come back to the app.
+- Scrollbars are thin, with a rounded thumb and no arrows.
+- Text in the sidebar and the menus is at Windows' own softer black and white.
+- On Windows 10 the window keeps its plain look, with the new menu bar.
+
+### Backup and restore
+- A large backup (90 MB, a million rows) restores. Before, the Restore dialog never took it. The file is read and run in the background with a progress bar and Cancel, and a failed statement is named with its line in the file.
+- Backup writes each table's rows in one go, with a row count and a progress bar: a million rows take seconds instead of about half a minute. Before, a row could in rare cases be written twice or not at all.
+- The backup's save dialog opens in Documents.
+- A dump dropped on the window while Restore is open goes to Restore, not into a new query tab.
+
+### Windows
+- Ctrl+O, Ctrl+N, Ctrl+Shift+S and Ctrl+L work while the page has the focus.
+
+### Tables
+- Vector Similarity Search is in a table's menu before the table has been opened, and Insert Row's template has its columns.
+- The k-NN template of an HNSW index uses the index's own metric.
+- Show DDL includes the table's indexes.
+- Export All as JSON, next to Export All as CSV. The Export button stays, dimmed, on an empty table.
+
+### Fixes
+- Closing the window with a transaction open asks first.
+
 ## v0.5.15
 
 ### Look and feel

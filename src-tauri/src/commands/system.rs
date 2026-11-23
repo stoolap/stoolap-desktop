@@ -16,10 +16,42 @@ pub fn get_accent_color() -> String {
             byte(rgb.blueComponent()),
         )
     }
-    #[cfg(not(target_os = "macos"))]
+    // The accent Windows draws title bars and its own controls in
+    #[cfg(windows)]
+    {
+        windows_accent().unwrap_or_else(|| "007affff".to_string())
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
     {
         "007affff".to_string()
     }
+}
+
+/// HKCU\Software\Microsoft\Windows\DWM\AccentColor, kept as 0xAABBGGRR,
+/// as "rrggbbff"
+#[cfg(windows)]
+fn windows_accent() -> Option<String> {
+    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
+    let wide = |s: &str| s.encode_utf16().chain(Some(0)).collect::<Vec<u16>>();
+    let (key, value) = (wide(r"Software\Microsoft\Windows\DWM"), wide("AccentColor"));
+    let mut abgr: u32 = 0;
+    let mut size = std::mem::size_of::<u32>() as u32;
+    // SAFETY: the value is a DWORD and the buffer holds one
+    let read = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            key.as_ptr(),
+            value.as_ptr(),
+            RRF_RT_REG_DWORD,
+            std::ptr::null_mut(),
+            (&mut abgr as *mut u32).cast(),
+            &mut size,
+        )
+    };
+    (read == 0).then(|| {
+        let [r, g, b, _] = abgr.to_le_bytes();
+        format!("{r:02x}{g:02x}{b:02x}ff")
+    })
 }
 
 #[tauri::command]

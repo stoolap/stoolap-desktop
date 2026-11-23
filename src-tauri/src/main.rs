@@ -85,6 +85,7 @@ fn main() {
             agent::agent_cancel,
             agent::agent_reset,
             agent::agent_write_result,
+            menu_select,
         ])
         .setup(|app| {
             app.manage(RecentMenu(std::sync::Mutex::new(None)));
@@ -92,6 +93,14 @@ fn main() {
             build_menu(app.handle())?;
             app.on_menu_event(on_menu_event);
             if let Some(window) = app.get_webview_window("main") {
+                // Windows 11's Mica behind the window (tauri.windows.conf.json
+                // makes it transparent; on Windows 10 the page stays opaque)
+                #[cfg(windows)]
+                if windows_has_mica() {
+                    use tauri::window::{Effect, EffectsBuilder};
+                    let _ = window.set_effects(EffectsBuilder::new().effect(Effect::Mica).build());
+                    MICA.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
                 match_background_to_theme(&window, window.theme().ok());
                 // Made hidden (tauri.conf.json) and shown here, once the
                 // window-state plugin has given it its saved size: shown at
@@ -100,6 +109,18 @@ fn main() {
                 let _ = window.set_focus();
             }
             Ok(())
+        })
+        // Over Mica (Windows), each load of the main page (a reload too) gets
+        // a clear background and the mark that clears its sidebar and menu bar
+        .on_page_load(|_webview, _payload| {
+            #[cfg(windows)]
+            if _payload.event() == tauri::webview::PageLoadEvent::Finished
+                && _webview.label() == "main"
+                && MICA.load(std::sync::atomic::Ordering::Relaxed)
+            {
+                let _ = _webview.set_background_color(Some(tauri::window::Color(0, 0, 0, 0)));
+                let _ = _webview.eval("document.documentElement.dataset.mica = ''");
+            }
         })
         .on_window_event(|window, event| match event {
             // About is a window too (outside macOS): only the main one's
@@ -113,6 +134,16 @@ fn main() {
                     match_background_to_theme(&webview, Some(*theme));
                 }
             }
+            // WebView2 makes its background opaque again when the window
+            // comes back from the taskbar: clear it again for Mica
+            #[cfg(windows)]
+            tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Focused(true)
+                if window.label() == "main" && MICA.load(std::sync::atomic::Ordering::Relaxed) =>
+            {
+                if let Some(webview) = window.get_webview_window("main") {
+                    let _ = webview.set_background_color(Some(tauri::window::Color(0, 0, 0, 0)));
+                }
+            }
             _ => {}
         })
         .run(tauri::generate_context!())
@@ -123,11 +154,46 @@ fn main() {
 /// globals.css) so a dark-mode launch does not flash white before the
 /// webview's first frame.
 fn match_background_to_theme(window: &tauri::WebviewWindow, theme: Option<tauri::Theme>) {
+    // Over Mica the page draws its own surfaces; the window shows through
+    #[cfg(windows)]
+    if MICA.load(std::sync::atomic::Ordering::Relaxed) && window.label() == "main" {
+        let _ = window.set_background_color(Some(tauri::window::Color(0, 0, 0, 0)));
+        return;
+    }
     let color = match theme {
         Some(tauri::Theme::Dark) => tauri::window::Color(0x18, 0x18, 0x18, 0xff),
         _ => tauri::window::Color(0xff, 0xff, 0xff, 0xff),
     };
     let _ = window.set_background_color(Some(color));
+}
+
+/// Mica is behind the main window: its page leaves the sidebar clear
+#[cfg(windows)]
+static MICA: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Windows 11 (build 22000 on), which has Mica
+#[cfg(windows)]
+fn windows_has_mica() -> bool {
+    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ};
+    let wide = |s: &str| s.encode_utf16().chain(Some(0)).collect::<Vec<u16>>();
+    let key = wide(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion");
+    let value = wide("CurrentBuildNumber");
+    let mut buf = [0u16; 16];
+    let mut size = std::mem::size_of_val(&buf) as u32;
+    // SAFETY: the buffer and its size in bytes describe the same memory
+    let read = unsafe {
+        RegGetValueW(
+            HKEY_LOCAL_MACHINE,
+            key.as_ptr(),
+            value.as_ptr(),
+            RRF_RT_REG_SZ,
+            std::ptr::null_mut(),
+            buf.as_mut_ptr().cast(),
+            &mut size,
+        )
+    };
+    let len = (size as usize / 2).saturating_sub(1).min(buf.len());
+    read == 0 && String::from_utf16_lossy(&buf[..len]).parse::<u32>().is_ok_and(|build| build >= 22000)
 }
 
 /// The menu bar, in the app's language. Built again when the language changes.
@@ -262,12 +328,29 @@ fn build_menu(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
             .build()?
     };
 
+    // Windows 11 apps draw their menu bar in the window, over Mica: the page
+    // draws it (WinMenubar) and sends its choices here (menu_select)
+    #[cfg(not(windows))]
     app_handle.set_menu(menu)?;
+    #[cfg(windows)]
+    let _ = menu;
     Ok(())
 }
 
 fn on_menu_event(app_handle: &tauri::AppHandle, event: tauri::menu::MenuEvent) {
-    let id = event.id().as_ref();
+    menu_action(app_handle, event.id().as_ref());
+}
+
+/// An item of the page's own menu bar (Windows), done as the native menu's.
+/// Async: a synchronous command runs on the main thread, and opening a
+/// window (About) from there deadlocks on Windows.
+#[tauri::command]
+async fn menu_select(app: tauri::AppHandle, id: String) {
+    menu_action(&app, &id);
+}
+
+/// What a menu item does, by its id
+fn menu_action(app_handle: &tauri::AppHandle, id: &str) {
     if id == "about" {
         #[cfg(target_os = "macos")]
         show_about_panel(app_handle);
