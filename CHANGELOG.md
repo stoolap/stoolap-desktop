@@ -12,6 +12,8 @@ before tagging; the release fails without one.
 - The sidebar's text is a size smaller and stronger, with clearer counts and headings.
 - On macOS the sidebar loses its tint while the window is in the background, as the system's own apps do.
 - The line between the agent and the editor is thinner.
+- The status bar separates a database's name from its path with a thin line instead of a dash.
+- About no longer shows the tagline under the app's name.
 
 ### Results
 - Search and Copy are in the toolbar above a result, and in a table's own toolbar, instead of at the bottom of the grid.

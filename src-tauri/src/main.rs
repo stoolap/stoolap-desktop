@@ -352,8 +352,8 @@ const RECENT_PREFIX: &str = "recent:";
 /// Language menu items: "language:system", "language:tr", …
 const LANGUAGE_PREFIX: &str = "language:";
 
-/// macOS' own About panel: the logo, name and version, then the tagline and
-/// the engine, as the About window elsewhere. The logo is passed in because
+/// macOS' own About panel: the logo, name and version, then the engine, as
+/// the About window elsewhere. The logo is passed in because
 /// a development build is no app bundle and would show a folder.
 #[cfg(target_os = "macos")]
 fn show_about_panel(app: &tauri::AppHandle) {
@@ -366,11 +366,7 @@ fn show_about_panel(app: &tauri::AppHandle) {
     let Some(mtm) = MainThreadMarker::new() else { return };
     let lang = i18n::current(app);
     let engine = engine_label(&commands::system::get_stoolap_version());
-    let credits_text = format!(
-        "{}\n{}",
-        i18n::text(lang, "aboutTagline"),
-        i18n::text(lang, "poweredBy").replace("{{engine}}", &engine)
-    );
+    let credits_text = i18n::text(lang, "poweredBy").replace("{{engine}}", &engine);
     // The year without a date library: a year is 365.2425 days on average
     let year = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

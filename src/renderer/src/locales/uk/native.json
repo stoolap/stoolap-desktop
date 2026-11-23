@@ -24,7 +24,6 @@
   "systemLanguage": "Системна ({{language}})",
   "minimize": "Згорнути",
   "about": "Про Stoolap Desktop",
-  "aboutTagline": "Візуальний застосунок для керування базами даних Stoolap",
   "poweredBy": "Працює на {{engine}}",
   "checkUpdates": "Перевірити оновлення…",
   "services": "Служби",
