@@ -293,7 +293,7 @@ Releases are driven by `.github/workflows/release.yml`, which triggers on any `v
    - `TAURI_SIGNING_PRIVATE_KEY` — contents of `~/.tauri/stoolap-desktop.key`
    - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — empty if no password
 
-   **Optional (macOS code signing + notarization):**
+   **macOS code signing + notarization** (the release signs with these; all six must be set):
    - `APPLE_CERTIFICATE` (base64 of Developer ID `.p12`)
    - `APPLE_CERTIFICATE_PASSWORD`
    - `APPLE_SIGNING_IDENTITY` (e.g. `Developer ID Application: Your Name (TEAMID)`)
