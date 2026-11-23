@@ -5,7 +5,7 @@ import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
 import * as native from "@/lib/native";
-import { NATIVE_MENUS, menuControl, readItems, textOf } from "./native-menu";
+import { NATIVE_MENUS, menuControl, menuRole, readItems, textOf } from "./native-menu";
 
 function DropdownMenu({
   ...props
@@ -25,10 +25,11 @@ function DropdownMenu({
 /** A DropdownMenu's items for the system's menu, or null if it holds others */
 function readMenuItems(children: React.ReactNode) {
   return readItems(children, (el) => {
-    if (el.type === DropdownMenuTrigger) return "skip";
-    if (el.type === DropdownMenuSeparator) return { type: "separator" };
-    if (el.type === DropdownMenuLabel) return { type: "label", label: textOf(el.props.children as React.ReactNode) };
-    if (el.type === DropdownMenuItem) {
+    const role = menuRole(el);
+    if (role === "trigger") return "skip";
+    if (role === "separator") return { type: "separator" };
+    if (role === "label") return { type: "label", label: textOf(el.props.children as React.ReactNode) };
+    if (role === "item") {
       const { onSelect, onClick } = el.props as {
         onSelect?: (e: Event) => void;
         onClick?: (e: React.MouseEvent) => void;
@@ -42,7 +43,7 @@ function readMenuItems(children: React.ReactNode) {
         },
       };
     }
-    if (el.type === DropdownMenuCheckboxItem) {
+    if (role === "checkbox") {
       const { checked, onCheckedChange } = el.props as {
         checked?: boolean;
         onCheckedChange?: (checked: boolean) => void;
@@ -54,7 +55,7 @@ function readMenuItems(children: React.ReactNode) {
         run: () => onCheckedChange?.(!checked),
       };
     }
-    if (el.type === DropdownMenuSub || el.type === DropdownMenuRadioGroup) return "unsupported";
+    if (role === "unsupported") return "unsupported";
     // A line of text in the list ("No conversations yet"): a dimmed one
     if (el.type === "div" || el.type === "p") return { type: "label", label: textOf(el.props.children as React.ReactNode) };
     return undefined;
@@ -286,6 +287,15 @@ function DropdownMenuSubContent({
     />
   );
 }
+
+// What each part is in the system's menu (readMenuItems)
+DropdownMenuTrigger.menuRole = "trigger";
+DropdownMenuLabel.menuRole = "label";
+DropdownMenuItem.menuRole = "item";
+DropdownMenuCheckboxItem.menuRole = "checkbox";
+DropdownMenuSeparator.menuRole = "separator";
+DropdownMenuSub.menuRole = "unsupported";
+DropdownMenuRadioGroup.menuRole = "unsupported";
 
 export {
   DropdownMenu,

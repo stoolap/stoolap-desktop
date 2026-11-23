@@ -24,6 +24,7 @@ before tagging; the release fails without one.
 ### Look and feel
 - The app's own dialogs (Create Table, Backup, Connect…) have their buttons, fields and text at the system's size, no longer the page's larger one.
 - Query tabs are compact rounded pills, their icon, title and round close button in line.
+- The query timeout in the status bar is a clock and its time (5 min), the rest in its tooltip.
 - Load Example Database has a book icon and in-memory databases a memory chip, no longer the agent's and a lightning bolt.
 - The start page's logo is larger and sits higher.
 - The example tab shows EXPLAIN on the vector search: the plan's NearestHnsw line is the HNSW index at work.

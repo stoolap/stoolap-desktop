@@ -151,12 +151,40 @@ export interface PopupItem {
   run?: () => void;
 }
 
+/** Whether a mouse button is down: a menu opens once it is let go */
+let pointerDown = false;
+if (typeof window !== "undefined") {
+  window.addEventListener("pointerdown", () => (pointerDown = true), true);
+  window.addEventListener("pointerup", () => (pointerDown = false), true);
+}
+
+/** Once the button is let go: a menu opened while it is down takes the
+ *  release, the page never sees it, and takes the next click for it */
+function pointerReleased(): Promise<void> {
+  if (!pointerDown) return Promise.resolve();
+  return new Promise((resolve) => {
+    window.addEventListener("pointerup", () => resolve(), { once: true, capture: true });
+    setTimeout(resolve, 1000);
+  });
+}
+
+/** A menu label's width in the system's menu font (13pt) */
+function labelWidth(text: string): number {
+  const ctx = document.createElement("canvas").getContext("2d");
+  if (!ctx) return text.length * 7;
+  ctx.font = "13px -apple-system, system-ui, sans-serif";
+  return ctx.measureText(text).width;
+}
+
 /**
  * The system's own menu (NSMenu on macOS) under a control, in place of one
  * the page draws: the app's Select and DropdownMenu open this on macOS.
  * Resolves once it has closed.
  */
 export async function popupMenuBelow(items: PopupItem[], control: Element): Promise<void> {
+  // No line at either end: the system's menu doesn't show one there
+  while (items[0]?.type === "separator") items = items.slice(1);
+  while (items.at(-1)?.type === "separator") items = items.slice(0, -1);
   const { Menu, MenuItem, CheckMenuItem, PredefinedMenuItem } = await import("@tauri-apps/api/menu");
   const { LogicalPosition } = await import("@tauri-apps/api/dpi");
   const menuItems = await Promise.all(
@@ -174,9 +202,29 @@ export async function popupMenuBelow(items: PopupItem[], control: Element): Prom
   );
   const menu = await Menu.new({ items: menuItems });
   const rect = control.getBoundingClientRect();
+  // Below the control, or above it when the window has no room below (the
+  // status bar's): the menu's height reckoned from its rows and lines
+  const rows = items.filter((i) => i.type !== "separator").length;
+  const height = rows * 24 + (items.length - rows) * 11 + 12;
+  const below = rect.bottom + 4 + height <= window.innerHeight;
+  const y = below ? rect.bottom + 4 : Math.max(0, rect.top - 4 - height);
+  // From the control's left, or ending at its right when the window has no
+  // room for it (the status bar's, at the right): the widest label, and the
+  // menu's insets (the tick's column, 30pt, and 16pt on the right)
+  const width = Math.max(0, ...items.map((i) => labelWidth(i.label ?? ""))) + 46;
+  // macOS turns a menu that would run off the screen's right to end at the
+  // point instead: by the screen's edge, the point is the control's right
+  const screenRight = ((screen as Screen & { availLeft?: number }).availLeft ?? 0) + screen.availWidth;
+  const nearScreenEdge = window.screenX + rect.left + width > screenRight - 24;
+  const x = nearScreenEdge
+    ? rect.right
+    : rect.left + width <= window.innerWidth
+      ? rect.left
+      : Math.max(0, rect.right - width);
+  await pointerReleased();
   setNativeMenuOpen(true);
   try {
-    await menu.popup(new LogicalPosition(rect.left, rect.bottom + 4));
+    await menu.popup(new LogicalPosition(x, y));
   } finally {
     setNativeMenuOpen(false);
   }

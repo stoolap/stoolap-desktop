@@ -9,20 +9,41 @@ import type { PopupItem } from "@/lib/native";
  */
 export const NATIVE_MENUS = typeof navigator !== "undefined" && navigator.platform.includes("Mac");
 
-/** The control the pointer last went down on: the menu opens under it */
+/** What opens a menu: a DropdownMenu's button, or a Select's (a combobox,
+ *  with no aria-haspopup) */
+const CONTROL = '[aria-haspopup], [role="combobox"]';
+
+/** The control the pointer last went down on, and when */
 let lastControl: Element | null = null;
+let lastPointerAt = 0;
 if (NATIVE_MENUS && typeof window !== "undefined") {
   window.addEventListener(
     "pointerdown",
-    (e) => (lastControl = (e.target as Element | null)?.closest("[aria-haspopup]") ?? null),
+    (e) => {
+      lastControl = (e.target as Element | null)?.closest(CONTROL) ?? null;
+      lastPointerAt = performance.now();
+    },
     true,
   );
 }
 
-/** The control a menu opens under: the one clicked, or focused (by keys) */
+/**
+ * The control a menu opens under: the one just clicked (Radix keeps the
+ * focus where it was on a click, maybe on another menu's control), else the
+ * focused one (opened by keys)
+ */
 export function menuControl(): Element | null {
-  const focused = document.activeElement?.closest("[aria-haspopup]");
-  return focused ?? lastControl;
+  if (lastControl && performance.now() - lastPointerAt < 1000) return lastControl;
+  return document.activeElement?.closest(CONTROL) ?? lastControl;
+}
+
+/**
+ * What a part of a menu is, from the mark its component carries (set in
+ * select.tsx and dropdown-menu.tsx). A mark, not the component itself:
+ * after a hot reload the elements on screen hold the old components
+ */
+export function menuRole(el: React.ReactElement): string | undefined {
+  return typeof el.type === "function" ? (el.type as { menuRole?: string }).menuRole : undefined;
 }
 
 /** An element's text, its parts spaced (a two-line item reads as one line) */

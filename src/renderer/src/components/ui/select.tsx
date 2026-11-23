@@ -5,7 +5,7 @@ import { Select as SelectPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
 import * as native from "@/lib/native";
-import { NATIVE_MENUS, menuControl, readItems, textOf } from "./native-menu";
+import { NATIVE_MENUS, menuControl, menuRole, readItems, textOf } from "./native-menu";
 
 function Select({
   ...props
@@ -29,10 +29,11 @@ function readSelectItems(
   onValueChange: ((value: string) => void) | undefined,
 ) {
   return readItems(children, (el) => {
-    if (el.type === SelectTrigger) return "skip";
-    if (el.type === SelectSeparator) return { type: "separator" };
-    if (el.type === SelectLabel) return { type: "label", label: textOf(el.props.children as React.ReactNode) };
-    if (el.type === SelectItem) {
+    const role = menuRole(el);
+    if (role === "trigger") return "skip";
+    if (role === "separator") return { type: "separator" };
+    if (role === "label") return { type: "label", label: textOf(el.props.children as React.ReactNode) };
+    if (role === "item") {
       const v = el.props.value as string;
       return {
         label: textOf(el.props.children as React.ReactNode),
@@ -213,6 +214,12 @@ function SelectScrollDownButton({
     </SelectPrimitive.ScrollDownButton>
   );
 }
+
+// What each part is in the system's menu (readSelectItems)
+SelectTrigger.menuRole = "trigger";
+SelectLabel.menuRole = "label";
+SelectItem.menuRole = "item";
+SelectSeparator.menuRole = "separator";
 
 export {
   Select,
