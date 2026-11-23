@@ -8,6 +8,8 @@ import {
   save,
   confirm,
 } from "@tauri-apps/plugin-dialog";
+import { setNativeMenuOpen } from "@/components/ui/tooltip";
+import { showPageContextMenu } from "@/components/layout/page-context-menu";
 import { getVersion as tauriGetVersion } from "@tauri-apps/api/app";
 import i18n from "./i18n";
 
@@ -55,6 +57,14 @@ export async function showConfirmDialog(options: {
   );
 }
 
+// Only macOS's native popup menus are today's; Windows' and GTK's are the
+// classic ones, so there the page draws the menu, where the click was
+const PAGE_MENUS = !navigator.platform.includes("Mac");
+let lastContextClick = { x: 0, y: 0 };
+if (PAGE_MENUS) {
+  window.addEventListener("contextmenu", (e) => (lastContextClick = { x: e.clientX, y: e.clientY }), true);
+}
+
 export async function showContextMenu(
   items: Array<{
     id: string;
@@ -63,6 +73,14 @@ export async function showContextMenu(
     enabled?: boolean;
   }>,
 ): Promise<string | null> {
+  if (PAGE_MENUS) {
+    setNativeMenuOpen(true);
+    try {
+      return await showPageContextMenu(items, lastContextClick.x, lastContextClick.y);
+    } finally {
+      setNativeMenuOpen(false);
+    }
+  }
   const { Menu, MenuItem, PredefinedMenuItem } = await import("@tauri-apps/api/menu");
   const { getCurrentWindow } = await import("@tauri-apps/api/window");
 
@@ -92,7 +110,13 @@ export async function showContextMenu(
     }
 
     const menu = await Menu.new({ items: menuItems });
-    await menu.popup();
+    // Tooltips stay shut until the menu closes (popup returns then)
+    setNativeMenuOpen(true);
+    try {
+      await menu.popup();
+    } finally {
+      setNativeMenuOpen(false);
+    }
 
     // If menu dismissed without selection, resolve null after short delay
     setTimeout(() => {

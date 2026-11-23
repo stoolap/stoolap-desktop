@@ -17,10 +17,40 @@ function TooltipProvider({
   );
 }
 
+/** A native menu (native.showContextMenu) is open: tooltips close and don't
+ *  open until it has. The page still sees the pointer move under the menu,
+ *  and never sees it leave what it was over. */
+let menuOpen = false;
+const CLOSE_TOOLTIPS = "stoolap:close-tooltips";
+export function setNativeMenuOpen(open: boolean) {
+  menuOpen = open;
+  if (open) window.dispatchEvent(new Event(CLOSE_TOOLTIPS));
+}
+
 function Tooltip({
+  open: openProp,
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
-  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
+  const [open, setOpen] = React.useState(false);
+  const controlled = openProp !== undefined;
+  React.useEffect(() => {
+    const close = () => (controlled ? onOpenChange?.(false) : setOpen(false));
+    window.addEventListener(CLOSE_TOOLTIPS, close);
+    return () => window.removeEventListener(CLOSE_TOOLTIPS, close);
+  }, [controlled, onOpenChange]);
+  return (
+    <TooltipPrimitive.Root
+      data-slot="tooltip"
+      open={controlled ? openProp : open}
+      onOpenChange={(next) => {
+        if (next && menuOpen) return;
+        if (!controlled) setOpen(next);
+        onOpenChange?.(next);
+      }}
+      {...props}
+    />
+  );
 }
 
 function TooltipTrigger({

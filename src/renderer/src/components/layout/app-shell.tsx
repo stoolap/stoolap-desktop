@@ -26,7 +26,8 @@ import { Tip } from "@/components/ui/tip";
 const SIDEBAR_WIDTH_DEFAULT = 240;
 const EDITOR_HEIGHT_DEFAULT = 220;
 const IS_MAC = navigator.userAgent.includes("Mac");
-const IS_WINDOWS = document.documentElement.dataset.platform === "windows";
+// Windows and Linux: the menu bar is the page's (only macOS keeps the system's)
+const PAGE_MENUBAR = !IS_MAC;
 // From macOS 27 a sidebar runs to the window's edges, a line on its right
 // (as Mail's); before, it is a card inset from them
 const SIDEBAR_CARD = IS_MAC && Number(document.documentElement.dataset.macos) < 27;
@@ -228,8 +229,8 @@ export function AppShell() {
 
   return (
     <div className="h-screen flex flex-col text-foreground">
-      {/* Windows 11: the menu bar in the window, over Mica */}
-      {IS_WINDOWS && <WinMenubar />}
+      {/* The menu bar in the window: over Mica on Windows 11 */}
+      {PAGE_MENUBAR && <WinMenubar />}
       <div className="flex flex-1 min-h-0">
         <KeyboardShortcuts />
         {/* Headless toolbar — just manages dialogs */}

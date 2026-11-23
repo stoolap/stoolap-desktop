@@ -4,6 +4,20 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.17
+
+### Windows and Linux
+- Right-click menus are drawn in the window like the menu bar's: Windows 11's menus on Windows, GNOME's on Linux. Before, they were the system's classic menus.
+- Window > Minimize and File > Close Window work.
+- In menus, a highlighted row sits as far from the menu's edges as from the lines between groups.
+- The sidebar's hover shade is see-through, so it takes the color of the Mica behind it.
+
+### Linux
+- The menu bar is drawn in the window with GNOME's look, in place of GTK's classic menu bar. Ctrl+O, Ctrl+N, Ctrl+Shift+S and Ctrl+L work while the page has the focus.
+
+### Fixes
+- A tooltip closes when a right-click menu opens and stays closed until the menu does.
+
 ## v0.5.16
 
 ### Windows 11

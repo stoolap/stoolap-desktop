@@ -7,7 +7,8 @@ import { explainAll } from "@/lib/sql-utils";
 import { getEditorSelection } from "@/lib/editor-registry";
 import { emit } from "@tauri-apps/api/event";
 
-const IS_WINDOWS = document.documentElement.dataset.platform === "windows";
+// Windows and Linux, whose menu bar is the page's: no native menu takes these
+const PAGE_MENUBAR = document.documentElement.dataset.platform !== "mac";
 
 export function KeyboardShortcuts() {
   const { executeQuery, isConnected } = useQueryExecution();
@@ -34,10 +35,10 @@ export function KeyboardShortcuts() {
       const currentTabs = tabsRef.current;
       const currentActiveTabId = activeTabIdRef.current;
 
-      // Windows: the menu's own shortcuts never reach it while the page has
-      // the focus (WebView2 keeps the keys), so the page sends the menu's
+      // Windows and Linux: there is no native menu to take the menu's
+      // shortcuts (the page draws the bar), so the page sends the menu's
       // event itself. On macOS the menu takes them before the page.
-      if (IS_WINDOWS && e.ctrlKey && !e.altKey && !e.metaKey) {
+      if (PAGE_MENUBAR && e.ctrlKey && !e.altKey && !e.metaKey) {
         const key = e.key.toLowerCase();
         const menuEvent = e.shiftKey
           ? { s: "menu:backup" }[key]

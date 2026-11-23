@@ -328,11 +328,12 @@ fn build_menu(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
             .build()?
     };
 
-    // Windows 11 apps draw their menu bar in the window, over Mica: the page
+    // Only macOS keeps the native menu bar. Windows 11 apps draw theirs in
+    // the window, over Mica, and GTK's on Linux is the classic one: the page
     // draws it (WinMenubar) and sends its choices here (menu_select)
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
     app_handle.set_menu(menu)?;
-    #[cfg(windows)]
+    #[cfg(not(target_os = "macos"))]
     let _ = menu;
     Ok(())
 }
@@ -341,7 +342,7 @@ fn on_menu_event(app_handle: &tauri::AppHandle, event: tauri::menu::MenuEvent) {
     menu_action(app_handle, event.id().as_ref());
 }
 
-/// An item of the page's own menu bar (Windows), done as the native menu's.
+/// An item of the page's own menu bar (Windows, Linux), done as the native menu's.
 /// Async: a synchronous command runs on the main thread, and opening a
 /// window (About) from there deadlocks on Windows.
 #[tauri::command]

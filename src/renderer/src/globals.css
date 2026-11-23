@@ -270,7 +270,9 @@ html[data-mica] .win-content-start {
 .win-flyout {
   z-index: 50;
   min-width: 220px;
-  padding: 4px;
+  /* 6px from a highlight to every edge: 4px over and under, and a row's 2px
+     margin; 6px at the sides, which have none */
+  padding: 4px 6px;
   border-radius: 8px;
   border: 1px solid var(--win-flyout-stroke);
   background: var(--win-flyout-bg);
@@ -305,11 +307,32 @@ html[data-mica] .win-content-start {
 /* The icon column of Paint's menus, holding a tick where one is due */
 .win-flyout-check { display: flex; width: 20px; flex-shrink: 0; justify-content: center; }
 .win-flyout-shortcut { margin-left: 24px; font-size: 12px; color: var(--win-secondary); }
-/* Edge to edge, across the flyout's padding; the rows' 2px margins give it
-   room either side, so a highlight never touches it */
-.win-flyout-separator { height: 1px; margin: 0 -4px; background: var(--win-divider); }
+/* Edge to edge, across the flyout's padding, with as much room either side
+   as a highlight has from the flyout's edges (6px), so the highlights sit
+   evenly between edges and lines */
+.win-flyout-separator { height: 1px; margin: 6px -6px; background: var(--win-divider); }
 @media (prefers-reduced-motion: reduce) {
   .win-flyout { animation: none; }
+}
+
+/* Linux: the same bar and menus at GNOME's (libadwaita's) measures: the
+   system font, roomier popovers with 12px corners and 6px rows, which fade
+   in rather than slide */
+html[data-platform="linux"] .win-menu { font-family: system-ui, sans-serif; }
+html[data-platform="linux"] .win-menu { --win-flyout-bg: #ffffff; }
+html[data-platform="linux"].dark .win-menu { --win-flyout-bg: #383838; }
+html[data-platform="linux"] .win-menu-button { border-radius: 6px; }
+html[data-platform="linux"] .win-flyout {
+  padding: 6px 8px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.12);
+  animation-name: win-flyout-fade;
+  animation-duration: 150ms;
+}
+html[data-platform="linux"] .win-flyout-item { border-radius: 6px; }
+html[data-platform="linux"] .win-flyout-separator { margin: 8px -8px; }
+@keyframes win-flyout-fade {
+  from { opacity: 0; transform: scale(0.97); }
 }
 
 /* The interface at the size of macOS 26's sidebars (Mail, App Store):
@@ -372,6 +395,14 @@ html[data-platform="windows"] .app-sidebar {
 html[data-platform="windows"].dark .app-sidebar {
   --foreground: rgba(255, 255, 255, 0.88);
   --muted-foreground: rgba(255, 255, 255, 0.6);
+}
+/* Windows and Linux: its hovers (rows, the header's buttons) a see-through
+   shade, as Windows' own lists have over Mica, not the opaque accent gray */
+html:is([data-platform="windows"], [data-platform="linux"]) .app-sidebar {
+  --accent: rgba(0, 0, 0, 0.06);
+}
+html:is([data-platform="windows"], [data-platform="linux"]).dark .app-sidebar {
+  --accent: rgba(255, 255, 255, 0.09);
 }
 .app-sidebar .text-xs { font-size: 13px !important; }
 .app-sidebar .text-sm { font-size: 14px !important; }
