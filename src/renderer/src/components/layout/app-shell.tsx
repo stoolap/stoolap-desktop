@@ -339,12 +339,13 @@ export function AppShell() {
                       no panel is open */}
                   <div
                     data-tauri-drag-region
-                    className={cn("flex items-center", IS_MAC ? "h-[46px]" : "h-10 pl-2", IS_MAC && !sidebarOpen && !agentOpen && "pl-[96px]")}
+                    // macOS: its pills on the toggles' line (as low as
+                    // togglesByLights), the same whether a panel is open or not
+                    className={cn("flex items-center", IS_MAC ? "h-[46px] pt-[10px]" : "h-10 pl-0.5", IS_MAC && !sidebarOpen && !agentOpen && "pl-[96px]")}
                   >
-                    {!IS_MAC && !sidebarOpen && !agentOpen && toggles}
                     {/* On macOS the toggles sit by the traffic lights, in the
                         leftmost panel: here when none is open */}
-                    {IS_MAC && !sidebarOpen && !agentOpen && togglesByLights}
+                    {!sidebarOpen && !agentOpen && toggles}
                     <div className="flex-1 self-stretch overflow-hidden">
                       <EditorTabs />
                     </div>
