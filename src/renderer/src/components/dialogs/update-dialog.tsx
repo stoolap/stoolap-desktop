@@ -165,7 +165,7 @@ export function UpdateDialog({ open, onOpenChange: setOpen, onLater }: UpdateDia
           {(status.kind === "uptodate" ||
             status.kind === "error") && (
             <>
-              <Button variant="ghost" onClick={runCheck} className="gap-2">
+              <Button variant="outline" onClick={runCheck} className="gap-2">
                 <RefreshCw className="h-4 w-4" />
                 {t("update.checkAgain")}
               </Button>

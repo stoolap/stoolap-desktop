@@ -451,6 +451,17 @@ button, [role="button"], [role="tab"], [role="menuitem"],
   letter-spacing: 0 !important;
 }
 
+/* Outline buttons with an edge as clear as a filled one's (as macOS' push
+   buttons): its faint border alone made it look smaller beside them */
+[data-slot="button"][data-variant="outline"] {
+  border-color: rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.1) !important;
+}
+.dark [data-slot="button"][data-variant="outline"] {
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.4) !important;
+}
+
 /* The app's own dialogs' buttons (OK, Cancel, Create…) at the system's
    push button size, not the page's 36px: macOS' 28px with 13px text,
    Windows 11's and GNOME's 32px with 14px */

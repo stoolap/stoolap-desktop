@@ -4,6 +4,13 @@ Each release's section is its release note: the release workflow publishes it
 on the GitHub release and in the update notice the app shows. Add the section
 before tagging; the release fails without one.
 
+## v0.5.20
+
+### Look and feel
+- Outline buttons (Cancel, Later, Check Again…) have a clearer edge, so they no longer look smaller beside filled ones.
+- macOS: the query tabs sit on the line of the sidebar and agent buttons, and stay put as the panels open and close.
+- Windows and Linux: the query tabs start closer to the window's edge.
+
 ## v0.5.19
 
 ### macOS
